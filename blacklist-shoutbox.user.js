@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torr9 Chat - Shoutbox 2.0
 // @namespace    https://github.com/SaltedButch/torr9-scripting
-// @version      2.68
+// @version      2.69
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, Gif et confort avancé pour la shoutbox Torr9
 // @icon         https://torr9.net/favicon.ico?favicon.71918ed5.ico
 // @author       Butchered
@@ -51,6 +51,10 @@
     const STORAGE_KEY_MANUAL_REACTION_FAVORITES = 'tm_torr9_manual_reaction_favorites';
     const STORAGE_KEY_CHAT_INPUT_TOOLBAR_INLINE = 'tm_torr9_chat_input_toolbar_inline';
     const STORAGE_KEY_CHAT_INPUT_TOOLBAR_ALIGN_RIGHT = 'tm_torr9_chat_input_toolbar_align_right';
+    const STORAGE_KEY_IMAGE_HOSTING_ENABLED = 'tm_torr9_image_hosting_enabled';
+    const STORAGE_KEY_IMGBB_API_KEY = 'tm_torr9_imgbb_api_key';
+    const STORAGE_KEY_IMAGE_HOSTING_EXPIRATION_SECONDS = 'tm_torr9_image_hosting_expiration_seconds';
+    const STORAGE_KEY_IMAGE_CATALOG = 'tm_torr9_image_catalog';
     const STORAGE_KEY_AFK_STATE = 'tm_torr9_afk_state';
     const STORAGE_KEY_AFK_ACTIVITY = 'tm_torr9_afk_activity';
     const STORAGE_KEY_AFK_PANEL_POSITION = 'tm_torr9_afk_panel_position';
@@ -92,6 +96,8 @@
         STORAGE_KEY_MANUAL_REACTION_FAVORITES,
         STORAGE_KEY_CHAT_INPUT_TOOLBAR_INLINE,
         STORAGE_KEY_CHAT_INPUT_TOOLBAR_ALIGN_RIGHT,
+        STORAGE_KEY_IMAGE_HOSTING_ENABLED,
+        STORAGE_KEY_IMAGE_HOSTING_EXPIRATION_SECONDS,
         STORAGE_KEY_AFK_PANEL_POSITION
     ];
     const PANEL_ID = 'tm-torr9-chat-stats';
@@ -106,6 +112,7 @@
     const HOME_COLLAPSE_BUTTON_ID = 'tm-home-chat-collapse-toggle';
     const PHRASES_MENU_WRAPPER_ID = 'tm-torr9-phrases-menu-wrapper';
     const GIF_MENU_WRAPPER_ID = 'tm-torr9-klipy-gif-wrapper';
+    const IMAGE_UPLOAD_MENU_WRAPPER_ID = 'tm-torr9-image-upload-wrapper';
     const EMOJI_QUICK_ACCESS_WRAPPER_ID = 'tm-torr9-emoji-quick-access-wrapper';
     const MODAL_SCROLLBAR_STYLE_ID = 'tm-torr9-modal-scrollbar-style';
     const CHAT_SCROLLBAR_STYLE_ID = 'tm-torr9-chat-scrollbar-style';
@@ -159,6 +166,15 @@
     const LONG_PRESS_REACTION_PICKER_OFFSET_Y = 0;
     const REACTION_PICKER_Z_INDEX = 320;
     const REACTION_USAGE_DUPLICATE_WINDOW_MS = 700;
+    const IMGBB_API_KEY_URL = 'https://api.imgbb.com/';
+    const IMGBB_UPLOAD_ENDPOINT = 'https://api.imgbb.com/1/upload';
+    const IMAGE_UPLOAD_MAX_BYTES = 32 * 1024 * 1024;
+    const IMAGE_CATALOG_MAX_RECORDS = 120;
+    const IMAGE_URL_VALIDATION_TIMEOUT_MS = 9000;
+    const IMAGE_DELETE_VERIFICATION_ATTEMPTS = 6;
+    const IMAGE_DELETE_VERIFICATION_DELAY_MS = 1200;
+    const IMAGE_HOSTING_EXPIRATION_VALUES = new Set([0, 600, 3600, 86400, 604800, 2592000, 15552000]);
+    const DEFAULT_IMAGE_HOSTING_EXPIRATION_SECONDS = 0;
     const DEFAULT_EMOJI_QUICK_ACCESS_LIMIT = 5;
     const DEFAULT_REACTION_QUICK_ACCESS_LIMIT = 5;
     const QUICK_ACCESS_MODE_AUTO = 'auto';
@@ -244,6 +260,10 @@
     let manualReactionFavorites = loadManualReactionFavorites();
     let chatInputToolbarInline = loadChatInputToolbarInline();
     let chatInputToolbarAlignRight = loadChatInputToolbarAlignRight();
+    let imageHostingEnabled = loadImageHostingEnabled();
+    let imgbbApiKey = loadImgBbApiKey();
+    let imageHostingExpirationSeconds = loadImageHostingExpirationSeconds();
+    let imageCatalog = loadImageCatalog();
     let mentionSoundContext = null;
     let mentionSoundElement = null;
     let lastMentionSoundRecord = loadLastMentionSoundRecord();
@@ -255,6 +275,9 @@
     let lastTrackedReactionUsageAt = 0;
     let savedPhrasesToolbarEventsInstalled = false;
     let klipyGifToolbarEventsInstalled = false;
+    let imageUploadToolbarEventsInstalled = false;
+    let imagePasteHandlerInstalled = false;
+    let pendingImageUploadFiles = [];
     let klipyGifSearchDebounceTimer = null;
     let klipyGifRequestSerial = 0;
     let savedPhrasesStorageNeedsRepair = false;
@@ -378,6 +401,25 @@
      * @typedef {Object} KlipyGifFeedPayload
      * @property {KlipyGifResult[]} results
      * @property {string} next
+     */
+
+    /**
+     * @typedef {Object} ImageCatalogRecord
+     * @property {string} id
+     * @property {string} url
+     * @property {string} displayUrl
+     * @property {string} viewerUrl
+     * @property {string} deleteUrl
+     * @property {string} thumbUrl
+     * @property {string} title
+     * @property {string} source
+     * @property {string} mime
+     * @property {number} width
+     * @property {number} height
+     * @property {number} size
+     * @property {number} createdAt
+     * @property {number} expiresAt
+     * @property {number} lastCheckedAt
      */
 
     /**
@@ -1740,6 +1782,156 @@
         writeStorageBoolean(STORAGE_KEY_CHAT_INPUT_TOOLBAR_ALIGN_RIGHT, chatInputToolbarAlignRight);
     }
 
+    function loadImageHostingEnabled() {
+        return readStorageBoolean(STORAGE_KEY_IMAGE_HOSTING_ENABLED, false);
+    }
+
+    function saveImageHostingEnabled(value) {
+        imageHostingEnabled = !!value;
+        writeStorageBoolean(STORAGE_KEY_IMAGE_HOSTING_ENABLED, imageHostingEnabled);
+    }
+
+    function normalizeImgBbApiKey(value) {
+        return String(value || '').trim().replace(/\s+/g, '');
+    }
+
+    function loadImgBbApiKey() {
+        return normalizeImgBbApiKey(readStorageItem(STORAGE_KEY_IMGBB_API_KEY));
+    }
+
+    function saveImgBbApiKey(value) {
+        imgbbApiKey = normalizeImgBbApiKey(value);
+        if (!imgbbApiKey) {
+            removeStorageItem(STORAGE_KEY_IMGBB_API_KEY);
+            return;
+        }
+
+        writeStorageItem(STORAGE_KEY_IMGBB_API_KEY, imgbbApiKey);
+    }
+
+    function normalizeImageHostingExpirationSeconds(value) {
+        const parsedValue = Math.max(0, Number.parseInt(String(value ?? ''), 10) || 0);
+        return IMAGE_HOSTING_EXPIRATION_VALUES.has(parsedValue)
+            ? parsedValue
+            : DEFAULT_IMAGE_HOSTING_EXPIRATION_SECONDS;
+    }
+
+    function loadImageHostingExpirationSeconds() {
+        return normalizeImageHostingExpirationSeconds(readStorageItem(STORAGE_KEY_IMAGE_HOSTING_EXPIRATION_SECONDS));
+    }
+
+    function saveImageHostingExpirationSeconds(value) {
+        imageHostingExpirationSeconds = normalizeImageHostingExpirationSeconds(value);
+        writeStorageItem(STORAGE_KEY_IMAGE_HOSTING_EXPIRATION_SECONDS, String(imageHostingExpirationSeconds));
+    }
+
+    function normalizeImageCatalogUrl(value) {
+        const rawValue = String(value || '').trim();
+        if (!rawValue) return '';
+        if (!/^https?:\/\//i.test(rawValue)) return '';
+
+        try {
+            const url = new URL(rawValue);
+            if (!/^https?:$/i.test(url.protocol)) return '';
+            return url.href;
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function normalizeImageCatalogRecord(value) {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+        const url = normalizeImageCatalogUrl(value.url || value.displayUrl || value.image?.url);
+        if (!url) return null;
+
+        const createdAt = Math.max(0, Number(value.createdAt) || Date.now());
+        const expiresAt = Math.max(0, Number(value.expiresAt) || 0);
+        const id = String(value.id || `img-${hashString(`${url}:${createdAt}`)}`).trim();
+
+        return {
+            id,
+            url,
+            displayUrl: normalizeImageCatalogUrl(value.displayUrl) || url,
+            viewerUrl: normalizeImageCatalogUrl(value.viewerUrl || value.urlViewer) || '',
+            deleteUrl: normalizeImageCatalogUrl(value.deleteUrl || value.delete_url) || '',
+            thumbUrl: normalizeImageCatalogUrl(value.thumbUrl || value.thumbnailUrl || value.thumb?.url) || url,
+            title: String(value.title || value.name || value.filename || 'Image').trim().slice(0, 120) || 'Image',
+            source: String(value.source || 'manual').trim().toLowerCase() === 'imgbb' ? 'imgbb' : 'manual',
+            mime: String(value.mime || value.type || '').trim().slice(0, 80),
+            width: Math.max(0, Number.parseInt(String(value.width ?? 0), 10) || 0),
+            height: Math.max(0, Number.parseInt(String(value.height ?? 0), 10) || 0),
+            size: Math.max(0, Number.parseInt(String(value.size ?? 0), 10) || 0),
+            createdAt,
+            expiresAt,
+            lastCheckedAt: Math.max(0, Number(value.lastCheckedAt) || 0)
+        };
+    }
+
+    function pruneImageCatalogRecords(records = []) {
+        const now = Date.now();
+        const seenUrls = new Set();
+
+        return (Array.isArray(records) ? records : [])
+            .map(normalizeImageCatalogRecord)
+            .filter(Boolean)
+            .filter((record) => !record.expiresAt || record.expiresAt > now)
+            .filter((record) => {
+                const dedupeKey = record.url.toLowerCase();
+                if (seenUrls.has(dedupeKey)) return false;
+                seenUrls.add(dedupeKey);
+                return true;
+            })
+            .sort((left, right) => right.createdAt - left.createdAt)
+            .slice(0, IMAGE_CATALOG_MAX_RECORDS);
+    }
+
+    function loadImageCatalog() {
+        return pruneImageCatalogRecords(readStorageJson(STORAGE_KEY_IMAGE_CATALOG, []));
+    }
+
+    function saveImageCatalog(nextRecords = imageCatalog) {
+        imageCatalog = pruneImageCatalogRecords(nextRecords);
+        writeStorageJson(STORAGE_KEY_IMAGE_CATALOG, imageCatalog);
+    }
+
+    function getImageCatalogExpirationAt(referenceTime = Date.now(), expirationSeconds = imageHostingExpirationSeconds) {
+        const normalizedExpirationSeconds = normalizeImageHostingExpirationSeconds(expirationSeconds);
+        return normalizedExpirationSeconds > 0
+            ? referenceTime + normalizedExpirationSeconds * 1000
+            : 0;
+    }
+
+    function addImageCatalogRecord(record) {
+        const normalizedRecord = normalizeImageCatalogRecord(record);
+        if (!normalizedRecord) {
+            return { ok: false, message: 'Lien image invalide.' };
+        }
+
+        const nextRecords = [
+            {
+                ...normalizedRecord,
+                createdAt: normalizedRecord.createdAt || Date.now()
+            },
+            ...imageCatalog.filter((entry) => entry.url.toLowerCase() !== normalizedRecord.url.toLowerCase())
+        ];
+
+        saveImageCatalog(nextRecords);
+        return { ok: true, message: 'Image ajoutée au catalogue.' };
+    }
+
+    function removeImageCatalogRecord(recordId) {
+        const normalizedRecordId = String(recordId || '').trim();
+        if (!normalizedRecordId) return { ok: false, message: 'Image introuvable.' };
+
+        const previousLength = imageCatalog.length;
+        saveImageCatalog(imageCatalog.filter((record) => record.id !== normalizedRecordId));
+
+        return previousLength === imageCatalog.length
+            ? { ok: false, message: 'Image introuvable.' }
+            : { ok: true, message: 'Image retirée du catalogue.' };
+    }
+
     function normalizeAfkAutoReplyMessage(value) {
         const normalizedMessage = extractSavedPhraseStringValue(value)
             .replace(/\r\n?/g, '\n')
@@ -2481,6 +2673,10 @@
         manualReactionFavorites = loadManualReactionFavorites();
         chatInputToolbarInline = loadChatInputToolbarInline();
         chatInputToolbarAlignRight = loadChatInputToolbarAlignRight();
+        imageHostingEnabled = loadImageHostingEnabled();
+        imgbbApiKey = loadImgBbApiKey();
+        imageHostingExpirationSeconds = loadImageHostingExpirationSeconds();
+        imageCatalog = loadImageCatalog();
         afkState = loadAfkState();
         afkPanelPosition = loadAfkPanelPosition();
         afkPanelHidden = loadAfkPanelHidden();
@@ -2528,6 +2724,12 @@
             injectKlipyGifToolbar();
         } else {
             removeKlipyGifToolbar();
+        }
+
+        if (imageHostingEnabled) {
+            injectImageUploadToolbar();
+        } else {
+            removeImageUploadToolbar();
         }
 
         processAllMessages();
@@ -3196,6 +3398,7 @@
 
             [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] #${PHRASES_MENU_WRAPPER_ID},
             [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] #${GIF_MENU_WRAPPER_ID},
+            [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] #${IMAGE_UPLOAD_MENU_WRAPPER_ID},
             [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] [${NATIVE_CHAT_INPUT_ACTION_HOST_ATTR}="1"],
             [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] [${NATIVE_CHAT_INPUT_ACTION_SOURCE_ATTR}="1"] {
                 z-index: 220 !important;
@@ -3204,6 +3407,7 @@
 
             [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] #${PHRASES_MENU_WRAPPER_ID} [data-tm-saved-phrases-menu="1"],
             [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] #${GIF_MENU_WRAPPER_ID} [data-tm-klipy-gif-menu="1"],
+            [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] #${IMAGE_UPLOAD_MENU_WRAPPER_ID} [data-tm-image-upload-menu="1"],
             [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] [${NATIVE_CHAT_INPUT_ACTION_SOURCE_ATTR}="1"] > .absolute.bottom-12,
             [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] [${NATIVE_CHAT_INPUT_ACTION_SOURCE_ATTR}="1"] > .fixed.bottom-12,
             [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] [${NATIVE_CHAT_INPUT_ACTION_SOURCE_ATTR}="1"] > .absolute.bottom-24,
@@ -3589,6 +3793,371 @@
         const raw = String(value || '').trim();
         if (!/^https?:\/\/\S+$/i.test(raw)) return '';
         return raw;
+    }
+
+    function buildImageEmbedMarkup(imageUrl) {
+        const normalizedImageUrl = normalizeUrlForChatInsertion(imageUrl);
+        if (!normalizedImageUrl) return '';
+        return `[img]${normalizedImageUrl}[/img]`;
+    }
+
+    async function copyTextToClipboard(text) {
+        const normalizedText = String(text || '');
+        if (!normalizedText) return false;
+
+        if (navigator.clipboard?.writeText) {
+            try {
+                await navigator.clipboard.writeText(normalizedText);
+                return true;
+            } catch (e) {}
+        }
+
+        try {
+            const textarea = document.createElement('textarea');
+            textarea.value = normalizedText;
+            textarea.setAttribute('readonly', 'readonly');
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-9999px';
+            textarea.style.top = '0';
+            document.body?.appendChild(textarea);
+            textarea.select();
+            const copied = document.execCommand('copy');
+            textarea.remove();
+            return copied;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function formatFileSize(bytes) {
+        const size = Math.max(0, Number(bytes) || 0);
+        if (size >= 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(size >= 10 * 1024 * 1024 ? 0 : 1)} Mo`;
+        if (size >= 1024) return `${Math.round(size / 1024)} Ko`;
+        return `${size} o`;
+    }
+
+    function formatImageHostingExpirationLabel(seconds = imageHostingExpirationSeconds) {
+        const normalizedSeconds = normalizeImageHostingExpirationSeconds(seconds);
+        if (normalizedSeconds === 0) return 'permanent';
+        if (normalizedSeconds === 600) return '10 min';
+        if (normalizedSeconds === 3600) return '1 h';
+        if (normalizedSeconds === 86400) return '1 jour';
+        if (normalizedSeconds === 604800) return '7 jours';
+        if (normalizedSeconds === 2592000) return '30 jours';
+        if (normalizedSeconds === 15552000) return '180 jours';
+        return `${normalizedSeconds}s`;
+    }
+
+    function formatImageCatalogDate(timestamp) {
+        const normalizedTimestamp = Math.max(0, Number(timestamp) || 0);
+        if (!normalizedTimestamp) return '';
+
+        return new Date(normalizedTimestamp).toLocaleString('fr-FR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    function validateImageUrl(imageUrl, timeoutMs = IMAGE_URL_VALIDATION_TIMEOUT_MS) {
+        const normalizedImageUrl = normalizeImageCatalogUrl(imageUrl);
+        if (!normalizedImageUrl) {
+            return Promise.resolve({ ok: false, message: 'URL image invalide.' });
+        }
+
+        return new Promise((resolve) => {
+            const image = new Image();
+            let settled = false;
+            const timeout = window.setTimeout(() => {
+                if (settled) return;
+                settled = true;
+                image.onload = null;
+                image.onerror = null;
+                resolve({ ok: false, message: 'Validation image expirée.' });
+            }, timeoutMs);
+
+            image.onload = () => {
+                if (settled) return;
+                settled = true;
+                window.clearTimeout(timeout);
+                resolve({
+                    ok: true,
+                    url: normalizedImageUrl,
+                    width: Math.max(0, Number(image.naturalWidth) || 0),
+                    height: Math.max(0, Number(image.naturalHeight) || 0)
+                });
+            };
+
+            image.onerror = () => {
+                if (settled) return;
+                settled = true;
+                window.clearTimeout(timeout);
+                resolve({ ok: false, message: 'Le lien ne charge pas une image valide.' });
+            };
+
+            image.referrerPolicy = 'no-referrer';
+            image.src = normalizedImageUrl;
+        });
+    }
+
+    function waitMs(delayMs) {
+        return new Promise((resolve) => {
+            window.setTimeout(resolve, Math.max(0, Number(delayMs) || 0));
+        });
+    }
+
+    function addImageUrlCacheBuster(imageUrl) {
+        const normalizedImageUrl = normalizeImageCatalogUrl(imageUrl);
+        if (!normalizedImageUrl) return '';
+
+        try {
+            const url = new URL(normalizedImageUrl);
+            url.searchParams.set('tm_delete_check', `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`);
+            return url.href;
+        } catch (e) {
+            return normalizedImageUrl;
+        }
+    }
+
+    async function waitForImageUrlToBecomeInvalid(imageUrl) {
+        const normalizedImageUrl = normalizeImageCatalogUrl(imageUrl);
+        if (!normalizedImageUrl) {
+            return { ok: true, message: 'URL image déjà invalide.' };
+        }
+
+        for (let attempt = 0; attempt < IMAGE_DELETE_VERIFICATION_ATTEMPTS; attempt += 1) {
+            await waitMs(attempt === 0 ? 650 : IMAGE_DELETE_VERIFICATION_DELAY_MS);
+
+            const validation = await validateImageUrl(addImageUrlCacheBuster(normalizedImageUrl), 3500);
+            if (!validation.ok) {
+                return { ok: true, message: 'Image distante indisponible.' };
+            }
+        }
+
+        return { ok: false, message: 'L’image distante charge encore.' };
+    }
+
+    async function requestRemoteImageDeletion(record) {
+        const deleteUrl = normalizeImageCatalogUrl(record?.deleteUrl);
+        if (!deleteUrl) {
+            return { ok: false, message: 'URL de suppression distante introuvable.' };
+        }
+
+        const requestResult = {
+            responseReadable: false,
+            responseOk: false,
+            responseStatus: 0,
+            responseText: '',
+            errorMessage: ''
+        };
+
+        try {
+            const response = await fetch(deleteUrl, {
+                method: 'GET',
+                credentials: 'omit',
+                cache: 'no-store',
+                redirect: 'follow'
+            });
+
+            requestResult.responseReadable = response.type !== 'opaque';
+            requestResult.responseOk = response.ok || (response.status >= 200 && response.status < 400);
+            requestResult.responseStatus = Math.max(0, Number(response.status) || 0);
+
+            if (requestResult.responseReadable) {
+                try {
+                    requestResult.responseText = (await response.clone().text()).slice(0, 300);
+                } catch (e) {
+                    requestResult.responseText = '';
+                }
+            }
+        } catch (e) {
+            requestResult.errorMessage = e?.message || 'Réponse ImgBB inaccessible.';
+        }
+
+        const verification = await waitForImageUrlToBecomeInvalid(record?.url || record?.displayUrl || record?.thumbUrl);
+        if (verification.ok) {
+            return {
+                ok: true,
+                message: requestResult.responseReadable
+                    ? 'Suppression distante confirmée.'
+                    : 'Suppression distante confirmée après vérification.'
+            };
+        }
+
+        if (requestResult.responseReadable && !requestResult.responseOk) {
+            const statusLabel = requestResult.responseStatus ? `HTTP ${requestResult.responseStatus}` : 'réponse non valide';
+            return {
+                ok: false,
+                message: `Suppression ImgBB non confirmée (${statusLabel}). Entrée locale conservée.`
+            };
+        }
+
+        if (requestResult.errorMessage) {
+            return {
+                ok: false,
+                message: 'Réponse ImgBB inaccessible et image encore valide. Entrée locale conservée.'
+            };
+        }
+
+        return {
+            ok: false,
+            message: 'ImgBB a répondu, mais l’image charge encore. Entrée locale conservée.'
+        };
+    }
+
+    async function deleteImageCatalogRecord(record) {
+        const normalizedRecord = normalizeImageCatalogRecord(record);
+        if (!normalizedRecord) {
+            return { ok: false, message: 'Image introuvable.' };
+        }
+
+        if (normalizedRecord.deleteUrl) {
+            const remoteDeletion = await requestRemoteImageDeletion(normalizedRecord);
+            if (!remoteDeletion.ok) return remoteDeletion;
+        }
+
+        const localDeletion = removeImageCatalogRecord(normalizedRecord.id);
+        if (!localDeletion.ok) return localDeletion;
+
+        return {
+            ok: true,
+            message: normalizedRecord.deleteUrl
+                ? 'Image supprimée à distance, entrée locale retirée.'
+                : localDeletion.message
+        };
+    }
+
+    function extractImageFilesFromFileList(fileList) {
+        return Array.from(fileList || [])
+            .filter((file) => file instanceof File)
+            .filter((file) => /^image\//i.test(file.type || ''))
+            .filter((file) => file.size > 0);
+    }
+
+    function extractImageFilesFromDataTransfer(dataTransfer) {
+        if (!dataTransfer) return [];
+
+        const files = extractImageFilesFromFileList(dataTransfer.files);
+        if (files.length > 0) return files;
+
+        return Array.from(dataTransfer.items || [])
+            .filter((item) => item.kind === 'file')
+            .map((item) => item.getAsFile())
+            .filter((file) => file instanceof File && /^image\//i.test(file.type || '') && file.size > 0);
+    }
+
+    function buildImageCatalogRecordFromImgBbPayload(payload, file, uploadedAt = Date.now()) {
+        const data = payload?.data || {};
+        const imageInfo = data.image || {};
+        const thumbInfo = data.thumb || {};
+        const mediumInfo = data.medium || {};
+        const hasApiExpiration = data.expiration !== undefined && data.expiration !== null && data.expiration !== '';
+        const expirationSeconds = hasApiExpiration
+            ? Math.max(0, Number.parseInt(String(data.expiration), 10) || 0)
+            : normalizeImageHostingExpirationSeconds(imageHostingExpirationSeconds);
+        const expiresAt = expirationSeconds > 0
+            ? uploadedAt + expirationSeconds * 1000
+            : 0;
+
+        return normalizeImageCatalogRecord({
+            id: String(data.id || hashString(`${data.url || file?.name || uploadedAt}:${uploadedAt}`)),
+            url: data.url || imageInfo.url || data.display_url,
+            displayUrl: data.display_url || mediumInfo.url || data.url || imageInfo.url,
+            viewerUrl: data.url_viewer || '',
+            deleteUrl: data.delete_url || '',
+            thumbUrl: thumbInfo.url || mediumInfo.url || data.display_url || data.url || imageInfo.url,
+            title: data.title || imageInfo.name || file?.name || 'Image ImgBB',
+            source: 'imgbb',
+            mime: imageInfo.mime || file?.type || '',
+            width: Number(data.width) || 0,
+            height: Number(data.height) || 0,
+            size: Number(data.size) || file?.size || 0,
+            createdAt: uploadedAt,
+            expiresAt,
+            lastCheckedAt: uploadedAt
+        });
+    }
+
+    async function uploadImageFileToImgBb(file, expirationSeconds = imageHostingExpirationSeconds) {
+        if (!(file instanceof File)) {
+            throw new Error('Fichier image introuvable.');
+        }
+
+        if (!/^image\//i.test(file.type || '')) {
+            throw new Error(`${file.name || 'Fichier'} n’est pas une image.`);
+        }
+
+        if (file.size > IMAGE_UPLOAD_MAX_BYTES) {
+            throw new Error(`${file.name || 'Image'} dépasse ${formatFileSize(IMAGE_UPLOAD_MAX_BYTES)}.`);
+        }
+
+        const apiKey = normalizeImgBbApiKey(imgbbApiKey);
+        if (!apiKey) {
+            throw new Error('Clé API ImgBB manquante.');
+        }
+
+        const requestUrl = new URL(IMGBB_UPLOAD_ENDPOINT);
+        requestUrl.searchParams.set('key', apiKey);
+        const normalizedExpirationSeconds = normalizeImageHostingExpirationSeconds(expirationSeconds);
+        if (normalizedExpirationSeconds > 0) {
+            requestUrl.searchParams.set('expiration', String(normalizedExpirationSeconds));
+        }
+
+        const formData = new FormData();
+        formData.append('image', file, file.name || `image-${Date.now()}`);
+
+        const response = await fetch(requestUrl.toString(), {
+            method: 'POST',
+            body: formData,
+            credentials: 'omit'
+        });
+
+        let payload = null;
+        try {
+            payload = await response.json();
+        } catch (e) {}
+
+        if (!response.ok || payload?.success !== true) {
+            const message = payload?.error?.message || payload?.message || `Upload ImgBB impossible (HTTP ${response.status}).`;
+            throw new Error(message);
+        }
+
+        const record = buildImageCatalogRecordFromImgBbPayload(payload, file, Date.now());
+        if (!record) {
+            throw new Error('Réponse ImgBB inexploitable.');
+        }
+
+        return record;
+    }
+
+    async function addManualImageCatalogUrl(imageUrl, title = '') {
+        const validation = await validateImageUrl(imageUrl);
+        if (!validation.ok) {
+            return { ok: false, message: validation.message || 'Lien image invalide.' };
+        }
+
+        const url = validation.url;
+        let fallbackTitle = '';
+        try {
+            const parsedUrl = new URL(url);
+            fallbackTitle = decodeURIComponent(parsedUrl.pathname.split('/').filter(Boolean).pop() || '');
+        } catch (e) {}
+
+        return addImageCatalogRecord({
+            id: `manual-${hashString(`${url}:${Date.now()}`)}`,
+            url,
+            displayUrl: url,
+            thumbUrl: url,
+            title: String(title || fallbackTitle || 'Image').trim(),
+            source: 'manual',
+            width: validation.width,
+            height: validation.height,
+            createdAt: Date.now(),
+            expiresAt: getImageCatalogExpirationAt(),
+            lastCheckedAt: Date.now()
+        });
     }
 
     // Klipy GIF picker - API/data helpers
@@ -6473,6 +7042,20 @@
             toggleBtn: modal.querySelector('#tm-user-toggle'),
             phrasesEnabledToggle: modal.querySelector('#tm-phrases-enabled-toggle'),
             klipyGifsToggle: modal.querySelector('#tm-klipy-gifs-toggle'),
+            imageHostingEnabledToggle: modal.querySelector('#tm-image-hosting-enabled-toggle'),
+            imageHostingExpanded: modal.querySelector('#tm-image-hosting-expanded'),
+            imgbbApiKeyInput: modal.querySelector('#tm-imgbb-api-key-input'),
+            imgbbApiKeySaveBtn: modal.querySelector('#tm-imgbb-api-key-save'),
+            imgbbApiKeyLinkBtn: modal.querySelector('#tm-imgbb-api-key-link'),
+            imageHostingExpirationSelect: modal.querySelector('#tm-image-hosting-expiration-select'),
+            imageUploadDropzone: modal.querySelector('#tm-image-upload-dropzone'),
+            imageUploadPickBtn: modal.querySelector('#tm-image-upload-pick'),
+            imageUploadFileInput: modal.querySelector('#tm-image-upload-file-input'),
+            imageDirectUrlInput: modal.querySelector('#tm-image-direct-url-input'),
+            imageDirectUrlAddBtn: modal.querySelector('#tm-image-direct-url-add'),
+            imageCatalogPurgeBtn: modal.querySelector('#tm-image-catalog-purge'),
+            imageCatalogClearBtn: modal.querySelector('#tm-image-catalog-clear'),
+            imageCatalogList: modal.querySelector('#tm-image-catalog-list'),
             quickAccessModeSelect: modal.querySelector('#tm-quick-access-mode'),
             emojiQuickAccessLimitInput: modal.querySelector('#tm-emoji-quick-access-limit'),
             reactionQuickAccessLimitInput: modal.querySelector('#tm-reaction-quick-access-limit'),
@@ -6892,6 +7475,260 @@
         refreshSettingsManualFavoriteList(elements.manualReactionFavoritesList, manualReactionFavorites, true);
     }
 
+    function syncSettingsImageHostingExpandedState(elements) {
+        if (elements.imageHostingEnabledToggle instanceof HTMLInputElement) {
+            elements.imageHostingEnabledToggle.checked = imageHostingEnabled;
+        }
+
+        if (elements.imageHostingExpanded instanceof HTMLElement) {
+            elements.imageHostingExpanded.style.display = imageHostingEnabled ? 'block' : 'none';
+        }
+
+        if (elements.imgbbApiKeyInput instanceof HTMLInputElement) {
+            elements.imgbbApiKeyInput.value = imgbbApiKey;
+        }
+
+        if (elements.imageHostingExpirationSelect instanceof HTMLSelectElement) {
+            elements.imageHostingExpirationSelect.value = String(imageHostingExpirationSeconds);
+        }
+    }
+
+    function createSettingsImageCatalogItem(record, elements, controls) {
+        const item = document.createElement('div');
+        item.style.display = 'grid';
+        item.style.gridTemplateColumns = '64px minmax(0, 1fr)';
+        item.style.gap = '10px';
+        item.style.alignItems = 'start';
+        item.style.padding = '9px';
+        item.style.borderRadius = '12px';
+        item.style.background = 'rgba(255,255,255,0.03)';
+        item.style.border = '1px solid rgba(255,255,255,0.06)';
+
+        const thumb = document.createElement('img');
+        thumb.src = record.thumbUrl || record.url;
+        thumb.alt = record.title || 'Image';
+        thumb.loading = 'lazy';
+        thumb.referrerPolicy = 'no-referrer';
+        thumb.style.width = '64px';
+        thumb.style.height = '64px';
+        thumb.style.objectFit = 'cover';
+        thumb.style.borderRadius = '10px';
+        thumb.style.background = '#09090b';
+        thumb.style.border = '1px solid rgba(255,255,255,0.06)';
+        thumb.addEventListener('error', () => {
+            const result = removeImageCatalogRecord(record.id);
+            if (result.ok) {
+                controls.refreshImageCatalogList();
+                controls.setFeedback('Image invalide retirée automatiquement du catalogue.');
+            }
+        }, { once: true });
+
+        const body = document.createElement('div');
+        body.style.minWidth = '0';
+
+        const title = document.createElement('div');
+        title.textContent = record.title || 'Image';
+        title.title = record.title || record.url;
+        title.style.fontSize = '12px';
+        title.style.fontWeight = '700';
+        title.style.color = '#f4f4f5';
+        title.style.overflow = 'hidden';
+        title.style.textOverflow = 'ellipsis';
+        title.style.whiteSpace = 'nowrap';
+
+        const meta = document.createElement('div');
+        const metaParts = [
+            record.source === 'imgbb' ? 'ImgBB' : 'Lien direct',
+            record.width && record.height ? `${record.width}×${record.height}` : '',
+            record.size ? formatFileSize(record.size) : '',
+            record.expiresAt ? `expire ${formatImageCatalogDate(record.expiresAt)}` : 'permanent'
+        ].filter(Boolean);
+        meta.textContent = metaParts.join(' · ');
+        meta.style.marginTop = '4px';
+        meta.style.fontSize = '10px';
+        meta.style.color = '#a1a1aa';
+        meta.style.lineHeight = '1.35';
+
+        const url = document.createElement('div');
+        url.textContent = record.url;
+        url.title = record.url;
+        url.style.marginTop = '5px';
+        url.style.fontSize = '10px';
+        url.style.color = '#67e8f9';
+        url.style.overflow = 'hidden';
+        url.style.textOverflow = 'ellipsis';
+        url.style.whiteSpace = 'nowrap';
+
+        const actions = document.createElement('div');
+        actions.style.display = 'flex';
+        actions.style.gap = '6px';
+        actions.style.flexWrap = 'wrap';
+        actions.style.marginTop = '8px';
+
+        const copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
+        copyBtn.textContent = 'Copier';
+        copyBtn.style.border = 'none';
+        copyBtn.style.background = '#2563eb';
+        copyBtn.style.color = '#fff';
+        copyBtn.style.borderRadius = '8px';
+        copyBtn.style.padding = '6px 8px';
+        copyBtn.style.cursor = 'pointer';
+        copyBtn.style.fontSize = '11px';
+        copyBtn.style.fontWeight = '600';
+        copyBtn.addEventListener('click', async () => {
+            const copied = await copyTextToClipboard(record.url);
+            controls.setFeedback(copied ? 'Lien image copié.' : 'Copie impossible.', !copied);
+        });
+
+        const insertBtn = document.createElement('button');
+        insertBtn.type = 'button';
+        insertBtn.textContent = 'Insérer';
+        insertBtn.style.border = 'none';
+        insertBtn.style.background = '#0f766e';
+        insertBtn.style.color = '#fff';
+        insertBtn.style.borderRadius = '8px';
+        insertBtn.style.padding = '6px 8px';
+        insertBtn.style.cursor = 'pointer';
+        insertBtn.style.fontSize = '11px';
+        insertBtn.style.fontWeight = '600';
+        insertBtn.addEventListener('click', () => {
+            const result = insertTextIntoChatInput(getChatInput(), buildImageEmbedMarkup(record.url), 'Image insérée.');
+            controls.setFeedback(result.message, !result.ok);
+        });
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.textContent = record.deleteUrl ? 'Supprimer' : 'Retirer';
+        deleteBtn.title = record.deleteUrl
+            ? 'Supprimer via ImgBB, vérifier que l’image ne charge plus, puis retirer l’entrée locale'
+            : 'Retirer seulement cette entrée du catalogue local';
+        deleteBtn.style.border = 'none';
+        deleteBtn.style.background = '#3f3f46';
+        deleteBtn.style.color = '#fca5a5';
+        deleteBtn.style.borderRadius = '8px';
+        deleteBtn.style.padding = '6px 8px';
+        deleteBtn.style.cursor = 'pointer';
+        deleteBtn.style.fontSize = '11px';
+        deleteBtn.style.fontWeight = '600';
+        deleteBtn.addEventListener('click', async () => {
+            if (record.deleteUrl) {
+                const confirmed = window.confirm('Supprimer cette image via ImgBB ? L’entrée locale sera retirée seulement si la suppression est confirmée.');
+                if (!confirmed) return;
+                controls.setFeedback('Suppression ImgBB en cours, vérification du lien image...');
+            }
+
+            deleteBtn.disabled = true;
+            deleteBtn.style.opacity = '0.65';
+            const result = await deleteImageCatalogRecord(record);
+            controls.refreshImageCatalogList();
+            controls.setFeedback(result.message, !result.ok);
+        });
+
+        actions.appendChild(copyBtn);
+        actions.appendChild(insertBtn);
+        actions.appendChild(deleteBtn);
+        body.appendChild(title);
+        body.appendChild(meta);
+        body.appendChild(url);
+        body.appendChild(actions);
+        item.appendChild(thumb);
+        item.appendChild(body);
+        return item;
+    }
+
+    function refreshSettingsImageCatalogList(elements, controls) {
+        if (!(elements.imageCatalogList instanceof HTMLElement)) return;
+
+        saveImageCatalog(imageCatalog);
+        elements.imageCatalogList.innerHTML = '';
+
+        if (imageCatalog.length === 0) {
+            const empty = document.createElement('div');
+            empty.textContent = 'Aucune image enregistrée pour le moment.';
+            empty.style.fontSize = '12px';
+            empty.style.color = '#a1a1aa';
+            empty.style.padding = '5px 0';
+            elements.imageCatalogList.appendChild(empty);
+            return;
+        }
+
+        imageCatalog.forEach((record) => {
+            elements.imageCatalogList.appendChild(createSettingsImageCatalogItem(record, elements, controls));
+        });
+    }
+
+    async function purgeInvalidImageCatalogRecords(elements, controls) {
+        const records = pruneImageCatalogRecords(imageCatalog);
+        if (records.length === 0) {
+            saveImageCatalog([]);
+            controls.refreshImageCatalogList();
+            return { ok: true, message: 'Catalogue déjà vide.' };
+        }
+
+        controls.setFeedback('Vérification des liens images...');
+
+        const checkedRecords = [];
+        let removedCount = imageCatalog.length - records.length;
+
+        for (const record of records) {
+            const validation = await validateImageUrl(record.url, IMAGE_URL_VALIDATION_TIMEOUT_MS);
+            if (!validation.ok) {
+                removedCount += 1;
+                continue;
+            }
+
+            checkedRecords.push({
+                ...record,
+                width: validation.width || record.width,
+                height: validation.height || record.height,
+                lastCheckedAt: Date.now()
+            });
+        }
+
+        saveImageCatalog(checkedRecords);
+        controls.refreshImageCatalogList();
+
+        return {
+            ok: true,
+            message: removedCount > 0
+                ? `${removedCount} image${removedCount > 1 ? 's' : ''} expirée${removedCount > 1 ? 's' : ''} ou invalide${removedCount > 1 ? 's' : ''} retirée${removedCount > 1 ? 's' : ''}.`
+                : 'Catalogue vérifié, aucun lien mort.'
+        };
+    }
+
+    async function uploadImageFilesFromSettings(files, elements, controls) {
+        const imageFiles = extractImageFilesFromFileList(files);
+        if (imageFiles.length === 0) {
+            controls.setFeedback('Aucune image à uploader.', true);
+            return;
+        }
+
+        if (!normalizeImgBbApiKey(imgbbApiKey)) {
+            controls.setFeedback('Enregistre une clé API ImgBB avant l’upload.', true);
+            elements.imgbbApiKeyInput?.focus();
+            return;
+        }
+
+        let uploadedCount = 0;
+
+        for (const file of imageFiles) {
+            controls.setFeedback(`Upload ImgBB en cours : ${file.name || 'image'}...`);
+            try {
+                const record = await uploadImageFileToImgBb(file, imageHostingExpirationSeconds);
+                const result = addImageCatalogRecord(record);
+                if (!result.ok) throw new Error(result.message);
+                uploadedCount += 1;
+                controls.refreshImageCatalogList();
+            } catch (e) {
+                controls.setFeedback(e?.message || 'Upload ImgBB impossible.', true);
+                return;
+            }
+        }
+
+        controls.setFeedback(`${uploadedCount} image${uploadedCount > 1 ? 's' : ''} uploadée${uploadedCount > 1 ? 's' : ''} et cataloguée${uploadedCount > 1 ? 's' : ''}.`);
+    }
+
     function refreshSettingsHighlightedUsersList(elements, setFeedback) {
         if (!(elements.highlightUsersList instanceof HTMLElement)) return;
 
@@ -7070,7 +7907,7 @@
             applyChatFontScale(scale);
         }
 
-        return {
+        const controller = {
             setFeedback,
             syncSavedPhrasesMainSummary,
             getSelectedMentionSoundScope: () => getSelectedSettingsMentionSoundScope(elements),
@@ -7082,10 +7919,14 @@
             refreshEmojiUsageList: () => refreshSettingsEmojiUsageList(elements),
             refreshReactionUsageList: () => refreshSettingsReactionUsageList(elements),
             refreshManualQuickAccessLists: () => refreshSettingsManualQuickAccessLists(elements),
+            refreshImageCatalogList: () => refreshSettingsImageCatalogList(elements, controller),
+            syncImageHostingExpandedState: () => syncSettingsImageHostingExpandedState(elements),
             syncFontSizeValueLabel,
             setPreviewFontScale,
             applyMentionSettingsToInputs: () => applyMentionSettingsToModalInputs(elements)
         };
+
+        return controller;
     }
 
     function initializeSettingsModal(elements, controls) {
@@ -7094,6 +7935,8 @@
         controls.refreshEmojiUsageList();
         controls.refreshReactionUsageList();
         controls.refreshManualQuickAccessLists();
+        controls.syncImageHostingExpandedState();
+        controls.refreshImageCatalogList();
         elements.userInput?.focus();
         controls.syncHighlightOpacityValue();
         controls.syncMentionSoundControlsState();
@@ -7282,6 +8125,126 @@
                     elements.scriptConfigImportFileInput.value = '';
                 }
             }
+        });
+    }
+
+    function bindSettingsModalImageHostingEvents(elements, controls) {
+        elements.imageHostingEnabledToggle?.addEventListener('change', () => {
+            saveImageHostingEnabled(elements.imageHostingEnabledToggle.checked);
+            controls.syncImageHostingExpandedState();
+            controls.refreshImageCatalogList();
+            if (imageHostingEnabled) {
+                injectImageUploadToolbar();
+            } else {
+                removeImageUploadToolbar();
+            }
+            controls.setFeedback(
+                imageHostingEnabled
+                    ? 'Hébergement d’images activé.'
+                    : 'Hébergement d’images désactivé.'
+            );
+        });
+
+        elements.imgbbApiKeySaveBtn?.addEventListener('click', () => {
+            saveImgBbApiKey(elements.imgbbApiKeyInput?.value);
+            controls.syncImageHostingExpandedState();
+            controls.setFeedback(imgbbApiKey ? 'Clé API ImgBB enregistrée.' : 'Clé API ImgBB retirée.');
+        });
+
+        elements.imgbbApiKeyInput?.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            elements.imgbbApiKeySaveBtn?.click();
+        });
+
+        elements.imgbbApiKeyLinkBtn?.addEventListener('click', () => {
+            window.open(IMGBB_API_KEY_URL, '_blank', 'noopener,noreferrer');
+            controls.setFeedback('Page ImgBB ouverte pour récupérer une clé API.');
+        });
+
+        elements.imageHostingExpirationSelect?.addEventListener('change', () => {
+            saveImageHostingExpirationSeconds(elements.imageHostingExpirationSelect.value);
+            controls.syncImageHostingExpandedState();
+            controls.setFeedback(`Durée de vie par défaut : ${formatImageHostingExpirationLabel()}.`);
+        });
+
+        elements.imageUploadPickBtn?.addEventListener('click', () => {
+            elements.imageUploadFileInput?.click();
+        });
+
+        elements.imageUploadFileInput?.addEventListener('change', async () => {
+            const files = elements.imageUploadFileInput instanceof HTMLInputElement
+                ? elements.imageUploadFileInput.files
+                : null;
+            await uploadImageFilesFromSettings(files, elements, controls);
+            if (elements.imageUploadFileInput instanceof HTMLInputElement) {
+                elements.imageUploadFileInput.value = '';
+            }
+        });
+
+        elements.imageUploadDropzone?.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+            if (elements.imageUploadDropzone instanceof HTMLElement) {
+                elements.imageUploadDropzone.style.borderColor = 'rgba(125,211,252,0.88)';
+                elements.imageUploadDropzone.style.background = 'rgba(14,165,233,0.16)';
+            }
+        });
+
+        elements.imageUploadDropzone?.addEventListener('dragleave', () => {
+            if (elements.imageUploadDropzone instanceof HTMLElement) {
+                elements.imageUploadDropzone.style.borderColor = 'rgba(56,189,248,0.46)';
+                elements.imageUploadDropzone.style.background = 'rgba(14,165,233,0.08)';
+            }
+        });
+
+        elements.imageUploadDropzone?.addEventListener('drop', async (event) => {
+            event.preventDefault();
+            if (elements.imageUploadDropzone instanceof HTMLElement) {
+                elements.imageUploadDropzone.style.borderColor = 'rgba(56,189,248,0.46)';
+                elements.imageUploadDropzone.style.background = 'rgba(14,165,233,0.08)';
+            }
+
+            await uploadImageFilesFromSettings(extractImageFilesFromDataTransfer(event.dataTransfer), elements, controls);
+        });
+
+        elements.imageUploadDropzone?.addEventListener('paste', async (event) => {
+            const files = extractImageFilesFromDataTransfer(event.clipboardData);
+            if (files.length === 0) return;
+            event.preventDefault();
+            await uploadImageFilesFromSettings(files, elements, controls);
+        });
+
+        elements.imageDirectUrlAddBtn?.addEventListener('click', async () => {
+            const url = elements.imageDirectUrlInput instanceof HTMLInputElement
+                ? elements.imageDirectUrlInput.value
+                : '';
+            controls.setFeedback('Validation du lien image...');
+            const result = await addManualImageCatalogUrl(url);
+            controls.refreshImageCatalogList();
+            controls.setFeedback(result.message, !result.ok);
+            if (result.ok && elements.imageDirectUrlInput instanceof HTMLInputElement) {
+                elements.imageDirectUrlInput.value = '';
+            }
+        });
+
+        elements.imageDirectUrlInput?.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            elements.imageDirectUrlAddBtn?.click();
+        });
+
+        elements.imageCatalogPurgeBtn?.addEventListener('click', async () => {
+            const result = await purgeInvalidImageCatalogRecords(elements, controls);
+            controls.setFeedback(result.message, !result.ok);
+        });
+
+        elements.imageCatalogClearBtn?.addEventListener('click', () => {
+            const confirmed = window.confirm('Vider le catalogue local ? Les images hébergées ne seront pas supprimées.');
+            if (!confirmed) return;
+            saveImageCatalog([]);
+            controls.refreshImageCatalogList();
+            controls.setFeedback('Catalogue local vidé.');
         });
     }
 
@@ -7510,6 +8473,7 @@
         bindSettingsModalMentionEvents(elements, controls);
         bindSettingsModalAccessibilityEvents(elements, controls);
         bindSettingsModalConfigEvents(elements, controls);
+        bindSettingsModalImageHostingEvents(elements, controls);
         bindSettingsModalEmojiQuickAccessEvents(elements, controls);
         bindSettingsModalFeatureToggleEvents(elements, controls, currentPageLabel);
 
@@ -7636,6 +8600,13 @@
                         <div style="font-size:12px;font-weight:700;color:#fde68a;">Maj+clic dans un picker</div>
                         <div style="margin-top:4px;font-size:11px;color:#fcd34d;line-height:1.45;">
                             En mode manuel, ajoute ou retire un emoji ou une réaction des favoris. Dans les paramètres, clique sur un favori pour le retirer ou maintiens le clic puis glisse pour changer son ordre.
+                        </div>
+                    </div>
+
+                    <div style="padding:10px 12px;border-radius:12px;background:rgba(14,165,233,0.12);border:1px solid rgba(56,189,248,0.24);">
+                        <div style="font-size:12px;font-weight:700;color:#bae6fd;">Upload image</div>
+                        <div style="margin-top:4px;font-size:11px;color:#7dd3fc;line-height:1.45;">
+                            Active l’hébergement d’images pour afficher Up-Img. Tu peux coller une image dans l’input, la glisser dans la pop-up ou choisir un fichier. La clé ImgBB sert à uploader, et le catalogue accepte aussi les liens directs. Les liens expirés ou invalides sont purgés.
                         </div>
                     </div>
 
@@ -7953,6 +8924,180 @@
 
                 <div style="margin-top:10px;font-size:12px;color:#a1a1aa;line-height:1.5;">
                     Permet d’utiliser un picker GIF directement depuis le chat.
+                </div>
+            </div>
+        `;
+    }
+
+    function renderImageHostingExpirationOptions() {
+        return [
+            [0, 'Permanent'],
+            [600, '10 min'],
+            [3600, '1 h'],
+            [86400, '1 jour'],
+            [604800, '7 jours'],
+            [2592000, '30 jours'],
+            [15552000, '180 jours']
+        ].map(([value, label]) => `
+            <option value="${value}" ${imageHostingExpirationSeconds === value ? 'selected' : ''}>${label}</option>
+        `).join('');
+    }
+
+    function renderSettingsImageHostingCard(settingsCardStyle, settingsCheckboxLabelStyle) {
+        const catalogCount = imageCatalog.length;
+
+        return `
+            <div style="${settingsCardStyle}">
+                <div style="font-size:13px;font-weight:700;margin-bottom:10px;">Hébergement d’images</div>
+
+                <label style="${settingsCheckboxLabelStyle}">
+                    <input id="tm-image-hosting-enabled-toggle" type="checkbox" ${imageHostingEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#0ea5e9')}">
+                    <span>Activer l’upload ImgBB et le catalogue</span>
+                </label>
+
+                <div style="margin-top:10px;font-size:12px;color:#a1a1aa;line-height:1.5;">
+                    ${catalogCount} image${catalogCount > 1 ? 's' : ''} dans le catalogue. Les liens expirés sont retirés automatiquement.
+                </div>
+
+                <div id="tm-image-hosting-expanded" style="display:${imageHostingEnabled ? 'block' : 'none'};margin-top:12px;">
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                        <input id="tm-imgbb-api-key-input" type="password" placeholder="Clé API ImgBB" value="${escapeHtml(imgbbApiKey)}"
+                            autocomplete="off"
+                            style="
+                                flex:1 1 190px;
+                                min-width:0;
+                                background:#18181b;
+                                color:#fff;
+                                border:1px solid rgba(255,255,255,0.10);
+                                border-radius:10px;
+                                padding:10px 12px;
+                                outline:none;
+                            ">
+
+                        <button id="tm-imgbb-api-key-save" type="button" style="
+                            border:none;
+                            background:#2563eb;
+                            color:#fff;
+                            border-radius:10px;
+                            padding:10px 12px;
+                            cursor:pointer;
+                            font-weight:600;
+                        ">Enregistrer</button>
+
+                        <button
+                            id="tm-imgbb-api-key-link"
+                            type="button"
+                            title="Créez-vous un compte sur ImgBB, connectez-vous, puis cliquez sur ce bouton pour aller récupérer votre clé API."
+                            aria-label="Créez-vous un compte sur ImgBB, connectez-vous, puis cliquez sur ce bouton pour aller récupérer votre clé API."
+                            style="
+                            border:none;
+                            background:#3f3f46;
+                            color:#fff;
+                            border-radius:10px;
+                            padding:10px 12px;
+                            cursor:pointer;
+                            font-weight:600;
+                        ">Get my API key</button>
+                    </div>
+
+                    <label style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;font-size:12px;color:#d4d4d8;">
+                        <span>Durée de vie par défaut</span>
+                        <select id="tm-image-hosting-expiration-select" style="
+                            min-width:130px;
+                            background:#18181b;
+                            color:#fff;
+                            border:1px solid rgba(255,255,255,0.10);
+                            border-radius:10px;
+                            padding:8px 10px;
+                            outline:none;
+                            font-weight:600;
+                        ">
+                            ${renderImageHostingExpirationOptions()}
+                        </select>
+                    </label>
+
+                    <div style="margin-top:8px;font-size:11px;color:#71717a;line-height:1.45;">
+                        ImgBB supprimera automatiquement les uploads temporaires. Le catalogue purge aussi les entrées quand la durée arrive à échéance ou quand le lien ne charge plus.
+                    </div>
+
+                    <div id="tm-image-upload-dropzone" tabindex="0" style="
+                        margin-top:12px;
+                        padding:14px;
+                        border-radius:14px;
+                        border:1px dashed rgba(56,189,248,0.46);
+                        background:rgba(14,165,233,0.08);
+                        color:#e0f2fe;
+                        outline:none;
+                    ">
+                        <div style="font-size:12px;font-weight:700;">Coller ou glisser une image ici</div>
+                        <div style="margin-top:5px;font-size:11px;color:#93c5fd;line-height:1.45;">
+                            Presse-papier, drag & drop ou sélection fichier. Taille max ImgBB : ${formatFileSize(IMAGE_UPLOAD_MAX_BYTES)}.
+                        </div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+                            <button id="tm-image-upload-pick" type="button" style="
+                                border:none;
+                                background:#0284c7;
+                                color:#fff;
+                                border-radius:10px;
+                                padding:9px 11px;
+                                cursor:pointer;
+                                font-weight:600;
+                                font-size:12px;
+                            ">Choisir image</button>
+                            <input id="tm-image-upload-file-input" type="file" accept="image/*" multiple style="display:none;">
+                        </div>
+                    </div>
+
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;">
+                        <input id="tm-image-direct-url-input" type="url" placeholder="https://.../image"
+                            style="
+                                flex:1 1 220px;
+                                min-width:0;
+                                background:#18181b;
+                                color:#fff;
+                                border:1px solid rgba(255,255,255,0.10);
+                                border-radius:10px;
+                                padding:10px 12px;
+                                outline:none;
+                            ">
+                        <button id="tm-image-direct-url-add" type="button" style="
+                            border:none;
+                            background:#0f766e;
+                            color:#fff;
+                            border-radius:10px;
+                            padding:10px 12px;
+                            cursor:pointer;
+                            font-weight:600;
+                        ">Ajouter lien</button>
+                    </div>
+
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;">
+                        <div style="font-size:12px;font-weight:700;color:#d4d4d8;">Catalogue</div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <button id="tm-image-catalog-purge" type="button" style="
+                                border:none;
+                                background:#3f3f46;
+                                color:#fff;
+                                border-radius:999px;
+                                padding:7px 10px;
+                                cursor:pointer;
+                                font-weight:600;
+                                font-size:11px;
+                            ">Vérifier / purger</button>
+                            <button id="tm-image-catalog-clear" type="button" style="
+                                border:none;
+                                background:#3f3f46;
+                                color:#fca5a5;
+                                border-radius:999px;
+                                padding:7px 10px;
+                                cursor:pointer;
+                                font-weight:600;
+                                font-size:11px;
+                            ">Vider local</button>
+                        </div>
+                    </div>
+
+                    <div id="tm-image-catalog-list" style="display:grid;gap:8px;margin-top:10px;"></div>
                 </div>
             </div>
         `;
@@ -8569,6 +9714,7 @@
                 ${renderSettingsSavedPhrasesCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)}
                 ${renderSettingsConfigCard(styles.settingsCardStyle)}
                 ${renderSettingsGifCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)}
+                ${renderSettingsImageHostingCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)}
                 ${renderSettingsEmojiQuickAccessCard(styles.settingsCardStyle)}
                 ${renderSettingsBlacklistCard(styles.settingsCardStyle)}
                 ${renderSettingsHighlightCard(styles.settingsCardStyle)}
@@ -10685,7 +11831,8 @@
                 `#${IMAGE_VIEWER_OVERLAY_ID}`,
                 `#${TOAST_ID}`,
                 `#${PHRASES_MENU_WRAPPER_ID}`,
-                `#${GIF_MENU_WRAPPER_ID}`
+                `#${GIF_MENU_WRAPPER_ID}`,
+                `#${IMAGE_UPLOAD_MENU_WRAPPER_ID}`
             ].join(', ')
         );
     }
@@ -10958,6 +12105,7 @@
 
         buildSavedPhrasesMenuContent(menu, textInput);
         closeKlipyGifMenu();
+        closeImageUploadMenu();
         closeSavedPhrasesMenu();
         showSavedPhrasesMenu(menu, { focusFirstItem: true });
         return true;
@@ -11302,6 +12450,7 @@
     function applyChatInputToolbarAlignmentState() {
         syncChatInputToolbarReservedSpace();
         applyKlipyGifMenuAlignmentState();
+        applyImageUploadMenuAlignmentState();
         scheduleMovedNativeChatInputActionPopoversSync();
     }
 
@@ -11328,6 +12477,7 @@
         return isSupportedPage() && (
             getQuickAccessEmojiRecords(1).length > 0 ||
             klipyGifsEnabled ||
+            imageHostingEnabled ||
             (savedPhrasesEnabled && savedPhrases.length > 0)
         );
     }
@@ -11418,7 +12568,7 @@
     function isNativeChatInputUtilityButton(button) {
         if (!(button instanceof HTMLButtonElement)) return false;
         if (button.hasAttribute('data-tm-native-chat-input-action-moved')) return false;
-        if (button.closest(`#${PHRASES_MENU_WRAPPER_ID}, #${GIF_MENU_WRAPPER_ID}`)) return false;
+        if (button.closest(`#${PHRASES_MENU_WRAPPER_ID}, #${GIF_MENU_WRAPPER_ID}, #${IMAGE_UPLOAD_MENU_WRAPPER_ID}`)) return false;
         if (button.closest(`[${NATIVE_CHAT_INPUT_ACTION_HOST_ATTR}="1"]`)) return false;
 
         const label = getNativeChatInputActionLabel(button);
@@ -11443,7 +12593,7 @@
             if (!(child instanceof HTMLElement)) return false;
             if (child.getAttribute(CHAT_INPUT_TOOLBAR_RAIL_ATTR) === '1') return false;
             if (child.getAttribute(NATIVE_CHAT_INPUT_ACTION_HOST_ATTR) === '1') return false;
-            if (child.id === PHRASES_MENU_WRAPPER_ID || child.id === GIF_MENU_WRAPPER_ID) return false;
+            if (child.id === PHRASES_MENU_WRAPPER_ID || child.id === GIF_MENU_WRAPPER_ID || child.id === IMAGE_UPLOAD_MENU_WRAPPER_ID) return false;
             if (child === inputWrapper) return false;
             if (inputWrapper instanceof HTMLElement && child.contains(inputWrapper)) return false;
             return true;
@@ -12077,6 +13227,15 @@
         }
 
         return insertTextIntoChatInput(input, embedMarkup, 'Balise BBCode GIF insérée.');
+    }
+
+    function insertImageIntoChatInput(input, imageUrl) {
+        const embedMarkup = buildImageEmbedMarkup(imageUrl);
+        if (!embedMarkup) {
+            return { ok: false, message: 'Lien image invalide.' };
+        }
+
+        return insertTextIntoChatInput(input, embedMarkup, 'Balise BBCode image insérée.');
     }
 
     function insertEmojiIntoChatInput(input, emojiRecord) {
@@ -12900,6 +14059,7 @@
             } else {
                 buildSavedPhrasesMenuContent(menu, getChatInput());
                 closeKlipyGifMenu();
+                closeImageUploadMenu();
                 closeSavedPhrasesMenu();
                 showSavedPhrasesMenu(menu);
             }
@@ -12945,6 +14105,7 @@
             event.preventDefault();
             event.stopPropagation();
             closeKlipyGifMenu();
+            closeImageUploadMenu();
             closeSavedPhrasesMenu();
             openSavedPhraseQuickAddModal(getChatInputCurrentValue(textInput), textInput);
         });
@@ -13656,6 +14817,7 @@
             }
 
             closeSavedPhrasesMenu();
+            closeImageUploadMenu();
             closeKlipyGifMenu();
             showKlipyGifMenu(menu);
 
@@ -13737,6 +14899,885 @@
 
         initializeKlipyGifToolbarWrapper(wrapper);
         syncKlipyGifToolbarMountState(textInput, getKlipyGifMenu());
+    }
+
+    function getImageUploadMenu() {
+        const menu = document.querySelector('[data-tm-image-upload-menu="1"]');
+        return menu instanceof HTMLElement ? menu : null;
+    }
+
+    function getImageUploadMenuAnchor() {
+        const wrapper = document.getElementById(IMAGE_UPLOAD_MENU_WRAPPER_ID);
+        return wrapper instanceof HTMLElement ? wrapper : null;
+    }
+
+    function applyImageUploadMenuAlignmentState(menu = getImageUploadMenu()) {
+        if (!(menu instanceof HTMLElement)) return;
+
+        if (chatInputToolbarAlignRight) {
+            menu.style.left = 'auto';
+            menu.style.right = '0';
+            menu.style.transformOrigin = 'bottom right';
+            if (menu.dataset.tmOpen === '1') positionImageUploadMenu(menu);
+            return;
+        }
+
+        menu.style.left = '0';
+        menu.style.right = 'auto';
+        menu.style.transformOrigin = 'bottom left';
+        if (menu.dataset.tmOpen === '1') positionImageUploadMenu(menu);
+    }
+
+    function positionImageUploadMenu(menu) {
+        if (!(menu instanceof HTMLElement)) return;
+
+        const anchor = getImageUploadMenuAnchor();
+        if (!(anchor instanceof HTMLElement)) return;
+
+        if (isChatPage() && document.body instanceof HTMLElement) {
+            if (menu.parentElement !== document.body) {
+                document.body.appendChild(menu);
+            }
+
+            menu.style.setProperty('position', 'fixed', 'important');
+            menu.style.setProperty('right', 'auto', 'important');
+            menu.style.setProperty('bottom', 'auto', 'important');
+            menu.style.setProperty('left', '-9999px', 'important');
+            menu.style.setProperty('top', '-9999px', 'important');
+            menu.style.setProperty('z-index', '1600', 'important');
+
+            const anchorRect = anchor.getBoundingClientRect();
+            const menuRect = menu.getBoundingClientRect();
+            if (anchorRect.width <= 0 || anchorRect.height <= 0 || menuRect.width <= 0 || menuRect.height <= 0) return;
+
+            const maxLeft = Math.max(8, window.innerWidth - menuRect.width - 8);
+            const maxTop = Math.max(8, window.innerHeight - menuRect.height - 8);
+            const nextLeft = chatInputToolbarAlignRight
+                ? clamp(anchorRect.right - menuRect.width, 8, maxLeft)
+                : clamp(anchorRect.left, 8, maxLeft);
+            const nextTop = clamp(anchorRect.top - menuRect.height - 8, 8, maxTop);
+
+            menu.style.setProperty('left', `${nextLeft}px`, 'important');
+            menu.style.setProperty('top', `${nextTop}px`, 'important');
+            menu.style.transformOrigin = chatInputToolbarAlignRight ? 'bottom right' : 'bottom left';
+            return;
+        }
+
+        if (menu.parentElement !== anchor) {
+            anchor.appendChild(menu);
+        }
+
+        menu.style.setProperty('position', 'absolute', 'important');
+        menu.style.setProperty('top', 'auto', 'important');
+        menu.style.setProperty('bottom', 'calc(100% + 8px)', 'important');
+        menu.style.setProperty('z-index', isHomePage() ? '1400' : '1500', 'important');
+
+        if (chatInputToolbarAlignRight) {
+            menu.style.setProperty('left', 'auto', 'important');
+            menu.style.setProperty('right', '0', 'important');
+            menu.style.transformOrigin = 'bottom right';
+            return;
+        }
+
+        menu.style.setProperty('left', '0', 'important');
+        menu.style.setProperty('right', 'auto', 'important');
+        menu.style.transformOrigin = 'bottom left';
+    }
+
+    function clearImageUploadMenuHideTimer(menu) {
+        if (!(menu instanceof HTMLElement)) return;
+
+        const timerId = Number(menu.dataset.tmHideTimerId || 0);
+        if (timerId > 0) {
+            clearTimeout(timerId);
+            delete menu.dataset.tmHideTimerId;
+        }
+    }
+
+    function clearImageUploadMenuRepositionFrame(menu) {
+        if (!(menu instanceof HTMLElement)) return;
+
+        const frameId = Number(menu.dataset.tmPositionFrameId || 0);
+        if (frameId > 0) {
+            window.cancelAnimationFrame(frameId);
+            delete menu.dataset.tmPositionFrameId;
+        }
+    }
+
+    function scheduleImageUploadMenuReposition(menu, frameCount = 2) {
+        if (!(menu instanceof HTMLElement)) return;
+
+        clearImageUploadMenuRepositionFrame(menu);
+        let remainingFrames = Math.max(1, Number(frameCount) || 1);
+
+        const tick = () => {
+            if (!(menu instanceof HTMLElement) || menu.dataset.tmOpen !== '1') {
+                delete menu.dataset.tmPositionFrameId;
+                return;
+            }
+
+            positionImageUploadMenu(menu);
+            remainingFrames -= 1;
+
+            if (remainingFrames <= 0) {
+                delete menu.dataset.tmPositionFrameId;
+                return;
+            }
+
+            const nextFrameId = window.requestAnimationFrame(tick);
+            menu.dataset.tmPositionFrameId = String(nextFrameId);
+        };
+
+        const initialFrameId = window.requestAnimationFrame(tick);
+        menu.dataset.tmPositionFrameId = String(initialFrameId);
+    }
+
+    function showImageUploadMenu(menu) {
+        if (!(menu instanceof HTMLElement)) return;
+
+        clearImageUploadMenuHideTimer(menu);
+        refreshImageUploadMenu(menu);
+        menu.style.display = 'flex';
+        menu.dataset.tmOpen = '1';
+        positionImageUploadMenu(menu);
+        scheduleImageUploadMenuReposition(menu, 3);
+        void menu.offsetWidth;
+        menu.style.opacity = '1';
+        menu.style.transform = 'translateY(0) scale(1)';
+    }
+
+    function hideImageUploadMenu(menu) {
+        if (!(menu instanceof HTMLElement)) return;
+
+        clearImageUploadMenuHideTimer(menu);
+        clearImageUploadMenuRepositionFrame(menu);
+        menu.dataset.tmOpen = '0';
+        menu.style.opacity = '0';
+        menu.style.transform = 'translateY(10px) scale(0.95)';
+
+        const timerId = window.setTimeout(() => {
+            if (menu.dataset.tmOpen === '1') return;
+
+            menu.style.display = 'none';
+            delete menu.dataset.tmHideTimerId;
+        }, 200);
+
+        menu.dataset.tmHideTimerId = String(timerId);
+    }
+
+    function closeImageUploadMenu() {
+        const menu = getImageUploadMenu();
+        if (menu) {
+            hideImageUploadMenu(menu);
+        }
+    }
+
+    function removeImageUploadToolbar() {
+        const menu = getImageUploadMenu();
+        if (menu) {
+            clearImageUploadMenuHideTimer(menu);
+            clearImageUploadMenuRepositionFrame(menu);
+            menu.remove();
+        }
+
+        const wrapper = document.getElementById(IMAGE_UPLOAD_MENU_WRAPPER_ID);
+        if (wrapper) {
+            wrapper.remove();
+        }
+
+        syncNativeChatInputActionButtons();
+        syncChatInputToolbarReservedSpace();
+    }
+
+    function installImageUploadToolbarGlobalHandlers() {
+        if (imageUploadToolbarEventsInstalled) return;
+
+        imageUploadToolbarEventsInstalled = true;
+
+        document.addEventListener('click', (event) => {
+            const wrapper = document.getElementById(IMAGE_UPLOAD_MENU_WRAPPER_ID);
+            const menu = getImageUploadMenu();
+            if (!(wrapper instanceof HTMLElement)) return;
+            if (event.target instanceof Node && wrapper.contains(event.target)) return;
+            if (menu instanceof HTMLElement && event.target instanceof Node && menu.contains(event.target)) return;
+
+            closeImageUploadMenu();
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') closeImageUploadMenu();
+        }, true);
+
+        window.addEventListener('blur', () => {
+            closeImageUploadMenu();
+        });
+    }
+
+    function getImageUploadMenuElements(menu) {
+        if (!(menu instanceof HTMLElement)) {
+            return {
+                expirationSelect: null,
+                pickBtn: null,
+                fileInput: null,
+                dropzone: null,
+                pendingList: null,
+                uploadBtn: null,
+                insertToggle: null,
+                directUrlInput: null,
+                directUrlAddBtn: null,
+                catalogList: null,
+                purgeBtn: null,
+                status: null
+            };
+        }
+
+        return {
+            expirationSelect: menu.querySelector('[data-tm-upimg-expiration="1"]'),
+            pickBtn: menu.querySelector('[data-tm-upimg-pick="1"]'),
+            fileInput: menu.querySelector('[data-tm-upimg-file-input="1"]'),
+            dropzone: menu.querySelector('[data-tm-upimg-dropzone="1"]'),
+            pendingList: menu.querySelector('[data-tm-upimg-pending="1"]'),
+            uploadBtn: menu.querySelector('[data-tm-upimg-upload="1"]'),
+            insertToggle: menu.querySelector('[data-tm-upimg-insert-after-upload="1"]'),
+            directUrlInput: menu.querySelector('[data-tm-upimg-direct-url="1"]'),
+            directUrlAddBtn: menu.querySelector('[data-tm-upimg-add-url="1"]'),
+            catalogList: menu.querySelector('[data-tm-upimg-catalog="1"]'),
+            purgeBtn: menu.querySelector('[data-tm-upimg-purge="1"]'),
+            status: menu.querySelector('[data-tm-upimg-status="1"]')
+        };
+    }
+
+    function setImageUploadMenuStatus(menu, message, isError = false) {
+        const { status } = getImageUploadMenuElements(menu);
+        if (!(status instanceof HTMLElement)) return;
+
+        status.textContent = message;
+        status.style.color = isError ? '#fca5a5' : '#cbd5f5';
+    }
+
+    function renderImageUploadExpirationOptions(selectedSeconds = imageHostingExpirationSeconds) {
+        return [
+            [0, 'Permanent'],
+            [600, '10 min'],
+            [3600, '1 h'],
+            [86400, '1 jour'],
+            [604800, '7 jours'],
+            [2592000, '30 jours'],
+            [15552000, '180 jours']
+        ].map(([value, label]) => `
+            <option value="${value}" ${normalizeImageHostingExpirationSeconds(selectedSeconds) === value ? 'selected' : ''}>${label}</option>
+        `).join('');
+    }
+
+    function setPendingImageUploadFiles(files) {
+        pendingImageUploadFiles = extractImageFilesFromFileList(files).filter((file) => file.size <= IMAGE_UPLOAD_MAX_BYTES);
+    }
+
+    function appendPendingImageUploadFiles(files) {
+        const nextFiles = extractImageFilesFromFileList(files).filter((file) => file.size <= IMAGE_UPLOAD_MAX_BYTES);
+        pendingImageUploadFiles = [...pendingImageUploadFiles, ...nextFiles].slice(0, 12);
+    }
+
+    function refreshImageUploadPendingList(menu) {
+        const { pendingList, uploadBtn } = getImageUploadMenuElements(menu);
+        if (!(pendingList instanceof HTMLElement)) return;
+
+        pendingList.innerHTML = '';
+
+        if (pendingImageUploadFiles.length === 0) {
+            const empty = document.createElement('div');
+            empty.textContent = 'Aucune image en attente.';
+            empty.style.fontSize = '11px';
+            empty.style.color = '#94a3b8';
+            pendingList.appendChild(empty);
+        } else {
+            pendingImageUploadFiles.forEach((file, index) => {
+                const row = document.createElement('div');
+                row.style.display = 'grid';
+                row.style.gridTemplateColumns = '56px minmax(0, 1fr) 24px';
+                row.style.alignItems = 'center';
+                row.style.gap = '8px';
+                row.style.padding = '8px';
+                row.style.borderRadius = '12px';
+                row.style.background = 'rgba(255,255,255,0.04)';
+                row.style.border = '1px solid rgba(255,255,255,0.06)';
+
+                const preview = document.createElement('img');
+                const previewUrl = URL.createObjectURL(file);
+                preview.src = previewUrl;
+                preview.alt = file.name || `Image ${index + 1}`;
+                preview.loading = 'lazy';
+                preview.style.width = '56px';
+                preview.style.height = '56px';
+                preview.style.borderRadius = '10px';
+                preview.style.objectFit = 'cover';
+                preview.style.background = '#09090b';
+                preview.style.border = '1px solid rgba(255,255,255,0.08)';
+                preview.addEventListener('load', () => URL.revokeObjectURL(previewUrl), { once: true });
+                preview.addEventListener('error', () => URL.revokeObjectURL(previewUrl), { once: true });
+
+                const body = document.createElement('div');
+                body.style.minWidth = '0';
+
+                const name = document.createElement('div');
+                name.textContent = file.name || `image-${index + 1}`;
+                name.title = `${name.textContent} · ${formatFileSize(file.size)}`;
+                name.style.minWidth = '0';
+                name.style.overflow = 'hidden';
+                name.style.textOverflow = 'ellipsis';
+                name.style.whiteSpace = 'nowrap';
+                name.style.fontSize = '11px';
+                name.style.fontWeight = '700';
+                name.style.color = '#e2e8f0';
+
+                const meta = document.createElement('div');
+                meta.textContent = formatFileSize(file.size);
+                meta.style.marginTop = '4px';
+                meta.style.fontSize = '10px';
+                meta.style.color = '#94a3b8';
+
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.textContent = '×';
+                removeBtn.title = 'Retirer cette image de la file';
+                removeBtn.style.border = 'none';
+                removeBtn.style.background = '#3f3f46';
+                removeBtn.style.color = '#fff';
+                removeBtn.style.width = '24px';
+                removeBtn.style.height = '24px';
+                removeBtn.style.borderRadius = '8px';
+                removeBtn.style.cursor = 'pointer';
+                removeBtn.style.flex = '0 0 auto';
+                removeBtn.addEventListener('click', () => {
+                    pendingImageUploadFiles = pendingImageUploadFiles.filter((_, fileIndex) => fileIndex !== index);
+                    refreshImageUploadMenu(menu);
+                });
+
+                body.appendChild(name);
+                body.appendChild(meta);
+                row.appendChild(preview);
+                row.appendChild(body);
+                row.appendChild(removeBtn);
+                pendingList.appendChild(row);
+            });
+        }
+
+        if (uploadBtn instanceof HTMLButtonElement) {
+            uploadBtn.disabled = pendingImageUploadFiles.length === 0;
+            uploadBtn.style.opacity = pendingImageUploadFiles.length === 0 ? '0.55' : '1';
+            uploadBtn.style.cursor = pendingImageUploadFiles.length === 0 ? 'not-allowed' : 'pointer';
+        }
+    }
+
+    function createImageUploadCatalogItem(record, menu) {
+        const card = document.createElement('div');
+        card.style.display = 'grid';
+        card.style.gridTemplateColumns = '48px minmax(0, 1fr)';
+        card.style.gap = '8px';
+        card.style.padding = '8px';
+        card.style.borderRadius = '12px';
+        card.style.background = 'rgba(255,255,255,0.03)';
+        card.style.border = '1px solid rgba(255,255,255,0.06)';
+
+        const image = document.createElement('img');
+        image.src = record.thumbUrl || record.url;
+        image.alt = record.title || 'Image';
+        image.loading = 'lazy';
+        image.referrerPolicy = 'no-referrer';
+        image.style.width = '48px';
+        image.style.height = '48px';
+        image.style.borderRadius = '9px';
+        image.style.objectFit = 'cover';
+        image.style.background = '#09090b';
+        image.addEventListener('error', () => {
+            const result = removeImageCatalogRecord(record.id);
+            if (result.ok) {
+                refreshImageUploadMenu(menu);
+                setImageUploadMenuStatus(menu, 'Image invalide retirée du catalogue.');
+            }
+        }, { once: true });
+
+        const body = document.createElement('div');
+        body.style.minWidth = '0';
+
+        const title = document.createElement('div');
+        title.textContent = record.title || 'Image';
+        title.title = record.title || record.url;
+        title.style.fontSize = '11px';
+        title.style.fontWeight = '700';
+        title.style.color = '#f8fafc';
+        title.style.overflow = 'hidden';
+        title.style.textOverflow = 'ellipsis';
+        title.style.whiteSpace = 'nowrap';
+
+        const meta = document.createElement('div');
+        meta.textContent = record.expiresAt ? `expire ${formatImageCatalogDate(record.expiresAt)}` : 'permanent';
+        meta.style.fontSize = '10px';
+        meta.style.color = '#94a3b8';
+        meta.style.marginTop = '3px';
+
+        const actions = document.createElement('div');
+        actions.style.display = 'flex';
+        actions.style.gap = '6px';
+        actions.style.flexWrap = 'wrap';
+        actions.style.marginTop = '7px';
+
+        const insertBtn = document.createElement('button');
+        insertBtn.type = 'button';
+        insertBtn.textContent = 'Insérer';
+        insertBtn.style.border = 'none';
+        insertBtn.style.background = '#0f766e';
+        insertBtn.style.color = '#fff';
+        insertBtn.style.borderRadius = '8px';
+        insertBtn.style.padding = '6px 8px';
+        insertBtn.style.cursor = 'pointer';
+        insertBtn.style.fontSize = '11px';
+        insertBtn.style.fontWeight = '700';
+        insertBtn.addEventListener('click', () => {
+            const result = insertImageIntoChatInput(getChatInput(), record.url);
+            setImageUploadMenuStatus(menu, result.message, !result.ok);
+            if (result.ok) hideImageUploadMenu(menu);
+        });
+
+        const copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
+        copyBtn.textContent = 'Copier';
+        copyBtn.style.border = 'none';
+        copyBtn.style.background = '#2563eb';
+        copyBtn.style.color = '#fff';
+        copyBtn.style.borderRadius = '8px';
+        copyBtn.style.padding = '6px 8px';
+        copyBtn.style.cursor = 'pointer';
+        copyBtn.style.fontSize = '11px';
+        copyBtn.style.fontWeight = '700';
+        copyBtn.addEventListener('click', async () => {
+            const copied = await copyTextToClipboard(record.url);
+            setImageUploadMenuStatus(menu, copied ? 'Lien image copié.' : 'Copie impossible.', !copied);
+        });
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.textContent = record.deleteUrl ? 'Suppr.' : 'Retirer';
+        removeBtn.title = record.deleteUrl
+            ? 'Supprimer via ImgBB, vérifier que l’image ne charge plus, puis retirer l’entrée locale'
+            : 'Retirer seulement cette entrée du catalogue local';
+        removeBtn.style.border = 'none';
+        removeBtn.style.background = '#3f3f46';
+        removeBtn.style.color = '#fca5a5';
+        removeBtn.style.borderRadius = '8px';
+        removeBtn.style.padding = '6px 8px';
+        removeBtn.style.cursor = 'pointer';
+        removeBtn.style.fontSize = '11px';
+        removeBtn.style.fontWeight = '700';
+        removeBtn.addEventListener('click', async () => {
+            if (record.deleteUrl) {
+                const confirmed = window.confirm('Supprimer cette image via ImgBB ? L’entrée locale sera retirée seulement si la suppression est confirmée.');
+                if (!confirmed) return;
+                setImageUploadMenuStatus(menu, 'Suppression ImgBB en cours, vérification du lien image...');
+            }
+
+            removeBtn.disabled = true;
+            removeBtn.style.opacity = '0.65';
+            const result = await deleteImageCatalogRecord(record);
+            refreshImageUploadMenu(menu);
+            setImageUploadMenuStatus(menu, result.message, !result.ok);
+        });
+
+        actions.appendChild(insertBtn);
+        actions.appendChild(copyBtn);
+        actions.appendChild(removeBtn);
+        body.appendChild(title);
+        body.appendChild(meta);
+        body.appendChild(actions);
+        card.appendChild(image);
+        card.appendChild(body);
+        return card;
+    }
+
+    function refreshImageUploadCatalogList(menu) {
+        const { catalogList } = getImageUploadMenuElements(menu);
+        if (!(catalogList instanceof HTMLElement)) return;
+
+        saveImageCatalog(imageCatalog);
+        catalogList.innerHTML = '';
+
+        if (imageCatalog.length === 0) {
+            const empty = document.createElement('div');
+            empty.textContent = 'Aucune image cataloguée.';
+            empty.style.fontSize = '11px';
+            empty.style.color = '#94a3b8';
+            empty.style.padding = '6px 2px';
+            catalogList.appendChild(empty);
+            return;
+        }
+
+        imageCatalog.slice(0, 8).forEach((record) => {
+            catalogList.appendChild(createImageUploadCatalogItem(record, menu));
+        });
+    }
+
+    function refreshImageUploadMenu(menu) {
+        const elements = getImageUploadMenuElements(menu);
+
+        if (elements.expirationSelect instanceof HTMLSelectElement) {
+            elements.expirationSelect.value = String(imageHostingExpirationSeconds);
+        }
+
+        refreshImageUploadPendingList(menu);
+        refreshImageUploadCatalogList(menu);
+        scheduleImageUploadMenuReposition(menu, 2);
+    }
+
+    async function uploadPendingImageFilesFromMenu(menu) {
+        const { insertToggle } = getImageUploadMenuElements(menu);
+        const shouldInsertAfterUpload = insertToggle instanceof HTMLInputElement ? insertToggle.checked : true;
+        const files = [...pendingImageUploadFiles];
+
+        if (files.length === 0) {
+            setImageUploadMenuStatus(menu, 'Aucune image à uploader.', true);
+            return;
+        }
+
+        if (!normalizeImgBbApiKey(imgbbApiKey)) {
+            setImageUploadMenuStatus(menu, 'Renseigne la clé API ImgBB dans les paramètres avant l’upload.', true);
+            return;
+        }
+
+        const uploadedRecords = [];
+
+        for (const file of files) {
+            setImageUploadMenuStatus(menu, `Upload en cours : ${file.name || 'image'}...`);
+            try {
+                const record = await uploadImageFileToImgBb(file, imageHostingExpirationSeconds);
+                const result = addImageCatalogRecord(record);
+                if (!result.ok) throw new Error(result.message);
+                uploadedRecords.push(record);
+            } catch (e) {
+                setImageUploadMenuStatus(menu, e?.message || 'Upload ImgBB impossible.', true);
+                refreshImageUploadMenu(menu);
+                return;
+            }
+        }
+
+        pendingImageUploadFiles = [];
+        refreshImageUploadMenu(menu);
+
+        if (shouldInsertAfterUpload && uploadedRecords.length > 0) {
+            const input = getChatInput();
+            const markup = uploadedRecords.map((record) => buildImageEmbedMarkup(record.url)).filter(Boolean).join(' ');
+            const result = insertTextIntoChatInput(input, markup, 'Image insérée après upload.');
+            setImageUploadMenuStatus(
+                menu,
+                result.ok
+                    ? `${uploadedRecords.length} image${uploadedRecords.length > 1 ? 's' : ''} uploadée${uploadedRecords.length > 1 ? 's' : ''} et insérée${uploadedRecords.length > 1 ? 's' : ''}.`
+                    : result.message,
+                !result.ok
+            );
+            if (result.ok) hideImageUploadMenu(menu);
+            return;
+        }
+
+        setImageUploadMenuStatus(menu, `${uploadedRecords.length} image${uploadedRecords.length > 1 ? 's' : ''} uploadée${uploadedRecords.length > 1 ? 's' : ''}.`);
+    }
+
+    function createImageUploadToggleButton() {
+        const toggleBtn = document.createElement('button');
+        toggleBtn.type = 'button';
+        toggleBtn.innerHTML = '<span style="margin-right:4px;">↑</span> Up-Img';
+        toggleBtn.title = 'Uploader ou insérer une image';
+        toggleBtn.setAttribute('aria-label', 'Uploader ou insérer une image');
+        toggleBtn.style.background = 'linear-gradient(135deg, rgba(2,132,199,0.78) 0%, rgba(14,116,144,0.78) 100%)';
+        toggleBtn.style.border = '1px solid rgba(125,211,252,0.30)';
+        toggleBtn.style.color = '#ecfeff';
+        toggleBtn.style.fontSize = '12px';
+        toggleBtn.style.fontWeight = '600';
+        toggleBtn.style.padding = '6px 14px';
+        toggleBtn.style.borderRadius = '999px';
+        toggleBtn.style.cursor = 'pointer';
+        toggleBtn.style.backdropFilter = 'blur(10px)';
+        toggleBtn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)';
+        toggleBtn.style.transition = 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)';
+        return toggleBtn;
+    }
+
+    function createImageUploadMenuSurface() {
+        const menu = document.createElement('div');
+        menu.setAttribute('data-tm-image-upload-menu', '1');
+        menu.style.display = 'none';
+        menu.style.position = 'absolute';
+        menu.style.bottom = 'calc(100% + 8px)';
+        menu.style.left = '0';
+        menu.style.width = 'min(560px, calc(100vw - 28px))';
+        menu.style.maxHeight = 'min(76vh, 640px)';
+        menu.style.background = 'rgba(17,24,39,0.94)';
+        menu.style.backdropFilter = 'blur(16px)';
+        menu.style.border = '1px solid rgba(255,255,255,0.08)';
+        menu.style.borderRadius = '16px';
+        menu.style.padding = '10px';
+        menu.style.boxShadow = '0 18px 45px rgba(0,0,0,0.48)';
+        menu.style.flexDirection = 'column';
+        menu.style.gap = '10px';
+        menu.style.zIndex = '1000';
+        menu.style.opacity = '0';
+        menu.style.transform = 'translateY(10px) scale(0.95)';
+        menu.style.transition = 'opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)';
+        menu.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+                <div>
+                    <div style="font-size:12px;font-weight:700;color:#f8fafc;">Upload image</div>
+                    <div style="font-size:10px;color:#94a3b8;margin-top:2px;">ImgBB · ${imageCatalog.length} image${imageCatalog.length > 1 ? 's' : ''} cataloguée${imageCatalog.length > 1 ? 's' : ''}</div>
+                </div>
+            </div>
+
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end;">
+                <span style="font-size:11px;color:#cbd5e1;">Durée de vie</span>
+                <select data-tm-upimg-expiration="1" style="background:rgba(15,23,42,0.75);color:#f8fafc;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:9px 10px;outline:none;font-size:12px;">
+                    ${renderImageUploadExpirationOptions()}
+                </select>
+            </div>
+
+            <div data-tm-upimg-dropzone="1" tabindex="0" style="padding:12px;border-radius:14px;border:1px dashed rgba(56,189,248,0.46);background:rgba(14,165,233,0.08);color:#e0f2fe;outline:none;">
+                <div style="font-size:12px;font-weight:700;">Coller ou glisser une image</div>
+                <div style="font-size:10px;color:#93c5fd;line-height:1.45;margin-top:4px;">Ctrl+V depuis l’input du chat ouvre aussi ce panneau.</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:9px;">
+                    <button data-tm-upimg-pick="1" type="button" style="border:none;background:#0284c7;color:#fff;border-radius:10px;padding:8px 10px;cursor:pointer;font-size:11px;font-weight:700;">Choisir image</button>
+                    <label style="display:flex;align-items:center;gap:7px;font-size:11px;color:#cbd5e1;cursor:pointer;">
+                        <input data-tm-upimg-insert-after-upload="1" type="checkbox" checked style="width:14px;height:14px;accent-color:#06b6d4;">
+                        <span>Insérer après upload</span>
+                    </label>
+                    <input data-tm-upimg-file-input="1" type="file" accept="image/*" multiple style="display:none;">
+                </div>
+            </div>
+
+            <div data-tm-upimg-pending="1" style="display:grid;gap:6px;"></div>
+
+            <button data-tm-upimg-upload="1" type="button" style="border:none;background:#0f766e;color:#fff;border-radius:10px;padding:9px 11px;cursor:pointer;font-size:12px;font-weight:700;">Uploader</button>
+
+            <div style="display:flex;gap:8px;align-items:center;">
+                <input data-tm-upimg-direct-url="1" type="url" placeholder="Ajouter un lien direct image" style="flex:1;min-width:0;background:rgba(15,23,42,0.75);color:#f8fafc;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:9px 10px;outline:none;font-size:12px;">
+                <button data-tm-upimg-add-url="1" type="button" style="border:none;background:#3f3f46;color:#fff;border-radius:10px;padding:9px 10px;cursor:pointer;font-size:11px;font-weight:700;">Ajouter</button>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                <div style="font-size:12px;font-weight:700;color:#d4d4d8;">Catalogue</div>
+                <button data-tm-upimg-purge="1" type="button" style="border:none;background:#3f3f46;color:#fff;border-radius:999px;padding:6px 9px;cursor:pointer;font-size:10px;font-weight:700;">Purger</button>
+            </div>
+            <div data-tm-upimg-catalog="1" style="display:grid;gap:8px;max-height:250px;overflow-y:auto;padding-right:2px;"></div>
+            <div data-tm-upimg-status="1" style="min-height:16px;font-size:11px;line-height:1.45;color:#cbd5f5;"></div>
+        `;
+        applyImageUploadMenuAlignmentState(menu);
+        return menu;
+    }
+
+    function bindImageUploadMenuInteractions(toggleBtn, menu) {
+        const elements = getImageUploadMenuElements(menu);
+
+        toggleBtn.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (menu.dataset.tmOpen === '1') {
+                hideImageUploadMenu(menu);
+                return;
+            }
+
+            closeSavedPhrasesMenu();
+            closeKlipyGifMenu();
+            showImageUploadMenu(menu);
+        });
+
+        elements.expirationSelect?.addEventListener('change', () => {
+            saveImageHostingExpirationSeconds(elements.expirationSelect?.value);
+            refreshImageUploadMenu(menu);
+            setImageUploadMenuStatus(menu, `Durée de vie : ${formatImageHostingExpirationLabel()}.`);
+        });
+
+        elements.pickBtn?.addEventListener('click', () => elements.fileInput?.click());
+
+        elements.fileInput?.addEventListener('change', () => {
+            if (elements.fileInput instanceof HTMLInputElement) {
+                appendPendingImageUploadFiles(elements.fileInput.files);
+                elements.fileInput.value = '';
+                refreshImageUploadMenu(menu);
+                showImageUploadMenu(menu);
+            }
+        });
+
+        elements.dropzone?.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+        });
+
+        elements.dropzone?.addEventListener('drop', (event) => {
+            event.preventDefault();
+            appendPendingImageUploadFiles(extractImageFilesFromDataTransfer(event.dataTransfer));
+            refreshImageUploadMenu(menu);
+        });
+
+        elements.dropzone?.addEventListener('paste', (event) => {
+            const files = extractImageFilesFromDataTransfer(event.clipboardData);
+            if (files.length === 0) return;
+            event.preventDefault();
+            appendPendingImageUploadFiles(files);
+            refreshImageUploadMenu(menu);
+        });
+
+        elements.uploadBtn?.addEventListener('click', () => {
+            uploadPendingImageFilesFromMenu(menu);
+        });
+
+        elements.directUrlAddBtn?.addEventListener('click', async () => {
+            const url = elements.directUrlInput instanceof HTMLInputElement ? elements.directUrlInput.value : '';
+            setImageUploadMenuStatus(menu, 'Validation du lien image...');
+            const result = await addManualImageCatalogUrl(url);
+            refreshImageUploadMenu(menu);
+            setImageUploadMenuStatus(menu, result.message, !result.ok);
+            if (result.ok && elements.directUrlInput instanceof HTMLInputElement) {
+                elements.directUrlInput.value = '';
+            }
+        });
+
+        elements.directUrlInput?.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            elements.directUrlAddBtn?.click();
+        });
+
+        elements.purgeBtn?.addEventListener('click', async () => {
+            const fakeControls = {
+                setFeedback: (message, isError = false) => setImageUploadMenuStatus(menu, message, isError),
+                refreshImageCatalogList: () => refreshImageUploadMenu(menu)
+            };
+            const result = await purgeInvalidImageCatalogRecords({}, fakeControls);
+            refreshImageUploadMenu(menu);
+            setImageUploadMenuStatus(menu, result.message, !result.ok);
+        });
+
+        menu.addEventListener('click', (event) => event.stopPropagation());
+    }
+
+    function getOrCreateImageUploadToolbarWrapper(rail) {
+        let wrapper = document.getElementById(IMAGE_UPLOAD_MENU_WRAPPER_ID);
+        if (!wrapper) {
+            wrapper = document.createElement('div');
+            wrapper.id = IMAGE_UPLOAD_MENU_WRAPPER_ID;
+            wrapper.style.display = 'flex';
+            wrapper.style.alignItems = 'center';
+            wrapper.style.justifyContent = 'flex-start';
+            wrapper.style.position = 'relative';
+            wrapper.style.zIndex = '50';
+            wrapper.style.overflow = 'visible';
+            wrapper.style.pointerEvents = 'auto';
+        }
+
+        wrapper.style.zIndex = isChatPage() ? '280' : '50';
+
+        const phrasesWrapper = document.getElementById(PHRASES_MENU_WRAPPER_ID);
+        if (wrapper.parentNode !== rail) {
+            if (phrasesWrapper instanceof HTMLElement && phrasesWrapper.parentElement === rail) {
+                rail.insertBefore(wrapper, phrasesWrapper);
+            } else {
+                rail.appendChild(wrapper);
+            }
+        } else if (phrasesWrapper instanceof HTMLElement && phrasesWrapper.parentElement === rail && wrapper.nextElementSibling !== phrasesWrapper) {
+            rail.insertBefore(wrapper, phrasesWrapper);
+        }
+
+        wrapper.style.display = 'flex';
+        return wrapper;
+    }
+
+    function initializeImageUploadToolbarWrapper(wrapper) {
+        wrapper.innerHTML = '';
+
+        const toggleBtn = createImageUploadToggleButton();
+        const menu = createImageUploadMenuSurface();
+        bindImageUploadMenuInteractions(toggleBtn, menu);
+
+        wrapper.appendChild(toggleBtn);
+        wrapper.appendChild(menu);
+        wrapper.dataset.tmInitialized = '1';
+    }
+
+    function syncImageUploadToolbarMountState(textInput, menu = null) {
+        applyImageUploadMenuAlignmentState(menu);
+        syncChatInputToolbarReservedSpace(textInput);
+        syncNativeChatInputActionButtons(textInput);
+    }
+
+    function injectImageUploadToolbar() {
+        if (!isSupportedPage()) return;
+        if (!imageHostingEnabled) {
+            removeImageUploadToolbar();
+            return;
+        }
+
+        installImageUploadToolbarGlobalHandlers();
+
+        const textInput = getChatInput();
+        if (!textInput) return;
+        const mountContext = getChatInputToolbarMountContext(textInput);
+        const rail = getOrCreateChatInputToolbarRail(mountContext);
+        if (!(rail instanceof HTMLElement)) return;
+
+        const wrapper = getOrCreateImageUploadToolbarWrapper(rail);
+        if (wrapper.dataset.tmInitialized === '1') {
+            syncImageUploadToolbarMountState(textInput);
+            return;
+        }
+
+        initializeImageUploadToolbarWrapper(wrapper);
+        syncImageUploadToolbarMountState(textInput, getImageUploadMenu());
+    }
+
+    function openImageUploadMenuWithFiles(files) {
+        const imageFiles = extractImageFilesFromFileList(files);
+        if (imageFiles.length === 0) return false;
+
+        if (!imageHostingEnabled) {
+            showToast('Upload image désactivé dans les paramètres.', true);
+            return false;
+        }
+
+        injectImageUploadToolbar();
+        const menu = getImageUploadMenu();
+        if (!(menu instanceof HTMLElement)) {
+            showToast('Bouton Up-Img indisponible.', true);
+            return false;
+        }
+
+        setPendingImageUploadFiles(imageFiles);
+        showImageUploadMenu(menu);
+        if (pendingImageUploadFiles.length === 0) {
+            setImageUploadMenuStatus(menu, `Image trop lourde. Taille max : ${formatFileSize(IMAGE_UPLOAD_MAX_BYTES)}.`, true);
+            return true;
+        }
+
+        setImageUploadMenuStatus(menu, `${pendingImageUploadFiles.length} image${pendingImageUploadFiles.length > 1 ? 's' : ''} prête${pendingImageUploadFiles.length > 1 ? 's' : ''} à uploader.`);
+        return true;
+    }
+
+    function installImagePasteHandler() {
+        if (imagePasteHandlerInstalled) return;
+        imagePasteHandlerInstalled = true;
+
+        document.addEventListener('paste', (event) => {
+            if (!imageHostingEnabled || !isSupportedPage()) return;
+
+            const target = event.target;
+            if (!(target instanceof HTMLElement)) return;
+
+            const input = isChatInputCandidate(target)
+                ? target
+                : target.closest('input[type="text"], textarea, [contenteditable="true"]');
+            if (!(input instanceof HTMLElement) || !isChatInputCandidate(input)) return;
+
+            const files = extractImageFilesFromDataTransfer(event.clipboardData);
+            if (files.length === 0) return;
+
+            event.preventDefault();
+            openImageUploadMenuWithFiles(files);
+        }, true);
     }
 
     function startObserver() {
@@ -15322,6 +17363,7 @@
                 removeMessageReactionQuickAccessButtons();
                 removeSavedPhrasesToolbar();
                 removeKlipyGifToolbar();
+                removeImageUploadToolbar();
                 stopObserver();
                 return;
             }
@@ -15338,6 +17380,7 @@
             injectEmojiQuickAccessToolbar();
             injectSavedPhrasesToolbar();
             injectKlipyGifToolbar();
+            injectImageUploadToolbar();
             applyChatInputToolbarAlignmentState();
             syncNativeChatInputActionButtons();
 
@@ -15369,6 +17412,7 @@
             removeMessageReactionQuickAccessButtons();
             removeSavedPhrasesToolbar();
             removeKlipyGifToolbar();
+            removeImageUploadToolbar();
             removeStatsBox();
             closeSettingsModal();
             closeImageViewer();
@@ -15403,6 +17447,7 @@
                 injectEmojiQuickAccessToolbar();
                 injectSavedPhrasesToolbar();
                 injectKlipyGifToolbar();
+                injectImageUploadToolbar();
                 applyChatInputToolbarAlignmentState();
                 syncNativeChatInputActionButtons();
                 if (isAfkEnabledForCurrentContext()) {
@@ -15419,6 +17464,7 @@
                 removeMessageReactionQuickAccessButtons();
                 removeSavedPhrasesToolbar();
                 removeKlipyGifToolbar();
+                removeImageUploadToolbar();
                 stopObserver();
             } else if (isHomePage() && needsHomepageCollapseUiRefresh()) {
                 syncHomepageCollapseUi();
@@ -15441,6 +17487,10 @@
                     removeKlipyGifToolbar();
                 }
 
+                if (!imageHostingEnabled) {
+                    removeImageUploadToolbar();
+                }
+
                 const textInput = getChatInput();
                 if (textInput) {
                     const mountContext = getChatInputToolbarMountContext(textInput);
@@ -15448,6 +17498,7 @@
                     const currentEmojiWrapper = document.getElementById(EMOJI_QUICK_ACCESS_WRAPPER_ID);
                     const phrasesWrapper = document.getElementById(PHRASES_MENU_WRAPPER_ID);
                     const gifWrapper = document.getElementById(GIF_MENU_WRAPPER_ID);
+                    const imageUploadWrapper = document.getElementById(IMAGE_UPLOAD_MENU_WRAPPER_ID);
                     let toolbarNeedsSync = !isChatInputToolbarLayoutStable(mountContext);
 
                     if (
@@ -15472,6 +17523,11 @@
 
                     if (klipyGifsEnabled && toolbarHost && (!gifWrapper || !toolbarHost.contains(gifWrapper))) {
                         injectKlipyGifToolbar();
+                        toolbarNeedsSync = true;
+                    }
+
+                    if (imageHostingEnabled && toolbarHost && (!imageUploadWrapper || !toolbarHost.contains(imageUploadWrapper))) {
+                        injectImageUploadToolbar();
                         toolbarNeedsSync = true;
                     }
 
@@ -15606,6 +17662,7 @@
         installReactionUsageTracker();
         installImagePreviewHandler();
         installYouTubePlayerHandler();
+        installImagePasteHandler();
         installRouteWatcher();
         document.addEventListener('click', handleStatsBoxActionClick, true);
         refreshForRoute();

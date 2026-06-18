@@ -6,7 +6,7 @@
     {
       "id": "blacklist-shoutbox",
       "name": "Torr9 Chat - Shoutbox 2.0",
-      "version": "2.68",
+      "version": "2.69",
       "source": "src/userscripts/blacklist-shoutbox.user.js",
       "download_url": "https://raw.githubusercontent.com/SaltedButch/torr9-scripting/userscripts/blacklist-shoutbox.user.js",
       "update_url": "https://raw.githubusercontent.com/SaltedButch/torr9-scripting/userscripts/blacklist-shoutbox.meta.js"
