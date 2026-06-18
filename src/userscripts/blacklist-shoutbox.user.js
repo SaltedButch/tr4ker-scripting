@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torr9 Chat - Shoutbox 2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.67
+// @version      2.68
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, Gif et confort avancé pour la shoutbox Torr9
 // @icon         https://torr9.net/favicon.ico?favicon.71918ed5.ico
 // @author       Butchered
@@ -43,6 +43,9 @@
     const STORAGE_KEY_REACTION_USAGE_COUNTS = 'tm_torr9_reaction_usage_counts';
     const STORAGE_KEY_EMOJI_QUICK_ACCESS_LIMIT = 'tm_torr9_emoji_quick_access_limit';
     const STORAGE_KEY_REACTION_QUICK_ACCESS_LIMIT = 'tm_torr9_reaction_quick_access_limit';
+    const STORAGE_KEY_QUICK_ACCESS_MODE = 'tm_torr9_quick_access_mode';
+    const STORAGE_KEY_MANUAL_EMOJI_FAVORITES = 'tm_torr9_manual_emoji_favorites';
+    const STORAGE_KEY_MANUAL_REACTION_FAVORITES = 'tm_torr9_manual_reaction_favorites';
     const STORAGE_KEY_CHAT_INPUT_TOOLBAR_INLINE = 'tm_torr9_chat_input_toolbar_inline';
     const STORAGE_KEY_CHAT_INPUT_TOOLBAR_ALIGN_RIGHT = 'tm_torr9_chat_input_toolbar_align_right';
     const STORAGE_KEY_AFK_STATE = 'tm_torr9_afk_state';
@@ -81,6 +84,9 @@
         STORAGE_KEY_REACTION_USAGE_COUNTS,
         STORAGE_KEY_EMOJI_QUICK_ACCESS_LIMIT,
         STORAGE_KEY_REACTION_QUICK_ACCESS_LIMIT,
+        STORAGE_KEY_QUICK_ACCESS_MODE,
+        STORAGE_KEY_MANUAL_EMOJI_FAVORITES,
+        STORAGE_KEY_MANUAL_REACTION_FAVORITES,
         STORAGE_KEY_CHAT_INPUT_TOOLBAR_INLINE,
         STORAGE_KEY_CHAT_INPUT_TOOLBAR_ALIGN_RIGHT,
         STORAGE_KEY_AFK_PANEL_POSITION
@@ -152,6 +158,10 @@
     const REACTION_USAGE_DUPLICATE_WINDOW_MS = 700;
     const DEFAULT_EMOJI_QUICK_ACCESS_LIMIT = 5;
     const DEFAULT_REACTION_QUICK_ACCESS_LIMIT = 5;
+    const QUICK_ACCESS_MODE_AUTO = 'auto';
+    const QUICK_ACCESS_MODE_MANUAL = 'manual';
+    const QUICK_ACCESS_MODES = new Set([QUICK_ACCESS_MODE_AUTO, QUICK_ACCESS_MODE_MANUAL]);
+    const MAX_MANUAL_QUICK_ACCESS_FAVORITES = 24;
     const MENTION_STYLE_ID = 'tm-torr9-mention-style';
     const LIGHT_THEME_STYLE_ID = 'tm-torr9-light-theme-style';
     const LINKIFIED_URL_STYLE_ID = 'tm-torr9-linkified-url-style';
@@ -167,6 +177,7 @@
     const CHAT_INPUT_TOOLBAR_RESERVED_HEIGHT_PX = 46;
     const MESSAGE_REACTION_QUICK_ACCESS_GROUP_ATTR = 'data-tm-message-reaction-quick-access-group';
     const MESSAGE_REACTION_QUICK_ACCESS_BUTTON_ATTR = 'data-tm-message-reaction-quick-access-button';
+    const MANUAL_QUICK_ACCESS_PICKER_MARKER_ATTR = 'data-tm-manual-quick-access-picker-marker';
     const HOME_CHAT_POPOVER_SURFACE_ATTR = 'data-tm-home-chat-popover-surface';
     const HOME_CHAT_POPOVER_PARENT_ATTR = 'data-tm-home-chat-popover-parent';
     const NATIVE_CHAT_INPUT_ACTION_HOST_ATTR = 'data-tm-native-chat-input-action-host';
@@ -225,6 +236,9 @@
     let reactionUsageCounts = loadReactionUsageCounts();
     let emojiQuickAccessLimit = loadEmojiQuickAccessLimit();
     let reactionQuickAccessLimit = loadReactionQuickAccessLimit();
+    let quickAccessMode = loadQuickAccessMode();
+    let manualEmojiFavorites = loadManualEmojiFavorites();
+    let manualReactionFavorites = loadManualReactionFavorites();
     let chatInputToolbarInline = loadChatInputToolbarInline();
     let chatInputToolbarAlignRight = loadChatInputToolbarAlignRight();
     let mentionSoundContext = null;
@@ -339,7 +353,9 @@
      * @property {number} unreadCount
      * @property {number} readCount
      * @property {boolean} autoReplyEnabled
+     * @property {boolean} autoReplyActive
      * @property {boolean} autoReplyWindowExpired
+     * @property {boolean} muteMentionSound
      * @property {string} toggleLabel
      */
 
@@ -883,6 +899,11 @@
     }
 
     function buildEmojiInsertionText(record) {
+        const insertText = String(record?.insertText || '').trim();
+        if (insertText) {
+            return insertText;
+        }
+
         const title = String(record?.title || '').trim();
         if (/^:[^:\s][^:]*:$/.test(title)) {
             return title;
@@ -906,6 +927,10 @@
         const safeLimit = Math.max(0, Number(limit) || 0);
         if (safeLimit <= 0) return [];
 
+        if (quickAccessMode === QUICK_ACCESS_MODE_MANUAL) {
+            return getManualEmojiFavoriteRecords(safeLimit);
+        }
+
         return getTopEmojiUsageRecords(safeLimit * 3)
             .filter((record) => !!buildEmojiInsertionText(record))
             .slice(0, safeLimit);
@@ -920,6 +945,326 @@
         }
 
         return '';
+    }
+
+    function normalizeQuickAccessMode(value) {
+        const normalizedValue = String(value || '').trim();
+        return QUICK_ACCESS_MODES.has(normalizedValue) ? normalizedValue : QUICK_ACCESS_MODE_AUTO;
+    }
+
+    function loadQuickAccessMode() {
+        return normalizeQuickAccessMode(readStorageItem(STORAGE_KEY_QUICK_ACCESS_MODE));
+    }
+
+    function saveQuickAccessMode(value) {
+        quickAccessMode = normalizeQuickAccessMode(value);
+        writeStorageItem(STORAGE_KEY_QUICK_ACCESS_MODE, quickAccessMode);
+        refreshEmojiQuickAccessToolbar();
+        refreshReactionQuickAccessButtons();
+        syncManualQuickAccessPickerMarkers();
+    }
+
+    function isManualQuickAccessPickerToggleEvent(event) {
+        return quickAccessMode === QUICK_ACCESS_MODE_MANUAL && (event.altKey || event.shiftKey);
+    }
+
+    function splitManualFavoriteInput(value) {
+        return String(value || '')
+            .replace(/\r\n?/g, '\n')
+            .split(/[\s,;]+/)
+            .map((entry) => entry.trim())
+            .filter(Boolean);
+    }
+
+    function splitManualReactionFavoriteInput(value) {
+        return splitManualFavoriteInput(value).flatMap((entry) => {
+            if (!normalizeReactionEmojiValue(entry)) return [entry];
+
+            try {
+                if (typeof Intl === 'undefined' || typeof Intl.Segmenter !== 'function') return [entry];
+
+                const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+                const segments = Array.from(segmenter.segment(entry), (segment) => segment.segment)
+                    .filter((segment) => normalizeReactionEmojiValue(segment));
+
+                if (segments.length > 0 && segments.join('') !== entry) return segments;
+                return segments.length > 1 ? segments : [entry];
+            } catch (e) {
+                return [entry];
+            }
+        });
+    }
+
+    function normalizeManualEmojiFavoriteText(value) {
+        const rawValue = String(value || '').trim();
+        if (!rawValue) return '';
+        if (/^:[^:\s][^:]*:$/.test(rawValue)) return rawValue;
+        if (normalizeReactionEmojiValue(rawValue)) return rawValue;
+        if (!/\s/.test(rawValue)) return `:${rawValue.replace(/^:+|:+$/g, '')}:`;
+        return rawValue;
+    }
+
+    function normalizeManualEmojiFavoriteRecord(value) {
+        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+            const insertText = normalizeManualEmojiFavoriteText(value);
+            if (!insertText) return null;
+
+            return {
+                key: `manual:${normalizeMentionComparableText(insertText)}`,
+                title: insertText,
+                alt: insertText,
+                src: '',
+                count: 0,
+                lastUsedAt: 0,
+                insertText,
+                isManual: true
+            };
+        }
+
+        if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+        const title = String(value.title || value.insertText || '').trim();
+        const alt = String(value.alt || value.insertText || '').trim();
+        const src = normalizeEmojiUsageAssetPath(value.src);
+        const insertText = normalizeManualEmojiFavoriteText(
+            value.insertText || buildEmojiInsertionText({ title, alt, src }) || title || alt
+        );
+        const key = String(
+            value.key ||
+            buildEmojiUsageKey(title, alt, src) ||
+            (insertText ? `manual:${normalizeMentionComparableText(insertText)}` : '')
+        ).trim();
+        if (!key || (!insertText && !src)) return null;
+
+        return {
+            key,
+            title: title || insertText,
+            alt: alt || insertText,
+            src,
+            count: Math.max(0, Number(value.count) || 0),
+            lastUsedAt: Math.max(0, Number(value.lastUsedAt) || 0),
+            insertText,
+            isManual: true
+        };
+    }
+
+    function normalizeManualEmojiFavorites(value) {
+        const rawEntries = Array.isArray(value) ? value : splitManualFavoriteInput(value);
+        const seen = new Set();
+        const favorites = [];
+
+        rawEntries.forEach((entry) => {
+            const favoriteRecord = normalizeManualEmojiFavoriteRecord(entry);
+            if (!favoriteRecord || seen.has(favoriteRecord.key)) return;
+
+            seen.add(favoriteRecord.key);
+            favorites.push(favoriteRecord);
+        });
+
+        return favorites.slice(0, MAX_MANUAL_QUICK_ACCESS_FAVORITES);
+    }
+
+    function loadManualEmojiFavorites() {
+        return normalizeManualEmojiFavorites(readStorageJson(STORAGE_KEY_MANUAL_EMOJI_FAVORITES, []));
+    }
+
+    function saveManualEmojiFavorites(value) {
+        manualEmojiFavorites = normalizeManualEmojiFavorites(value);
+        writeStorageJson(STORAGE_KEY_MANUAL_EMOJI_FAVORITES, manualEmojiFavorites);
+        refreshEmojiQuickAccessToolbar();
+        refreshOpenSettingsManualQuickAccessLists();
+        syncManualQuickAccessPickerMarkers();
+    }
+
+    function getManualEmojiFavoriteRecords(limit = emojiQuickAccessLimit) {
+        const safeLimit = Math.max(0, Number(limit) || 0);
+        return manualEmojiFavorites.slice(0, safeLimit);
+    }
+
+    function isManualEmojiFavoriteRecord(record) {
+        const normalizedRecord = normalizeManualEmojiFavoriteRecord(record);
+        if (!normalizedRecord) return false;
+        return manualEmojiFavorites.some((favorite) => favorite.key === normalizedRecord.key);
+    }
+
+    function toggleManualEmojiFavoriteRecord(record) {
+        const normalizedRecord = normalizeManualEmojiFavoriteRecord(record);
+        if (!normalizedRecord) {
+            return { ok: false, added: false, message: 'Emoji favori introuvable.' };
+        }
+
+        const existingIndex = manualEmojiFavorites.findIndex((favorite) => favorite.key === normalizedRecord.key);
+        if (existingIndex >= 0) {
+            const nextFavorites = manualEmojiFavorites.filter((_, index) => index !== existingIndex);
+            saveManualEmojiFavorites(nextFavorites);
+            return { ok: true, added: false, message: 'Emoji retiré des favoris manuels.' };
+        }
+
+        saveManualEmojiFavorites([...manualEmojiFavorites, normalizedRecord]);
+        return { ok: true, added: true, message: 'Emoji ajouté aux favoris manuels.' };
+    }
+
+    function toggleManualEmojiFavoriteFromButton(button) {
+        return toggleManualEmojiFavoriteRecord(extractEmojiUsageRecordFromButton(button));
+    }
+
+    function moveManualEmojiFavorite(index, delta) {
+        const sourceIndex = Math.max(0, Number(index) || 0);
+        const targetIndex = sourceIndex + (Number(delta) || 0);
+        if (
+            sourceIndex < 0 ||
+            sourceIndex >= manualEmojiFavorites.length ||
+            targetIndex < 0 ||
+            targetIndex >= manualEmojiFavorites.length
+        ) {
+            return false;
+        }
+
+        const nextFavorites = manualEmojiFavorites.slice();
+        const [movedFavorite] = nextFavorites.splice(sourceIndex, 1);
+        nextFavorites.splice(targetIndex, 0, movedFavorite);
+        saveManualEmojiFavorites(nextFavorites);
+        return true;
+    }
+
+    function reorderManualEmojiFavorite(sourceIndex, targetIndex) {
+        const normalizedSourceIndex = Math.max(0, Number(sourceIndex) || 0);
+        const normalizedTargetIndex = Math.max(0, Number(targetIndex) || 0);
+        return moveManualEmojiFavorite(normalizedSourceIndex, normalizedTargetIndex - normalizedSourceIndex);
+    }
+
+    function normalizeManualReactionFavoriteRecord(value) {
+        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+            const emojiValue = normalizeReactionEmojiValue(value);
+            if (!emojiValue) return null;
+
+            return {
+                key: `manual-reaction:${emojiValue}`,
+                label: emojiValue,
+                title: emojiValue,
+                alt: emojiValue,
+                emojiValue,
+                src: '',
+                svgSignature: '',
+                count: 0,
+                lastUsedAt: 0,
+                isManual: true
+            };
+        }
+
+        if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+        const label = String(value.label || value.emojiValue || '').trim();
+        const title = String(value.title || '').trim();
+        const alt = String(value.alt || '').trim();
+        const emojiValue = normalizeReactionEmojiValue(value.emojiValue || label || alt || title);
+        const src = normalizeEmojiUsageAssetPath(value.src);
+        const svgSignature = String(value.svgSignature || '').trim();
+        const key = String(
+            value.key ||
+            (emojiValue ? `manual-reaction:${emojiValue}` : '') ||
+            (src ? `manual-reaction-src:${src}` : '') ||
+            (svgSignature ? `manual-reaction-svg:${hashString(svgSignature)}` : '')
+        ).trim();
+        if (!key || (!emojiValue && !src && !svgSignature)) return null;
+
+        return {
+            key,
+            label: label || emojiValue || title || alt,
+            title: title || emojiValue,
+            alt: alt || emojiValue,
+            emojiValue,
+            src,
+            svgSignature,
+            count: Math.max(0, Number(value.count) || 0),
+            lastUsedAt: Math.max(0, Number(value.lastUsedAt) || 0),
+            isManual: true
+        };
+    }
+
+    function normalizeManualReactionFavorites(value) {
+        const rawEntries = Array.isArray(value) ? value : splitManualReactionFavoriteInput(value);
+        const seen = new Set();
+        const favorites = [];
+
+        rawEntries.forEach((entry) => {
+            const favoriteRecord = normalizeManualReactionFavoriteRecord(entry);
+            if (!favoriteRecord || seen.has(favoriteRecord.key)) return;
+
+            seen.add(favoriteRecord.key);
+            favorites.push(favoriteRecord);
+        });
+
+        return favorites.slice(0, MAX_MANUAL_QUICK_ACCESS_FAVORITES);
+    }
+
+    function loadManualReactionFavorites() {
+        return normalizeManualReactionFavorites(readStorageJson(STORAGE_KEY_MANUAL_REACTION_FAVORITES, []));
+    }
+
+    function saveManualReactionFavorites(value) {
+        manualReactionFavorites = normalizeManualReactionFavorites(value);
+        writeStorageJson(STORAGE_KEY_MANUAL_REACTION_FAVORITES, manualReactionFavorites);
+        refreshReactionQuickAccessButtons();
+        refreshOpenSettingsManualQuickAccessLists();
+        syncManualQuickAccessPickerMarkers();
+    }
+
+    function getManualReactionFavoriteRecords(limit = reactionQuickAccessLimit) {
+        const safeLimit = Math.max(0, Number(limit) || 0);
+        return manualReactionFavorites.slice(0, safeLimit);
+    }
+
+    function isManualReactionFavoriteRecord(record) {
+        const normalizedRecord = normalizeManualReactionFavoriteRecord(record);
+        if (!normalizedRecord) return false;
+        return manualReactionFavorites.some((favorite) => favorite.key === normalizedRecord.key);
+    }
+
+    function toggleManualReactionFavoriteRecord(record) {
+        const normalizedRecord = normalizeManualReactionFavoriteRecord(record);
+        if (!normalizedRecord) {
+            return { ok: false, added: false, message: 'Réaction favorite introuvable.' };
+        }
+
+        const existingIndex = manualReactionFavorites.findIndex((favorite) => favorite.key === normalizedRecord.key);
+        if (existingIndex >= 0) {
+            const nextFavorites = manualReactionFavorites.filter((_, index) => index !== existingIndex);
+            saveManualReactionFavorites(nextFavorites);
+            return { ok: true, added: false, message: 'Réaction retirée des favoris manuels.' };
+        }
+
+        saveManualReactionFavorites([...manualReactionFavorites, normalizedRecord]);
+        return { ok: true, added: true, message: 'Réaction ajoutée aux favoris manuels.' };
+    }
+
+    function toggleManualReactionFavoriteFromButton(button) {
+        return toggleManualReactionFavoriteRecord(extractReactionUsageRecordFromButton(button));
+    }
+
+    function moveManualReactionFavorite(index, delta) {
+        const sourceIndex = Math.max(0, Number(index) || 0);
+        const targetIndex = sourceIndex + (Number(delta) || 0);
+        if (
+            sourceIndex < 0 ||
+            sourceIndex >= manualReactionFavorites.length ||
+            targetIndex < 0 ||
+            targetIndex >= manualReactionFavorites.length
+        ) {
+            return false;
+        }
+
+        const nextFavorites = manualReactionFavorites.slice();
+        const [movedFavorite] = nextFavorites.splice(sourceIndex, 1);
+        nextFavorites.splice(targetIndex, 0, movedFavorite);
+        saveManualReactionFavorites(nextFavorites);
+        return true;
+    }
+
+    function reorderManualReactionFavorite(sourceIndex, targetIndex) {
+        const normalizedSourceIndex = Math.max(0, Number(sourceIndex) || 0);
+        const normalizedTargetIndex = Math.max(0, Number(targetIndex) || 0);
+        return moveManualReactionFavorite(normalizedSourceIndex, normalizedTargetIndex - normalizedSourceIndex);
     }
 
     function extractReactionEmojiValueFromCandidates(...values) {
@@ -1081,6 +1426,16 @@
         });
     }
 
+    function refreshOpenSettingsManualQuickAccessLists() {
+        const modal = document.getElementById(MODAL_ID);
+        if (!(modal instanceof HTMLElement)) return;
+
+        refreshSettingsManualQuickAccessLists({
+            manualEmojiFavoritesList: modal.querySelector('#tm-manual-emoji-favorites-list'),
+            manualReactionFavoritesList: modal.querySelector('#tm-manual-reaction-favorites-list')
+        });
+    }
+
     function getReactionUsageCount(recordOrKey) {
         const key = typeof recordOrKey === 'string'
             ? String(recordOrKey || '').trim()
@@ -1164,6 +1519,10 @@
     function getQuickAccessReactionRecords(limit = reactionQuickAccessLimit) {
         const safeLimit = Math.max(0, Number(limit) || 0);
         if (safeLimit <= 0) return [];
+
+        if (quickAccessMode === QUICK_ACCESS_MODE_MANUAL) {
+            return getManualReactionFavoriteRecords(safeLimit);
+        }
 
         return getTopReactionUsageRecords(safeLimit * 3)
             .filter((record) => !!record?.src || !!buildReactionQuickAccessLabel(record))
@@ -2064,6 +2423,7 @@
             storage,
             afkConfig: {
                 autoReplyMessage: normalizeAfkAutoReplyMessage(afkState.autoReplyMessage),
+                autoReplyEnabled: afkState.autoReplyEnabled === true,
                 muteMentionSound: afkState.muteMentionSound === true
             }
         };
@@ -2113,6 +2473,9 @@
         klipyGifsEnabled = loadKlipyGifsEnabled();
         emojiQuickAccessLimit = loadEmojiQuickAccessLimit();
         reactionQuickAccessLimit = loadReactionQuickAccessLimit();
+        quickAccessMode = loadQuickAccessMode();
+        manualEmojiFavorites = loadManualEmojiFavorites();
+        manualReactionFavorites = loadManualReactionFavorites();
         chatInputToolbarInline = loadChatInputToolbarInline();
         chatInputToolbarAlignRight = loadChatInputToolbarAlignRight();
         afkState = loadAfkState();
@@ -2192,6 +2555,7 @@
             ...normalizeAfkState(null),
             username: normalizeName(mentionSettings?.username || ''),
             autoReplyMessage: normalizeAfkAutoReplyMessage(payload?.afkConfig?.autoReplyMessage),
+            autoReplyEnabled: payload?.afkConfig?.autoReplyEnabled === true,
             muteMentionSound: payload?.afkConfig?.muteMentionSound === true
         });
 
@@ -4191,12 +4555,12 @@
     }
 
     function updateAfkAutoReplyEnabled(value) {
-        const nextAutoReplyEnabled = afkState.enabled === true && value === true;
+        const nextAutoReplyEnabled = value === true;
 
         saveAfkState({
             ...afkState,
             autoReplyEnabled: nextAutoReplyEnabled,
-            activatedAt: nextAutoReplyEnabled ? Date.now() : 0,
+            activatedAt: afkState.enabled === true && nextAutoReplyEnabled ? Date.now() : 0,
             lastAutoReplyAt: 0,
             perUserReplyAt: {}
         });
@@ -4235,7 +4599,6 @@
         saveAfkState({
             ...afkState,
             enabled: false,
-            autoReplyEnabled: false,
             ownerTabId: afkState.ownerTabId || afkTabId,
             contextKey: '',
             contextLabel: '',
@@ -4343,8 +4706,9 @@
         const activityCount = afkActivityRecords.length;
         const unreadCount = afkActivityRecords.filter((record) => !record.isRead).length;
         const readCount = Math.max(0, activityCount - unreadCount);
-        const autoReplyEnabled = isAfkAutoReplyEnabled();
-        const autoReplyWindowExpired = autoReplyEnabled && isAfkAutoReplyWindowExpired();
+        const autoReplyEnabled = afkState.autoReplyEnabled === true;
+        const autoReplyActive = isAfkAutoReplyEnabled();
+        const autoReplyWindowExpired = autoReplyActive && isAfkAutoReplyWindowExpired();
 
         return {
             statusLabel: afkState.enabled
@@ -4359,7 +4723,9 @@
             unreadCount,
             readCount,
             autoReplyEnabled,
+            autoReplyActive,
             autoReplyWindowExpired,
+            muteMentionSound: afkState.muteMentionSound === true,
             toggleLabel: isAfkEnabledForCurrentContext()
                 ? 'Désactiver ici'
                 : (afkState.enabled ? 'Basculer ici' : 'Activer ici')
@@ -4430,9 +4796,11 @@
                 </label>
                 <div style="margin-top:8px;font-size:11px;color:${viewModel.autoReplyWindowExpired ? '#facc15' : '#71717a'};line-height:1.45;">
                     ${!afkState.enabled
-                        ? 'Active d’abord le mode AFK pour pouvoir autoriser les réponses automatiques.'
+                        ? (viewModel.autoReplyEnabled
+                            ? 'La réponse automatique sera appliquée à la prochaine activation AFK.'
+                            : 'Active d’abord le mode AFK pour pouvoir autoriser les réponses automatiques.')
                         : !viewModel.autoReplyEnabled
-                            ? 'Réponses automatiques désactivées. Le panneau continue simplement à enregistrer les messages à relire.'
+                            ? 'Réponses automatiques désactivées. Ce choix sera conservé à la prochaine activation AFK.'
                             : viewModel.autoReplyWindowExpired
                                 ? 'Les réponses automatiques sont coupées après 30 minutes d’inactivité, mais les messages continuent d’être enregistrés.'
                                 : 'Les réponses automatiques s’arrêtent d’elles-mêmes après 30 minutes d’inactivité, mais le suivi des messages continue.'}
@@ -4441,13 +4809,13 @@
                     <input
                         id="tm-afk-mute-mention-sound-enabled"
                         type="checkbox"
-                        ${afkState.muteMentionSound === true ? 'checked' : ''}
+                        ${viewModel.muteMentionSound ? 'checked' : ''}
                         style="width:14px;height:14px;cursor:pointer;"
                     >
                     <span>Couper le son des alertes pendant l’AFK</span>
                 </label>
                 <div style="margin-top:8px;font-size:11px;color:#71717a;line-height:1.45;">
-                    Les mentions restent enregistrées dans le suivi AFK, mais le son n’est plus joué tant que cette option est active sur le contexte AFK courant.
+                    Les mentions restent enregistrées dans le suivi AFK. Ce choix sera conservé entre les activations.
                 </div>
                 <textarea id="tm-afk-message-input" rows="3" maxlength="${MAX_AFK_AUTO_REPLY_MESSAGE_LENGTH}" style="
                     width:100%;
@@ -4787,12 +5155,11 @@
         saveAfkState({
             ...afkState,
             enabled: true,
-            autoReplyEnabled: false,
             ownerTabId: afkTabId,
             contextKey: currentContextKey,
             contextLabel: currentContextLabel,
             username: watchedUsername,
-            activatedAt: 0,
+            activatedAt: afkState.autoReplyEnabled === true ? Date.now() : 0,
             lastAutoReplyAt: 0,
             perUserReplyAt: {}
         });
@@ -4804,7 +5171,9 @@
 
         return {
             ok: true,
-            message: `Mode AFK activé pour ${currentContextLabel}. Réponses auto désactivées par défaut.`
+            message: afkState.autoReplyEnabled === true
+                ? `Mode AFK activé pour ${currentContextLabel}. Réponses auto activées.`
+                : `Mode AFK activé pour ${currentContextLabel}. Réponses auto désactivées.`
         };
     }
 
@@ -6101,8 +6470,13 @@
             toggleBtn: modal.querySelector('#tm-user-toggle'),
             phrasesEnabledToggle: modal.querySelector('#tm-phrases-enabled-toggle'),
             klipyGifsToggle: modal.querySelector('#tm-klipy-gifs-toggle'),
+            quickAccessModeSelect: modal.querySelector('#tm-quick-access-mode'),
             emojiQuickAccessLimitInput: modal.querySelector('#tm-emoji-quick-access-limit'),
             reactionQuickAccessLimitInput: modal.querySelector('#tm-reaction-quick-access-limit'),
+            manualEmojiFavoritesList: modal.querySelector('#tm-manual-emoji-favorites-list'),
+            manualReactionFavoritesList: modal.querySelector('#tm-manual-reaction-favorites-list'),
+            manualEmojiFavoritesClearBtn: modal.querySelector('#tm-manual-emoji-favorites-clear'),
+            manualReactionFavoritesClearBtn: modal.querySelector('#tm-manual-reaction-favorites-clear'),
             emojiUsageHistoryOpenBtn: modal.querySelector('#tm-emoji-usage-history-open'),
             emojiUsageHistoryPanel: modal.querySelector('#tm-emoji-usage-history-panel'),
             emojiUsageHistoryCloseBtn: modal.querySelector('#tm-emoji-usage-history-close'),
@@ -6365,6 +6739,156 @@
         return item;
     }
 
+    function createSettingsManualFavoriteItem(record, isReaction = false, index = 0, total = 0) {
+        const wrapper = document.createElement('div');
+        wrapper.style.display = 'inline-flex';
+        wrapper.style.alignItems = 'center';
+        wrapper.style.justifyContent = 'center';
+        wrapper.style.cursor = total > 1 ? 'grab' : 'default';
+        wrapper.draggable = total > 1;
+        wrapper.setAttribute('data-tm-manual-favorite-kind', isReaction ? 'reaction' : 'emoji');
+        wrapper.setAttribute('data-tm-manual-favorite-index', String(index));
+        wrapper.title = total > 1
+            ? 'Maintiens le clic puis glisse pour déplacer ce favori. Clique sur le favori pour le retirer.'
+            : 'Clique sur le favori pour le retirer.';
+
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.title = isReaction
+            ? 'Retirer cette réaction des favoris manuels'
+            : 'Retirer cet emoji des favoris manuels';
+        item.style.display = 'inline-flex';
+        item.style.alignItems = 'center';
+        item.style.justifyContent = 'center';
+        item.style.width = isReaction ? '28px' : '34px';
+        item.style.height = isReaction ? '28px' : '34px';
+        item.style.padding = '0';
+        item.style.border = '1px solid rgba(251,191,36,0.22)';
+        item.style.background = 'rgba(113,63,18,0.22)';
+        item.style.color = '#fef3c7';
+        item.style.borderRadius = isReaction ? '8px' : '999px';
+        item.style.cursor = total > 1 ? 'grab' : 'pointer';
+        item.style.lineHeight = '1';
+
+        const src = String(record?.src || '').trim();
+        if (src) {
+            const image = document.createElement('img');
+            image.src = src;
+            image.alt = record?.alt || record?.title || 'favori';
+            image.style.width = isReaction ? '16px' : '22px';
+            image.style.height = isReaction ? '16px' : '22px';
+            image.style.objectFit = 'contain';
+            image.style.pointerEvents = 'none';
+            item.appendChild(image);
+        } else {
+            const label = document.createElement('span');
+            const labelText = isReaction
+                ? buildReactionQuickAccessLabel(record)
+                : buildEmojiInsertionText(record);
+            label.textContent = Array.from(labelText || '?').slice(0, isReaction ? 2 : 5).join('');
+            label.style.fontSize = isReaction && label.textContent.length > 1 ? '10px' : '12px';
+            label.style.fontWeight = '700';
+            label.style.pointerEvents = 'none';
+            item.appendChild(label);
+        }
+
+        item.addEventListener('click', () => {
+            const result = isReaction
+                ? toggleManualReactionFavoriteRecord(record)
+                : toggleManualEmojiFavoriteRecord(record);
+            showToast(result.message, !result.ok);
+        });
+
+        wrapper.addEventListener('dragstart', (event) => {
+            if (total <= 1) return;
+
+            wrapper.style.opacity = '0.52';
+            wrapper.style.cursor = 'grabbing';
+            event.dataTransfer?.setData('text/plain', JSON.stringify({
+                kind: isReaction ? 'reaction' : 'emoji',
+                index
+            }));
+            if (event.dataTransfer) {
+                event.dataTransfer.effectAllowed = 'move';
+            }
+        });
+
+        wrapper.addEventListener('dragend', () => {
+            wrapper.style.opacity = '1';
+            wrapper.style.cursor = total > 1 ? 'grab' : 'default';
+        });
+
+        wrapper.addEventListener('dragover', (event) => {
+            if (total <= 1) return;
+
+            event.preventDefault();
+            if (event.dataTransfer) {
+                event.dataTransfer.dropEffect = 'move';
+            }
+            wrapper.style.outline = '2px solid rgba(96,165,250,0.72)';
+            wrapper.style.outlineOffset = '3px';
+        });
+
+        wrapper.addEventListener('dragleave', () => {
+            wrapper.style.removeProperty('outline');
+            wrapper.style.removeProperty('outline-offset');
+        });
+
+        wrapper.addEventListener('drop', (event) => {
+            if (total <= 1) return;
+
+            event.preventDefault();
+            wrapper.style.removeProperty('outline');
+            wrapper.style.removeProperty('outline-offset');
+
+            let payload = null;
+            try {
+                payload = JSON.parse(event.dataTransfer?.getData('text/plain') || '{}');
+            } catch (e) {
+                payload = null;
+            }
+
+            const payloadKind = String(payload?.kind || '');
+            const sourceIndex = Number(payload?.index);
+            if (payloadKind !== (isReaction ? 'reaction' : 'emoji') || !Number.isInteger(sourceIndex)) {
+                return;
+            }
+
+            const moved = isReaction
+                ? reorderManualReactionFavorite(sourceIndex, index)
+                : reorderManualEmojiFavorite(sourceIndex, index);
+            if (moved) showToast('Favori déplacé.');
+        });
+
+        wrapper.appendChild(item);
+        return wrapper;
+    }
+
+    function refreshSettingsManualFavoriteList(list, records, isReaction = false) {
+        if (!(list instanceof HTMLElement)) return;
+
+        list.innerHTML = '';
+
+        if (records.length === 0) {
+            const empty = document.createElement('div');
+            empty.textContent = isReaction ? 'Aucune réaction choisie.' : 'Aucun emoji choisi.';
+            empty.style.fontSize = '12px';
+            empty.style.color = '#a1a1aa';
+            empty.style.padding = '5px 0';
+            list.appendChild(empty);
+            return;
+        }
+
+        records.forEach((record, index) => {
+            list.appendChild(createSettingsManualFavoriteItem(record, isReaction, index, records.length));
+        });
+    }
+
+    function refreshSettingsManualQuickAccessLists(elements) {
+        refreshSettingsManualFavoriteList(elements.manualEmojiFavoritesList, manualEmojiFavorites, false);
+        refreshSettingsManualFavoriteList(elements.manualReactionFavoritesList, manualReactionFavorites, true);
+    }
+
     function refreshSettingsHighlightedUsersList(elements, setFeedback) {
         if (!(elements.highlightUsersList instanceof HTMLElement)) return;
 
@@ -6554,6 +7078,7 @@
             refreshHighlightedUsersList: () => refreshSettingsHighlightedUsersList(elements, setFeedback),
             refreshEmojiUsageList: () => refreshSettingsEmojiUsageList(elements),
             refreshReactionUsageList: () => refreshSettingsReactionUsageList(elements),
+            refreshManualQuickAccessLists: () => refreshSettingsManualQuickAccessLists(elements),
             syncFontSizeValueLabel,
             setPreviewFontScale,
             applyMentionSettingsToInputs: () => applyMentionSettingsToModalInputs(elements)
@@ -6565,6 +7090,7 @@
         controls.refreshHighlightedUsersList();
         controls.refreshEmojiUsageList();
         controls.refreshReactionUsageList();
+        controls.refreshManualQuickAccessLists();
         elements.userInput?.focus();
         controls.syncHighlightOpacityValue();
         controls.syncMentionSoundControlsState();
@@ -6779,6 +7305,15 @@
             return nextValue;
         };
 
+        elements.quickAccessModeSelect?.addEventListener('change', () => {
+            saveQuickAccessMode(elements.quickAccessModeSelect?.value);
+            controls.setFeedback(
+                quickAccessMode === QUICK_ACCESS_MODE_MANUAL
+                    ? 'Mode manuel activé pour les emojis rapides.'
+                    : 'Mode automatique activé pour les emojis rapides.'
+            );
+        });
+
         elements.emojiQuickAccessLimitInput?.addEventListener('change', () => {
             const nextValue = syncQuickAccessInput(elements.emojiQuickAccessLimitInput, emojiQuickAccessLimit);
             saveEmojiQuickAccessLimit(nextValue);
@@ -6789,6 +7324,18 @@
             const nextValue = syncQuickAccessInput(elements.reactionQuickAccessLimitInput, reactionQuickAccessLimit);
             saveReactionQuickAccessLimit(nextValue);
             controls.setFeedback(`Nombre de réactions favorites enregistré : ${reactionQuickAccessLimit}.`);
+        });
+
+        elements.manualEmojiFavoritesClearBtn?.addEventListener('click', () => {
+            saveManualEmojiFavorites([]);
+            controls.refreshManualQuickAccessLists();
+            controls.setFeedback('Favoris emojis manuels vidés.');
+        });
+
+        elements.manualReactionFavoritesClearBtn?.addEventListener('click', () => {
+            saveManualReactionFavorites([]);
+            controls.refreshManualQuickAccessLists();
+            controls.setFeedback('Favoris réactions manuels vidés.');
         });
 
         elements.emojiUsageHistoryOpenBtn?.addEventListener('click', () => {
@@ -7079,6 +7626,13 @@
                         <div style="font-size:12px;font-weight:700;color:#fde68a;">Alt+clic sur un pseudo</div>
                         <div style="margin-top:4px;font-size:11px;color:#fcd34d;line-height:1.45;">
                             Ajoute ou retire rapidement un utilisateur de la blacklist.
+                        </div>
+                    </div>
+
+                    <div style="padding:10px 12px;border-radius:12px;background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.24);">
+                        <div style="font-size:12px;font-weight:700;color:#fde68a;">Maj+clic dans un picker</div>
+                        <div style="margin-top:4px;font-size:11px;color:#fcd34d;line-height:1.45;">
+                            En mode manuel, ajoute ou retire un emoji ou une réaction des favoris. Dans les paramètres, clique sur un favori pour le retirer ou maintiens le clic puis glisse pour changer son ordre.
                         </div>
                     </div>
 
@@ -7407,8 +7961,25 @@
                 <div style="font-size:13px;font-weight:700;margin-bottom:10px;">Emojis rapides</div>
 
                 <div style="font-size:12px;color:#a1a1aa;line-height:1.5;">
-                    Prépare le futur nombre d’emojis et de réactions favoris affichés en accès rapide.
+                    Affiche des favoris automatiques selon l’usage, ou une liste choisie manuellement.
                 </div>
+
+                <label style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;font-size:12px;color:#d4d4d8;">
+                    <span>Mode des favoris</span>
+                    <select id="tm-quick-access-mode" style="
+                        min-width:130px;
+                        background:#18181b;
+                        color:#fff;
+                        border:1px solid rgba(255,255,255,0.10);
+                        border-radius:10px;
+                        padding:8px 10px;
+                        outline:none;
+                        font-weight:600;
+                    ">
+                        <option value="${QUICK_ACCESS_MODE_AUTO}" ${quickAccessMode === QUICK_ACCESS_MODE_AUTO ? 'selected' : ''}>Automatique</option>
+                        <option value="${QUICK_ACCESS_MODE_MANUAL}" ${quickAccessMode === QUICK_ACCESS_MODE_MANUAL ? 'selected' : ''}>Manuel</option>
+                    </select>
+                </label>
 
                 <div style="display:grid;gap:10px;margin-top:12px;">
                     <label style="display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:12px;color:#d4d4d8;">
@@ -7442,9 +8013,50 @@
                     </label>
                 </div>
 
+                <div style="display:grid;gap:8px;margin-top:12px;">
+                    <div style="font-size:11px;color:#a1a1aa;line-height:1.45;">
+                        En mode manuel, Maj+clic dans le picker natif ajoute ou retire un favori. Alt+clic marche aussi si ton système ne l’intercepte pas.
+                        Maintiens puis glisse un favori ci-dessous pour changer son ordre.
+                    </div>
+
+                    <div style="display:grid;gap:6px;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                            <div style="font-size:12px;color:#d4d4d8;font-weight:600;">Emojis choisis</div>
+                            <button id="tm-manual-emoji-favorites-clear" type="button" style="
+                                border:none;
+                                background:#27272a;
+                                color:#d4d4d8;
+                                border-radius:8px;
+                                padding:6px 8px;
+                                cursor:pointer;
+                                font-size:11px;
+                                font-weight:700;
+                            ">Vider</button>
+                        </div>
+                        <div id="tm-manual-emoji-favorites-list" style="display:flex;flex-wrap:wrap;gap:6px;min-height:34px;"></div>
+                    </div>
+
+                    <div style="display:grid;gap:6px;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                            <div style="font-size:12px;color:#d4d4d8;font-weight:600;">Réactions choisies</div>
+                            <button id="tm-manual-reaction-favorites-clear" type="button" style="
+                                border:none;
+                                background:#27272a;
+                                color:#d4d4d8;
+                                border-radius:8px;
+                                padding:6px 8px;
+                                cursor:pointer;
+                                font-size:11px;
+                                font-weight:700;
+                            ">Vider</button>
+                        </div>
+                        <div id="tm-manual-reaction-favorites-list" style="display:flex;flex-wrap:wrap;gap:5px;min-height:28px;"></div>
+                    </div>
+                </div>
+
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;">
                     <div style="font-size:11px;color:#71717a;line-height:1.45;">
-                        Valeur de 0 à 9. 0 désactive l’accès rapide.
+                        Valeur de 0 à 9. En mode manuel, seules les premières entrées affichables sont utilisées.
                     </div>
 
                     <button id="tm-emoji-usage-history-open" type="button" style="
@@ -11508,9 +12120,12 @@
 
     function createEmojiQuickAccessButton(record) {
         const insertionText = buildEmojiInsertionText(record);
+        const clickCount = Math.max(0, Number(record?.count) || 0);
         const button = document.createElement('button');
         button.type = 'button';
-        button.title = `${insertionText || 'Emoji'} · ${record.count} clic${record.count > 1 ? 's' : ''}`;
+        button.title = record?.isManual && clickCount <= 0
+            ? `${insertionText || 'Emoji'} · favori manuel`
+            : `${insertionText || 'Emoji'} · ${clickCount} clic${clickCount > 1 ? 's' : ''}`;
         button.setAttribute('aria-label', `Insérer ${insertionText || 'cet emoji'}`);
         button.style.display = 'inline-flex';
         button.style.alignItems = 'center';
@@ -11584,10 +12199,13 @@
 
     function createMessageReactionQuickAccessButton(record, messageEl) {
         const reactionLabel = buildReactionQuickAccessLabel(record);
+        const clickCount = Math.max(0, Number(record?.count) || 0);
         const button = document.createElement('button');
         button.type = 'button';
         button.setAttribute(MESSAGE_REACTION_QUICK_ACCESS_BUTTON_ATTR, '1');
-        button.title = `${record.title || record.alt || record.label || 'Réaction'} · ${record.count} clic${record.count > 1 ? 's' : ''}`;
+        button.title = record?.isManual && clickCount <= 0
+            ? `${record.title || record.alt || record.label || 'Réaction'} · favori manuel`
+            : `${record.title || record.alt || record.label || 'Réaction'} · ${clickCount} clic${clickCount > 1 ? 's' : ''}`;
         button.setAttribute('aria-label', `Envoyer ${record.title || record.alt || record.label || 'cette réaction'}`.trim());
         button.style.display = 'inline-flex';
         button.style.alignItems = 'center';
@@ -11735,13 +12353,16 @@
     function buildReactionQuickAccessSignature(records = []) {
         return records
             .map((record) => {
-                const normalizedRecord = normalizeReactionUsageRecord(record);
-                if (!normalizedRecord) return '';
+                const key = String(record?.key || '').trim();
+                if (!key) return '';
 
                 return [
-                    normalizedRecord.key,
-                    normalizedRecord.count,
-                    normalizedRecord.lastUsedAt
+                    key,
+                    String(record?.emojiValue || '').trim(),
+                    String(record?.label || record?.title || record?.alt || '').trim(),
+                    String(record?.src || '').trim(),
+                    Math.max(0, Number(record?.count) || 0),
+                    Math.max(0, Number(record?.lastUsedAt) || 0)
                 ].join(':');
             })
             .filter(Boolean)
@@ -13494,6 +14115,51 @@
         return button;
     }
 
+    function applyManualQuickAccessPickerMarker(button, isFavorite) {
+        if (!(button instanceof HTMLButtonElement)) return;
+
+        if (quickAccessMode !== QUICK_ACCESS_MODE_MANUAL || !isFavorite) {
+            if (button.getAttribute(MANUAL_QUICK_ACCESS_PICKER_MARKER_ATTR) === '1') {
+                button.removeAttribute(MANUAL_QUICK_ACCESS_PICKER_MARKER_ATTR);
+                button.style.removeProperty('outline');
+                button.style.removeProperty('outline-offset');
+            }
+            return;
+        }
+
+        button.setAttribute(MANUAL_QUICK_ACCESS_PICKER_MARKER_ATTR, '1');
+        button.style.outline = '2px solid rgba(251,191,36,0.88)';
+        button.style.outlineOffset = '2px';
+    }
+
+    function syncManualQuickAccessPickerMarkers(root = document) {
+        if (!(root instanceof Document) && !(root instanceof HTMLElement)) return;
+
+        root.querySelectorAll('button').forEach((button) => {
+            if (!(button instanceof HTMLButtonElement)) return;
+
+            const emojiButton = findNativeEmojiPickerButtonFromTarget(button);
+            if (emojiButton === button) {
+                applyManualQuickAccessPickerMarker(
+                    button,
+                    isManualEmojiFavoriteRecord(extractEmojiUsageRecordFromButton(button))
+                );
+                return;
+            }
+
+            const reactionButton = findReactionUsageButtonFromTarget(button);
+            if (reactionButton === button) {
+                applyManualQuickAccessPickerMarker(
+                    button,
+                    isManualReactionFavoriteRecord(extractReactionUsageRecordFromButton(button))
+                );
+                return;
+            }
+
+            applyManualQuickAccessPickerMarker(button, false);
+        });
+    }
+
     function findVisibleReactionPicker() {
         const candidates = Array.from(document.querySelectorAll('div')).filter(isReactionPickerElement);
         return candidates.find((element) => {
@@ -14486,6 +15152,11 @@
 
         document.addEventListener('click', (event) => {
             if (!isSupportedPage()) return;
+            if (quickAccessMode === QUICK_ACCESS_MODE_MANUAL) {
+                window.setTimeout(() => {
+                    syncManualQuickAccessPickerMarkers();
+                }, 0);
+            }
 
             const picker = findNativeEmojiPickerFromTarget(event.target);
             if (picker instanceof HTMLDivElement) {
@@ -14494,6 +15165,7 @@
                     targetClass: event.target instanceof Element ? event.target.className : '',
                     pickerRect: picker.getBoundingClientRect().toJSON?.() || null
                 });
+                syncManualQuickAccessPickerMarkers(picker);
             }
 
             const emojiButton = findNativeEmojiPickerButtonFromTarget(event.target);
@@ -14503,6 +15175,16 @@
                         targetHtml: event.target instanceof Element ? event.target.outerHTML.slice(0, 300) : ''
                     });
                 }
+                return;
+            }
+
+            if (isManualQuickAccessPickerToggleEvent(event)) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+
+                const result = toggleManualEmojiFavoriteFromButton(emojiButton);
+                syncManualQuickAccessPickerMarkers(picker || document);
+                showToast(result.message, !result.ok);
                 return;
             }
 
@@ -14522,6 +15204,7 @@
 
             const picker = findNativeEmojiPickerFromTarget(event.target);
             if (!(picker instanceof HTMLDivElement)) return;
+            syncManualQuickAccessPickerMarkers(picker);
 
             logEmojiDebug('pointerdown: inside native emoji picker', {
                 targetTag: event.target instanceof Element ? event.target.tagName : '',
@@ -14539,6 +15222,23 @@
 
             const reactionButton = findReactionUsageButtonFromTarget(event.target);
             if (!(reactionButton instanceof HTMLButtonElement)) return;
+
+            const picker = findReactionUsagePickerRootFromTarget(reactionButton);
+            if (picker instanceof HTMLElement) {
+                syncManualQuickAccessPickerMarkers(picker);
+            }
+
+            if (isManualQuickAccessPickerToggleEvent(event)) {
+                if (eventName !== 'click') return;
+
+                event.preventDefault();
+                event.stopImmediatePropagation();
+
+                const result = toggleManualReactionFavoriteFromButton(reactionButton);
+                syncManualQuickAccessPickerMarkers(picker || document);
+                showToast(result.message, !result.ok);
+                return;
+            }
 
             const extractedRecord = extractReactionUsageRecordFromButton(reactionButton);
             logEmojiDebug(`reaction ${eventName}: button resolved`, {

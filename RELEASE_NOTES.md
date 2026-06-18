@@ -10,6 +10,8 @@ Ce fichier suit l'état fonctionnel du userscript à partir de la version actuel
 
 ## Version en préparation
 
+- Ajout d’un mode manuel pour choisir soi-même les emojis et réactions depuis les pickers natifs, avec réordonnancement dans les paramètres, en alternative au classement automatique par compteur.
+
 ### TODO reprise refactor
 
 - Continuer à extraire des helpers partagés pour la création des modales et des composants UI répétitifs.
