@@ -353,7 +353,9 @@
      * @property {number} unreadCount
      * @property {number} readCount
      * @property {boolean} autoReplyEnabled
+     * @property {boolean} autoReplyActive
      * @property {boolean} autoReplyWindowExpired
+     * @property {boolean} muteMentionSound
      * @property {string} toggleLabel
      */
 
@@ -2421,6 +2423,7 @@
             storage,
             afkConfig: {
                 autoReplyMessage: normalizeAfkAutoReplyMessage(afkState.autoReplyMessage),
+                autoReplyEnabled: afkState.autoReplyEnabled === true,
                 muteMentionSound: afkState.muteMentionSound === true
             }
         };
@@ -2552,6 +2555,7 @@
             ...normalizeAfkState(null),
             username: normalizeName(mentionSettings?.username || ''),
             autoReplyMessage: normalizeAfkAutoReplyMessage(payload?.afkConfig?.autoReplyMessage),
+            autoReplyEnabled: payload?.afkConfig?.autoReplyEnabled === true,
             muteMentionSound: payload?.afkConfig?.muteMentionSound === true
         });
 
@@ -4551,12 +4555,12 @@
     }
 
     function updateAfkAutoReplyEnabled(value) {
-        const nextAutoReplyEnabled = afkState.enabled === true && value === true;
+        const nextAutoReplyEnabled = value === true;
 
         saveAfkState({
             ...afkState,
             autoReplyEnabled: nextAutoReplyEnabled,
-            activatedAt: nextAutoReplyEnabled ? Date.now() : 0,
+            activatedAt: afkState.enabled === true && nextAutoReplyEnabled ? Date.now() : 0,
             lastAutoReplyAt: 0,
             perUserReplyAt: {}
         });
@@ -4595,7 +4599,6 @@
         saveAfkState({
             ...afkState,
             enabled: false,
-            autoReplyEnabled: false,
             ownerTabId: afkState.ownerTabId || afkTabId,
             contextKey: '',
             contextLabel: '',
@@ -4703,8 +4706,9 @@
         const activityCount = afkActivityRecords.length;
         const unreadCount = afkActivityRecords.filter((record) => !record.isRead).length;
         const readCount = Math.max(0, activityCount - unreadCount);
-        const autoReplyEnabled = isAfkAutoReplyEnabled();
-        const autoReplyWindowExpired = autoReplyEnabled && isAfkAutoReplyWindowExpired();
+        const autoReplyEnabled = afkState.autoReplyEnabled === true;
+        const autoReplyActive = isAfkAutoReplyEnabled();
+        const autoReplyWindowExpired = autoReplyActive && isAfkAutoReplyWindowExpired();
 
         return {
             statusLabel: afkState.enabled
@@ -4719,7 +4723,9 @@
             unreadCount,
             readCount,
             autoReplyEnabled,
+            autoReplyActive,
             autoReplyWindowExpired,
+            muteMentionSound: afkState.muteMentionSound === true,
             toggleLabel: isAfkEnabledForCurrentContext()
                 ? 'Désactiver ici'
                 : (afkState.enabled ? 'Basculer ici' : 'Activer ici')
@@ -4790,9 +4796,11 @@
                 </label>
                 <div style="margin-top:8px;font-size:11px;color:${viewModel.autoReplyWindowExpired ? '#facc15' : '#71717a'};line-height:1.45;">
                     ${!afkState.enabled
-                        ? 'Active d’abord le mode AFK pour pouvoir autoriser les réponses automatiques.'
+                        ? (viewModel.autoReplyEnabled
+                            ? 'La réponse automatique sera appliquée à la prochaine activation AFK.'
+                            : 'Active d’abord le mode AFK pour pouvoir autoriser les réponses automatiques.')
                         : !viewModel.autoReplyEnabled
-                            ? 'Réponses automatiques désactivées. Le panneau continue simplement à enregistrer les messages à relire.'
+                            ? 'Réponses automatiques désactivées. Ce choix sera conservé à la prochaine activation AFK.'
                             : viewModel.autoReplyWindowExpired
                                 ? 'Les réponses automatiques sont coupées après 30 minutes d’inactivité, mais les messages continuent d’être enregistrés.'
                                 : 'Les réponses automatiques s’arrêtent d’elles-mêmes après 30 minutes d’inactivité, mais le suivi des messages continue.'}
@@ -4801,13 +4809,13 @@
                     <input
                         id="tm-afk-mute-mention-sound-enabled"
                         type="checkbox"
-                        ${afkState.muteMentionSound === true ? 'checked' : ''}
+                        ${viewModel.muteMentionSound ? 'checked' : ''}
                         style="width:14px;height:14px;cursor:pointer;"
                     >
                     <span>Couper le son des alertes pendant l’AFK</span>
                 </label>
                 <div style="margin-top:8px;font-size:11px;color:#71717a;line-height:1.45;">
-                    Les mentions restent enregistrées dans le suivi AFK, mais le son n’est plus joué tant que cette option est active sur le contexte AFK courant.
+                    Les mentions restent enregistrées dans le suivi AFK. Ce choix sera conservé entre les activations.
                 </div>
                 <textarea id="tm-afk-message-input" rows="3" maxlength="${MAX_AFK_AUTO_REPLY_MESSAGE_LENGTH}" style="
                     width:100%;
@@ -5147,12 +5155,11 @@
         saveAfkState({
             ...afkState,
             enabled: true,
-            autoReplyEnabled: false,
             ownerTabId: afkTabId,
             contextKey: currentContextKey,
             contextLabel: currentContextLabel,
             username: watchedUsername,
-            activatedAt: 0,
+            activatedAt: afkState.autoReplyEnabled === true ? Date.now() : 0,
             lastAutoReplyAt: 0,
             perUserReplyAt: {}
         });
@@ -5164,7 +5171,9 @@
 
         return {
             ok: true,
-            message: `Mode AFK activé pour ${currentContextLabel}. Réponses auto désactivées par défaut.`
+            message: afkState.autoReplyEnabled === true
+                ? `Mode AFK activé pour ${currentContextLabel}. Réponses auto activées.`
+                : `Mode AFK activé pour ${currentContextLabel}. Réponses auto désactivées.`
         };
     }
 
