@@ -27,6 +27,7 @@ Repository ready for Tampermonkey userscript development with:
 - `tools/bump_version.py`: updates the `@version` metadata of one source script.
 - `RELEASE_NOTES.md`: release notes for `blacklist-shoutbox`.
 - `RELEASE_NOTES_TORR9CONF.md`: release notes for `torr9conf`.
+- `TR4KER_MIGRATION.md`: suivi des fonctionnalités migrées et des validations restantes pour Tr4ker.
 - `Makefile`: optional shortcut for environments where `make` is available.
 
 ## Quick start

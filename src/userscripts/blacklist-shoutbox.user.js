@@ -1,62 +1,215 @@
 // ==UserScript==
-// @name         Torr9 Chat - Shoutbox 2.0
+// @name         Tr4ker Chat - Shoutbox 3.0
 // @namespace    http://tampermonkey.net/
-// @version      2.69
-// @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, Gif et confort avancé pour la shoutbox Torr9
-// @icon         https://torr9.net/favicon.ico?favicon.71918ed5.ico
+// @version      3.0.2
+// @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
-// @match        https://torr9.net/*
-// @grant        none
+// @match        https://tr4ker.net/*
+// @grant        GM_xmlhttpRequest
+// @connect      api.klipy.com
+// @connect      api.imgbb.com
+// @connect      ibb.co
+// @connect      www.youtube.com
+// @connect      youtube.com
 // ==/UserScript==
 
 (function () {
     'use strict';
 
-    const STORAGE_KEY_USERS = 'tm_hidden_shout_users_torr9';
-    const STORAGE_KEY_POS_HOME = 'tm_torr9_stats_box_position_home';
-    const STORAGE_KEY_POS_CHAT = 'tm_torr9_stats_box_position_chat';
-    const STORAGE_KEY_SIZE_HOME = 'tm_torr9_stats_box_size_home';
-    const STORAGE_KEY_SIZE_CHAT = 'tm_torr9_stats_box_size_chat';
-    const STORAGE_KEY_STATS_COLLAPSED_HOME = 'tm_torr9_stats_box_collapsed_home';
-    const STORAGE_KEY_STATS_COLLAPSED_CHAT = 'tm_torr9_stats_box_collapsed_chat';
-    const STORAGE_KEY_STATS_HIDDEN_HOME = 'tm_torr9_stats_box_hidden_home';
-    const STORAGE_KEY_STATS_HIDDEN_CHAT = 'tm_torr9_stats_box_hidden_chat';
-    const STORAGE_KEY_DEBUG = 'tm_torr9_debug_mode';
-    const STORAGE_KEY_HOME_COLLAPSED = 'tm_torr9_home_chat_collapsed';
-    const STORAGE_KEY_HIGHLIGHTED_USERS = 'tm_highlighted_shout_users_torr9';
-    const STORAGE_KEY_MENTION_SETTINGS = 'tm_torr9_mention_highlight_settings';
-    const STORAGE_KEY_LAST_MENTION_SOUND_NOTIFICATION = 'tm_torr9_last_mention_sound_notification';
-    const STORAGE_KEY_RECENT_MENTION_SOUND_NOTIFICATIONS = 'tm_torr9_recent_mention_sound_notifications';
-    const STORAGE_KEY_CHAT_FONT_SCALE = 'tm_torr9_chat_font_scale';
-    const STORAGE_KEY_CHAT_SCROLLBAR_ENABLED = 'tm_torr9_chat_scrollbar_enabled';
-    const STORAGE_KEY_MESSAGE_ACTIONS_LEFT_ENABLED = 'tm_torr9_message_actions_left_enabled';
-    const STORAGE_KEY_HIDE_CHAT_FOOTER_ENABLED = 'tm_torr9_hide_chat_footer_enabled';
-    const STORAGE_KEY_LIGHT_THEME_HOME = 'tm_torr9_light_theme_home';
-    const STORAGE_KEY_LIGHT_THEME_CHAT = 'tm_torr9_light_theme_chat';
-    const STORAGE_KEY_LINKIFY_URLS = 'tm_torr9_linkify_urls';
-    const STORAGE_KEY_EMBED_URL_IMAGES = 'tm_torr9_embed_url_images';
-    const STORAGE_KEY_SAVED_PHRASES = 'tm_torr9_saved_phrases';
-    const STORAGE_KEY_SAVED_PHRASES_ENABLED = 'tm_torr9_saved_phrases_enabled';
-    const STORAGE_KEY_SAVED_PHRASES_REPLACE_INPUT = 'tm_torr9_saved_phrases_replace_input';
-    const STORAGE_KEY_KLIPY_GIFS_ENABLED = 'tm_torr9_klipy_gifs_enabled';
-    const STORAGE_KEY_EMOJI_USAGE_COUNTS = 'tm_torr9_emoji_usage_counts';
-    const STORAGE_KEY_REACTION_USAGE_COUNTS = 'tm_torr9_reaction_usage_counts';
-    const STORAGE_KEY_EMOJI_QUICK_ACCESS_LIMIT = 'tm_torr9_emoji_quick_access_limit';
-    const STORAGE_KEY_REACTION_QUICK_ACCESS_LIMIT = 'tm_torr9_reaction_quick_access_limit';
-    const STORAGE_KEY_QUICK_ACCESS_MODE = 'tm_torr9_quick_access_mode';
-    const STORAGE_KEY_MANUAL_EMOJI_FAVORITES = 'tm_torr9_manual_emoji_favorites';
-    const STORAGE_KEY_MANUAL_REACTION_FAVORITES = 'tm_torr9_manual_reaction_favorites';
-    const STORAGE_KEY_CHAT_INPUT_TOOLBAR_INLINE = 'tm_torr9_chat_input_toolbar_inline';
-    const STORAGE_KEY_CHAT_INPUT_TOOLBAR_ALIGN_RIGHT = 'tm_torr9_chat_input_toolbar_align_right';
-    const STORAGE_KEY_IMAGE_HOSTING_ENABLED = 'tm_torr9_image_hosting_enabled';
-    const STORAGE_KEY_IMGBB_API_KEY = 'tm_torr9_imgbb_api_key';
-    const STORAGE_KEY_IMAGE_HOSTING_EXPIRATION_SECONDS = 'tm_torr9_image_hosting_expiration_seconds';
-    const STORAGE_KEY_IMAGE_CATALOG = 'tm_torr9_image_catalog';
-    const STORAGE_KEY_AFK_STATE = 'tm_torr9_afk_state';
-    const STORAGE_KEY_AFK_ACTIVITY = 'tm_torr9_afk_activity';
-    const STORAGE_KEY_AFK_PANEL_POSITION = 'tm_torr9_afk_panel_position';
-    const STORAGE_KEY_AFK_PANEL_HIDDEN = 'tm_torr9_afk_panel_hidden';
-    const SESSION_STORAGE_KEY_AFK_TAB_ID = 'tm_torr9_afk_tab_id';
+    const STORAGE_KEY_USERS = 'tm_hidden_shout_users_t4';
+    const TR4KER_HOSTNAME = 'tr4ker.net';
+    const TR4KER_CHAT_INPUT_SELECTOR = 'textarea[placeholder^="Message dans"]';
+    const TR4KER_MESSAGE_SELECTOR = '[data-msg-id]';
+    const TR4KER_MESSAGE_ROOT_SELECTOR = '[class*="messageList"]';
+    const STORAGE_KEY_POS_HOME = 'tm_t4_stats_box_position_home';
+    const STORAGE_KEY_POS_CHAT = 'tm_t4_stats_box_position_chat';
+    const STORAGE_KEY_SIZE_HOME = 'tm_t4_stats_box_size_home';
+    const STORAGE_KEY_SIZE_CHAT = 'tm_t4_stats_box_size_chat';
+    const STORAGE_KEY_STATS_COLLAPSED_HOME = 'tm_t4_stats_box_collapsed_home';
+    const STORAGE_KEY_STATS_COLLAPSED_CHAT = 'tm_t4_stats_box_collapsed_chat';
+    const STORAGE_KEY_STATS_HIDDEN_HOME = 'tm_t4_stats_box_hidden_home';
+    const STORAGE_KEY_STATS_HIDDEN_CHAT = 'tm_t4_stats_box_hidden_chat';
+    const STORAGE_KEY_DEBUG = 'tm_t4_debug_mode';
+    const STORAGE_KEY_HOME_COLLAPSED = 'tm_t4_home_chat_collapsed';
+    const STORAGE_KEY_HIGHLIGHTED_USERS = 'tm_highlighted_shout_users_t4';
+    const STORAGE_KEY_MENTION_SETTINGS = 'tm_t4_mention_highlight_settings';
+    const STORAGE_KEY_LAST_MENTION_SOUND_NOTIFICATION = 'tm_t4_last_mention_sound_notification';
+    const STORAGE_KEY_RECENT_MENTION_SOUND_NOTIFICATIONS = 'tm_t4_recent_mention_sound_notifications';
+    const STORAGE_KEY_CHAT_FONT_SCALE = 'tm_t4_chat_font_scale';
+    const STORAGE_KEY_CHAT_SCROLLBAR_ENABLED = 'tm_t4_chat_scrollbar_enabled';
+    const STORAGE_KEY_MESSAGE_ACTIONS_LEFT_ENABLED = 'tm_t4_message_actions_left_enabled';
+    const STORAGE_KEY_HIDE_CHAT_FOOTER_ENABLED = 'tm_t4_hide_chat_footer_enabled';
+    const STORAGE_KEY_LIGHT_THEME_HOME = 'tm_t4_light_theme_home';
+    const STORAGE_KEY_LIGHT_THEME_CHAT = 'tm_t4_light_theme_chat';
+    const STORAGE_KEY_LINKIFY_URLS = 'tm_t4_linkify_urls';
+    const STORAGE_KEY_EMBED_URL_IMAGES = 'tm_t4_embed_url_images';
+    const STORAGE_KEY_SAVED_PHRASES = 'tm_t4_saved_phrases';
+    const STORAGE_KEY_SAVED_PHRASES_ENABLED = 'tm_t4_saved_phrases_enabled';
+    const STORAGE_KEY_SAVED_PHRASES_REPLACE_INPUT = 'tm_t4_saved_phrases_replace_input';
+    const STORAGE_KEY_KLIPY_GIFS_ENABLED = 'tm_t4_klipy_gifs_enabled';
+    const STORAGE_KEY_EMOJI_USAGE_COUNTS = 'tm_t4_emoji_usage_counts';
+    const STORAGE_KEY_REACTION_USAGE_COUNTS = 'tm_t4_reaction_usage_counts';
+    const STORAGE_KEY_EMOJI_QUICK_ACCESS_LIMIT = 'tm_t4_emoji_quick_access_limit';
+    const STORAGE_KEY_REACTION_QUICK_ACCESS_LIMIT = 'tm_t4_reaction_quick_access_limit';
+    const STORAGE_KEY_QUICK_ACCESS_MODE = 'tm_t4_quick_access_mode';
+    const STORAGE_KEY_MANUAL_EMOJI_FAVORITES = 'tm_t4_manual_emoji_favorites';
+    const STORAGE_KEY_MANUAL_REACTION_FAVORITES = 'tm_t4_manual_reaction_favorites';
+    const STORAGE_KEY_CHAT_INPUT_TOOLBAR_INLINE = 'tm_t4_chat_input_toolbar_inline';
+    const STORAGE_KEY_CHAT_INPUT_TOOLBAR_ALIGN_RIGHT = 'tm_t4_chat_input_toolbar_align_right';
+    const STORAGE_KEY_IMAGE_HOSTING_ENABLED = 'tm_t4_image_hosting_enabled';
+    const STORAGE_KEY_IMGBB_API_KEY = 'tm_t4_imgbb_api_key';
+    const STORAGE_KEY_IMAGE_HOSTING_EXPIRATION_SECONDS = 'tm_t4_image_hosting_expiration_seconds';
+    const STORAGE_KEY_IMAGE_CATALOG = 'tm_t4_image_catalog';
+    const STORAGE_KEY_AFK_STATE = 'tm_t4_afk_state';
+    const STORAGE_KEY_AFK_ACTIVITY = 'tm_t4_afk_activity';
+    const STORAGE_KEY_AFK_PANEL_POSITION = 'tm_t4_afk_panel_position';
+    const STORAGE_KEY_AFK_PANEL_HIDDEN = 'tm_t4_afk_panel_hidden';
+    const SESSION_STORAGE_KEY_AFK_TAB_ID = 'tm_t4_afk_tab_id';
+    const STORAGE_KEY_MIGRATION_DONE = 'tm_t4_storage_migration_v1';
+    const STORAGE_KEYS_TO_MIGRATE = [
+        STORAGE_KEY_USERS,
+        STORAGE_KEY_POS_HOME,
+        STORAGE_KEY_POS_CHAT,
+        STORAGE_KEY_SIZE_HOME,
+        STORAGE_KEY_SIZE_CHAT,
+        STORAGE_KEY_STATS_COLLAPSED_HOME,
+        STORAGE_KEY_STATS_COLLAPSED_CHAT,
+        STORAGE_KEY_STATS_HIDDEN_HOME,
+        STORAGE_KEY_STATS_HIDDEN_CHAT,
+        STORAGE_KEY_DEBUG,
+        STORAGE_KEY_HOME_COLLAPSED,
+        STORAGE_KEY_HIGHLIGHTED_USERS,
+        STORAGE_KEY_MENTION_SETTINGS,
+        STORAGE_KEY_LAST_MENTION_SOUND_NOTIFICATION,
+        STORAGE_KEY_RECENT_MENTION_SOUND_NOTIFICATIONS,
+        STORAGE_KEY_CHAT_FONT_SCALE,
+        STORAGE_KEY_CHAT_SCROLLBAR_ENABLED,
+        STORAGE_KEY_MESSAGE_ACTIONS_LEFT_ENABLED,
+        STORAGE_KEY_HIDE_CHAT_FOOTER_ENABLED,
+        STORAGE_KEY_LIGHT_THEME_HOME,
+        STORAGE_KEY_LIGHT_THEME_CHAT,
+        STORAGE_KEY_LINKIFY_URLS,
+        STORAGE_KEY_EMBED_URL_IMAGES,
+        STORAGE_KEY_SAVED_PHRASES,
+        STORAGE_KEY_SAVED_PHRASES_ENABLED,
+        STORAGE_KEY_SAVED_PHRASES_REPLACE_INPUT,
+        STORAGE_KEY_KLIPY_GIFS_ENABLED,
+        STORAGE_KEY_EMOJI_USAGE_COUNTS,
+        STORAGE_KEY_REACTION_USAGE_COUNTS,
+        STORAGE_KEY_EMOJI_QUICK_ACCESS_LIMIT,
+        STORAGE_KEY_REACTION_QUICK_ACCESS_LIMIT,
+        STORAGE_KEY_QUICK_ACCESS_MODE,
+        STORAGE_KEY_MANUAL_EMOJI_FAVORITES,
+        STORAGE_KEY_MANUAL_REACTION_FAVORITES,
+        STORAGE_KEY_CHAT_INPUT_TOOLBAR_INLINE,
+        STORAGE_KEY_CHAT_INPUT_TOOLBAR_ALIGN_RIGHT,
+        STORAGE_KEY_IMAGE_HOSTING_ENABLED,
+        STORAGE_KEY_IMGBB_API_KEY,
+        STORAGE_KEY_IMAGE_HOSTING_EXPIRATION_SECONDS,
+        STORAGE_KEY_IMAGE_CATALOG,
+        STORAGE_KEY_AFK_STATE,
+        STORAGE_KEY_AFK_ACTIVITY,
+        STORAGE_KEY_AFK_PANEL_POSITION,
+        STORAGE_KEY_AFK_PANEL_HIDDEN
+    ];
+
+    /**
+     * Migre une seule fois les réglages enregistrés sous les anciennes clés
+     * Torr9 vers les clés Tr4ker `t4`, puis nettoie les anciennes entrées.
+     */
+    function migrateLegacyStorageKeys() {
+        try {
+            if (localStorage.getItem(STORAGE_KEY_MIGRATION_DONE) === '1') return;
+
+            STORAGE_KEYS_TO_MIGRATE.forEach((newKey) => {
+                const legacyKey = newKey.replace(/t4/g, 'torr9');
+                if (legacyKey === newKey) return;
+
+                const currentValue = localStorage.getItem(newKey);
+                const legacyValue = localStorage.getItem(legacyKey);
+
+                if (currentValue === null && legacyValue !== null) {
+                    localStorage.setItem(newKey, legacyValue);
+                }
+
+                if (localStorage.getItem(newKey) !== null) {
+                    localStorage.removeItem(legacyKey);
+                }
+            });
+
+            const legacySessionKey = SESSION_STORAGE_KEY_AFK_TAB_ID.replace(/t4/g, 'torr9');
+            const currentSessionValue = sessionStorage.getItem(SESSION_STORAGE_KEY_AFK_TAB_ID);
+            const legacySessionValue = sessionStorage.getItem(legacySessionKey);
+            if (currentSessionValue === null && legacySessionValue !== null) {
+                sessionStorage.setItem(SESSION_STORAGE_KEY_AFK_TAB_ID, legacySessionValue);
+            }
+            if (sessionStorage.getItem(SESSION_STORAGE_KEY_AFK_TAB_ID) !== null) {
+                sessionStorage.removeItem(legacySessionKey);
+            }
+
+            localStorage.setItem(STORAGE_KEY_MIGRATION_DONE, '1');
+        } catch (error) {
+            console.warn('[Tr4ker Chat] Migration des réglages impossible.', error);
+        }
+    }
+
+    migrateLegacyStorageKeys();
+
+    /**
+     * Effectue une requête externe hors du contexte réseau de la page.
+     * Tr4ker applique une CSP qui bloque les fetch cross-origin du userscript;
+     * GM_xmlhttpRequest passe par le canal réseau autorisé par Tampermonkey.
+     */
+    function requestExternal(url, options = {}) {
+        const requestFunction = typeof GM_xmlhttpRequest === 'function'
+            ? GM_xmlhttpRequest
+            : null;
+
+        if (!requestFunction) {
+            return Promise.reject(new Error('GM_xmlhttpRequest est indisponible. Réinstalle le userscript avec Tampermonkey.'));
+        }
+
+        const method = String(options.method || 'GET').toUpperCase();
+        const headers = options.headers && typeof options.headers === 'object'
+            ? options.headers
+            : {};
+
+        return new Promise((resolve, reject) => {
+            requestFunction({
+                method,
+                url: String(url || ''),
+                headers,
+                data: options.body,
+                timeout: Math.max(0, Number(options.timeout) || 30000),
+                responseType: 'text',
+                anonymous: options.credentials === 'omit',
+                onload(response) {
+                    const status = Math.max(0, Number(response?.status) || 0);
+                    const responseText = String(response?.responseText || response?.response || '');
+                    const normalizedResponse = {
+                        status,
+                        ok: status >= 200 && status < 300,
+                        type: 'basic',
+                        responseText,
+                        text: async () => responseText,
+                        json: async () => JSON.parse(responseText)
+                    };
+                    normalizedResponse.clone = () => normalizedResponse;
+                    resolve(normalizedResponse);
+                },
+                onerror(response) {
+                    reject(new Error(`Requête externe impossible (HTTP ${response?.status || 0}).`));
+                },
+                ontimeout() {
+                    reject(new Error('Requête externe expirée.'));
+                },
+                onabort() {
+                    reject(new Error('Requête externe annulée.'));
+                }
+            });
+        });
+    }
+
     const SCRIPT_CONFIG_EXPORT_VERSION = 1;
     const SCRIPT_CONFIG_STORAGE_KEYS = [
         STORAGE_KEY_USERS,
@@ -152,7 +305,7 @@
     const KLIPY_API_BASE_URL = 'https://api.klipy.com/v2';
     // Test key provided locally for development. Replace it before any public rollout.
     const KLIPY_API_KEY = 'msjEFIejxUS9DvPCk5NAvbnF4HK1hfVEz8zpgFAoo5kpjkSGGIqIJYJ4WGx2cRhJ';
-    const KLIPY_CLIENT_KEY = 'torr9-shoutbox-userscript';
+    const KLIPY_CLIENT_KEY = 'tr4ker-shoutbox-userscript';
     const KLIPY_MAX_RESULTS_PER_PAGE = 10;
     const KLIPY_SEARCH_MIN_LENGTH = 2;
     const KLIPY_SEARCH_DEBOUNCE_MS = 280;
@@ -203,6 +356,7 @@
     const NATIVE_CHAT_INPUT_POPOVER_LIFTED_ATTR = 'data-tm-native-chat-input-popovers-lifted';
     const URL_CANDIDATE_RE = /(?:https?:\/\/|www\.)[^\s<>"']+/i;
     const URL_MATCH_RE = /(?:https?:\/\/|www\.)[^\s<>"']+/gi;
+    const YOUTUBE_FRAGMENT_RE = /(?:^|[\s([{"'/])((?:watch\?v=|shorts\/|embed\/|live\/)([a-zA-Z0-9_-]{6,})(?:&[a-zA-Z0-9_.~-]+=[a-zA-Z0-9_.~%+-]*)*)(?=$|[\s)\]}>,.!?;:'"])/gi;
     const DIRECT_IMAGE_PATH_RE = /\.(?:avif|bmp|gif|jpe?g|png|svg|webp)$/i;
     const MESSAGE_ACTIONS_LEFT_VERTICAL_OFFSET_PX = 10;
     const AFK_AUTO_REPLY_GLOBAL_COOLDOWN_MS = 60 * 1000;
@@ -429,12 +583,19 @@
      * @property {number} lastUsedAt
      */
 
+    function isTr4kerPage() {
+        return location.hostname === TR4KER_HOSTNAME || location.hostname.endsWith(`.${TR4KER_HOSTNAME}`);
+    }
+
     function isChatPage() {
-        return location.pathname.startsWith('/chat');
+        return isTr4kerPage() && (
+            location.pathname === '/communication' ||
+            location.pathname.startsWith('/communication/')
+        );
     }
 
     function isHomePage() {
-        return location.pathname === '/' || location.pathname === '';
+        return false;
     }
 
     function isSupportedPage() {
@@ -448,7 +609,7 @@
     }
 
     function getCurrentPageLabel() {
-        return isChatPage() ? 'Chat' : 'Accueil';
+        return 'Tr4ker · Communication';
     }
 
     function getCurrentContextLabel() {
@@ -1646,6 +1807,12 @@
     function getReactionPickerCandidateButtons(picker) {
         if (!(picker instanceof HTMLElement)) return [];
 
+        if (isTr4kerPage()) {
+            return Array.from(picker.querySelectorAll('button')).filter((button) =>
+                button instanceof HTMLButtonElement && !button.disabled
+            );
+        }
+
         return Array.from(picker.querySelectorAll('div.grid button')).filter((button) => (
             button instanceof HTMLButtonElement &&
             findReactionUsageButtonFromTarget(button) === button
@@ -2452,7 +2619,7 @@
         return {
             version: SAVED_PHRASES_EXPORT_VERSION,
             exportedAt: new Date().toISOString(),
-            source: 'Torr9 Chat - Shoutbox 2.0',
+            source: 'Tr4ker Chat - Shoutbox 3.0',
             phrases: savedPhrases
                 .map((phrase) => normalizeSavedPhraseRecord(phrase, true))
                 .filter(Boolean)
@@ -2611,7 +2778,7 @@
         return {
             version: SCRIPT_CONFIG_EXPORT_VERSION,
             exportedAt: new Date().toISOString(),
-            source: 'Torr9 Chat - Shoutbox 2.0',
+            source: 'Tr4ker Chat - Shoutbox 3.0',
             storage,
             afkConfig: {
                 autoReplyMessage: normalizeAfkAutoReplyMessage(afkState.autoReplyMessage),
@@ -3218,6 +3385,28 @@
             [data-tm-chat-surface="light"] .group.relative.flex.items-start > .flex-1.min-w-0 > .flex.items-center.gap-2.mb-1.text-xs button[type="button"] {
                 color: #64748b !important;
             }
+
+            [data-tm-chat-surface="light"] [data-msg-id] {
+                background: rgba(255,255,255,0.92);
+                border: 1px solid rgba(226,232,240,0.98);
+                border-radius: 14px;
+                box-shadow: 0 8px 18px rgba(15,23,42,0.05);
+                margin-bottom: 6px;
+                padding: 8px 10px;
+            }
+
+            [data-tm-chat-surface="light"] [data-msg-id] [class*="msgSender"] {
+                color: #0f172a !important;
+            }
+
+            [data-tm-chat-surface="light"] [data-msg-id] [class*="msgBubble"] {
+                color: #1f2937 !important;
+            }
+
+            [data-tm-chat-surface="light"] [data-msg-id] [class*="msgMeta"] > *,
+            [data-tm-chat-surface="light"] [data-msg-id] [class*="quote"] {
+                color: #64748b !important;
+            }
         `;
 
         document.head.appendChild(style);
@@ -3320,6 +3509,13 @@
             [data-tm-message-actions-left="1"] .group.relative.flex.items-start > .absolute.right-2.-top-3.flex.items-center.gap-0\\.5.bg-zinc-900.border.border-zinc-700.rounded-lg.shadow-lg.px-1.py-0\\.5.z-10 {
                 right: auto !important;
                 left: min(var(--tm-message-actions-inline-left, calc(0.5rem + 2.4rem)), calc(100% - 4.75rem)) !important;
+                top: var(--tm-message-actions-inline-top, 0px) !important;
+                transform: translateY(-${MESSAGE_ACTIONS_LEFT_VERTICAL_OFFSET_PX}px) !important;
+            }
+
+            [data-tm-message-actions-left="1"] [data-msg-id] [data-msg-actions] {
+                position: absolute !important;
+                left: min(var(--tm-message-actions-inline-left, 2.4rem), calc(100% - 5rem)) !important;
                 top: var(--tm-message-actions-inline-top, 0px) !important;
                 transform: translateY(-${MESSAGE_ACTIONS_LEFT_VERTICAL_OFFSET_PX}px) !important;
             }
@@ -3951,11 +4147,10 @@
         };
 
         try {
-            const response = await fetch(deleteUrl, {
+            const response = await requestExternal(deleteUrl, {
                 method: 'GET',
                 credentials: 'omit',
-                cache: 'no-store',
-                redirect: 'follow'
+                timeout: 15000
             });
 
             requestResult.responseReadable = response.type !== 'opaque';
@@ -4105,10 +4300,11 @@
         const formData = new FormData();
         formData.append('image', file, file.name || `image-${Date.now()}`);
 
-        const response = await fetch(requestUrl.toString(), {
+        const response = await requestExternal(requestUrl.toString(), {
             method: 'POST',
             body: formData,
-            credentials: 'omit'
+            credentials: 'omit',
+            timeout: 60000
         });
 
         let payload = null;
@@ -4262,7 +4458,7 @@
             return klipyGifResponseCache.get(cacheKey);
         }
 
-        const response = await fetch(buildKlipyApiUrl(endpoint, {
+        const response = await requestExternal(buildKlipyApiUrl(endpoint, {
             q: normalizedQuery,
             pos,
             limit: KLIPY_MAX_RESULTS_PER_PAGE,
@@ -4273,7 +4469,8 @@
             headers: {
                 Accept: 'application/json'
             },
-            credentials: 'omit'
+            credentials: 'omit',
+            timeout: 20000
         });
 
         let payload = null;
@@ -4310,6 +4507,8 @@
     }
 
     function getHomepageChatContainer() {
+        if (isTr4kerPage()) return null;
+
         const headers = Array.from(document.querySelectorAll('span.font-medium.text-white.text-sm'));
         for (const span of headers) {
             if (span.textContent.trim() === 'Chat') {
@@ -4337,6 +4536,15 @@
     function getChatPageHeaderTitle() {
         if (!isChatPage()) return '';
 
+        if (isTr4kerPage()) {
+            const title = document.querySelector('[class*="convTitleGroup"] [class*="convTitleRow"], [class*="convTitleRow"]');
+            const value = String(title?.textContent || '').trim();
+            if (value && normalizeChatContextLabel(value) !== 'chat') return value;
+
+            const conversationId = new URLSearchParams(location.search).get('conv');
+            return conversationId ? `Conversation #${conversationId}` : 'Conversation';
+        }
+
         const titles = Array.from(document.querySelectorAll('h2.text-sm.font-semibold.text-white.truncate'));
         for (const title of titles) {
             const value = String(title.textContent || '').trim();
@@ -4350,6 +4558,10 @@
 
     function getChatPageHeaderElement() {
         if (!isChatPage()) return null;
+
+        if (isTr4kerPage()) {
+            return document.querySelector('[class*="_header_1cvih"], [class*="chatArea"] [class*="header"]');
+        }
 
         const titles = Array.from(document.querySelectorAll('h2.text-sm.font-semibold.text-white.truncate'));
         for (const title of titles) {
@@ -4368,6 +4580,24 @@
 
     function getChatPageMessagesRoot() {
         if (!isChatPage()) return null;
+
+        if (isTr4kerPage()) {
+            const stableRoot = document.querySelector(TR4KER_MESSAGE_ROOT_SELECTOR);
+            if (stableRoot instanceof HTMLElement) return stableRoot;
+
+            const firstMessage = document.querySelector(TR4KER_MESSAGE_SELECTOR);
+            if (!(firstMessage instanceof HTMLElement)) return null;
+
+            let ancestor = firstMessage.parentElement;
+            while (ancestor && ancestor !== document.body) {
+                if (ancestor.querySelectorAll(TR4KER_MESSAGE_SELECTOR).length > 1) {
+                    return ancestor;
+                }
+                ancestor = ancestor.parentElement;
+            }
+
+            return firstMessage.parentElement;
+        }
 
         const header = getChatPageHeaderElement();
         const getDirectMessageCount = (scroller) => {
@@ -4421,22 +4651,22 @@
         if (!debugMode) return;
 
         if (details === null) {
-            console.debug('[Torr9 Chat][Mention]', message);
+            console.debug('[Tr4ker Chat][Mention]', message);
             return;
         }
 
-        console.debug('[Torr9 Chat][Mention]', message, details);
+        console.debug('[Tr4ker Chat][Mention]', message, details);
     }
 
     function logEmojiDebug(message, details = null) {
         if (!debugMode) return;
 
         if (details === null) {
-            console.log('[Torr9 Chat][Emoji]', message);
+            console.log('[Tr4ker Chat][Emoji]', message);
             return;
         }
 
-        console.log('[Torr9 Chat][Emoji]', message, details);
+        console.log('[Tr4ker Chat][Emoji]', message, details);
     }
 
     function normalizeMentionComparableText(value) {
@@ -4450,6 +4680,14 @@
 
     function getCurrentChatContext() {
         if (!isChatPage()) return null;
+
+        if (isTr4kerPage()) {
+            const conversationId = new URLSearchParams(location.search).get('conv');
+            return {
+                type: 'channel',
+                name: conversationId ? `conversation-${conversationId}` : 'conversation'
+            };
+        }
 
         const headerTitle = getChatPageHeaderTitle();
         if (headerTitle) {
@@ -4483,6 +4721,8 @@
         if (isHomePage()) return true;
         if (!isChatPage()) return false;
 
+        if (isTr4kerPage()) return true;
+
         const context = getCurrentChatContext();
         if (!context) return true;
 
@@ -4498,6 +4738,8 @@
     }
 
     function getHomepageMessagesRoot(container = null) {
+        if (isTr4kerPage()) return null;
+
         const chatContainer = container || getHomepageChatContainer();
         if (!(chatContainer instanceof HTMLElement)) return null;
         return chatContainer.querySelector('.custom-scrollbar');
@@ -4507,6 +4749,25 @@
         if (!(messageEl instanceof HTMLElement)) return;
 
         const safeScale = clampChatFontScale(scale);
+
+        if (isTr4kerPage()) {
+            const userButton = messageEl.querySelector('[class*="msgSender"]');
+            const textBlock = messageEl.querySelector('[class*="msgBubble"]');
+            const metaSpans = messageEl.querySelectorAll('[class*="msgMeta"] > *');
+
+            if (userButton instanceof HTMLElement) {
+                userButton.style.fontSize = scalePixels(14, safeScale);
+                userButton.style.lineHeight = '1.35';
+            }
+            metaSpans.forEach((span) => {
+                if (span instanceof HTMLElement) span.style.fontSize = scalePixels(12, safeScale);
+            });
+            if (textBlock instanceof HTMLElement) {
+                textBlock.style.fontSize = scalePixels(14, safeScale);
+                textBlock.style.lineHeight = safeScale >= 1.2 ? '1.6' : '1.5';
+            }
+            return;
+        }
 
         if (isChatPage()) {
             const userButton = messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-baseline button[type="button"]');
@@ -4559,6 +4820,10 @@
 
     function getMessageMetaRow(messageEl) {
         if (!(messageEl instanceof HTMLElement) || !isChatPage()) return null;
+
+        if (isTr4kerPage()) {
+            return messageEl.querySelector('[class*="msgMeta"]');
+        }
 
         const exactMetaRow = messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-baseline.gap-2.mb-0\\.5');
         if (exactMetaRow instanceof HTMLElement) {
@@ -4642,6 +4907,11 @@
     function getUsernameFromMessage(messageEl) {
         if (!(messageEl instanceof HTMLElement)) return null;
 
+        if (isTr4kerPage()) {
+            const sender = messageEl.querySelector('[class*="msgSender"]');
+            return sender instanceof HTMLElement ? sender.textContent.trim() : null;
+        }
+
         if (isChatPage()) {
             const userBtn = messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-baseline button[type="button"]');
             if (!userBtn) return null;
@@ -4659,6 +4929,10 @@
 
     function isChatMessage(el) {
         if (!(el instanceof HTMLElement)) return false;
+
+        if (isTr4kerPage()) {
+            return el.matches(TR4KER_MESSAGE_SELECTOR) && !!el.querySelector('[class*="msgBubble"]');
+        }
 
         // On ne veut matcher que le conteneur principal du message,
         // pas les div internes.
@@ -11896,6 +12170,9 @@
 
         let score = 0;
         const label = getChatInputCandidateLabel(element);
+        if (isTr4kerPage() && element.matches(TR4KER_CHAT_INPUT_SELECTOR)) {
+            score += 1000;
+        }
         const controlsRow = getChatInputControlsRow(element);
 
         if (/\b(message|messages|ecrire|écrire|repondre|répondre|chat|shout)\b/.test(label)) {
@@ -12110,6 +12387,12 @@
 
     function getChatInput() {
         let input = null;
+
+        if (isTr4kerPage()) {
+            input = document.querySelector(TR4KER_CHAT_INPUT_SELECTOR);
+            if (input instanceof HTMLElement && isChatInputCandidate(input)) return input;
+            input = null;
+        }
 
         if (isChatPage()) {
             const header = getChatPageHeaderElement();
@@ -12524,6 +12807,11 @@
     function getChatInputControlsRow(input = getChatInput()) {
         if (!(input instanceof HTMLElement)) return null;
 
+        if (isTr4kerPage()) {
+            const inputArea = input.closest('[class*="inputArea"]');
+            if (inputArea instanceof HTMLElement) return inputArea;
+        }
+
         const inputWrapper = input.closest('.relative.flex-1');
         if (inputWrapper instanceof HTMLElement && inputWrapper.parentElement instanceof HTMLElement) {
             return inputWrapper.parentElement;
@@ -12574,6 +12862,7 @@
         const looksNativeUtilityButton = looksLikeNativeChatInputUtilityButton(button);
 
         if (isNativeChatInputSendButton(button)) return false;
+        if (isTr4kerPage()) return isEmojiButton || isImageButton;
         if (!looksNativeUtilityButton) return false;
         return isEmojiButton || isImageButton || !!button.querySelector('svg');
     }
@@ -12598,6 +12887,13 @@
     }
 
     function getNativeChatInputActionButtons(input = getChatInput()) {
+        if (isTr4kerPage() && input instanceof HTMLElement) {
+            const directButtons = Array.from(
+                (input.parentElement || input).querySelectorAll('button[type="button"]')
+            ).filter((button) => isNativeChatInputUtilityButton(button));
+            return Array.from(new Set(directButtons)).slice(0, 2);
+        }
+
         const actionContainers = getChatInputActionContainers(input);
         if (actionContainers.length === 0) return [];
 
@@ -12828,6 +13124,13 @@
     }
 
     function syncNativeChatInputActionButtons(input = getChatInput()) {
+        if (isTr4kerPage()) {
+            // Tr4ker owns the React popovers associated with these buttons. Keep
+            // the native controls in place so their event/ref lifecycle remains intact.
+            restoreNativeChatInputActionButtons();
+            return;
+        }
+
         if (!shouldUseChatInputToolbarRail()) {
             restoreNativeChatInputActionButtons();
             return;
@@ -15809,6 +16112,11 @@
     function getMessageTextContent(messageEl) {
         if (!(messageEl instanceof HTMLElement)) return '';
 
+        if (isTr4kerPage()) {
+            const textBlock = messageEl.querySelector('[class*="msgBubble"]');
+            return (textBlock?.textContent || '').trim();
+        }
+
         if (isChatPage()) {
             const textBlock = messageEl.querySelector(':scope > .flex-1.min-w-0 > .text-sm.text-gray-200.break-words');
             return (textBlock?.textContent || '').trim();
@@ -15824,6 +16132,10 @@
 
     function getMessageTimestampText(messageEl) {
         if (!(messageEl instanceof HTMLElement)) return '';
+
+        if (isTr4kerPage()) {
+            return String(messageEl.querySelector('[class*="msgTime"]')?.textContent || '').trim();
+        }
 
         if (isChatPage()) {
             const metaSpans = Array.from(messageEl.querySelectorAll(':scope > .flex-1.min-w-0 > .flex.items-baseline span'));
@@ -15879,7 +16191,9 @@
         const messageTimestampKey = parseMessageTimestampKey(messageTimestamp);
         const normalizedMessageText = normalizeMentionComparableText(messageText);
         const normalizedReplyContextText = normalizeMentionComparableText(replyContextText).replace(/^@+/, '');
-        const stableTimestampToken = messageTimestampKey > 0
+        const stableTimestampToken = isTr4kerPage() && messageEl.hasAttribute('data-msg-id')
+            ? `id:${messageEl.getAttribute('data-msg-id')}`
+            : messageTimestampKey > 0
             ? String(messageTimestampKey)
             : normalizeMentionComparableText(messageTimestamp);
 
@@ -15920,12 +16234,22 @@
     function getMessageReplyContextText(messageEl) {
         if (!(messageEl instanceof HTMLElement) || !isChatPage()) return '';
 
+        if (isTr4kerPage()) {
+            const author = messageEl.querySelector('[class*="quoteAuthor"]');
+            const body = messageEl.querySelector('[class*="quoteBody"]');
+            return [author?.textContent, body?.textContent].filter(Boolean).join(' : ').trim();
+        }
+
         const replyButton = messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-center.gap-2.mb-1.text-xs button[type="button"]');
         return String(replyButton?.textContent || '').trim();
     }
 
     function getMessageReplyContextRow(messageEl) {
         if (!(messageEl instanceof HTMLElement) || !isChatPage()) return null;
+
+        if (isTr4kerPage()) {
+            return messageEl.querySelector('[class*="quote"]');
+        }
 
         return messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-center.gap-2.mb-1.text-xs');
     }
@@ -15968,6 +16292,10 @@
     function getMessageActionButtonsContainer(messageEl) {
         if (!(messageEl instanceof HTMLElement) || !isChatPage()) return null;
 
+        if (isTr4kerPage()) {
+            return messageEl.querySelector('[data-msg-actions]');
+        }
+
         return messageEl.querySelector(
             ':scope > .absolute.right-2.-top-3.flex.items-center.gap-0\\.5.bg-zinc-900.border.border-zinc-700.rounded-lg.shadow-lg.px-1.py-0\\.5.z-10'
         );
@@ -15977,12 +16305,14 @@
         if (!(messageEl instanceof HTMLElement) || !isChatPage()) return null;
 
         const actionButtonsContainer = getMessageActionButtonsContainer(messageEl);
-        const directReplyButton = actionButtonsContainer?.querySelector('button[title="Repondre"]');
+        const directReplyButton = actionButtonsContainer?.querySelector('button[title="Répondre"], button[title="Repondre"], button[aria-label*="Répondre"], button[aria-label*="Reply"]');
         if (directReplyButton instanceof HTMLButtonElement) {
             return directReplyButton;
         }
 
-        const usernameButton = messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-baseline button[type="button"]');
+        const usernameButton = isTr4kerPage()
+            ? messageEl.querySelector('[class*="msgSender"]')
+            : messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-baseline button[type="button"]');
         const replyContextButton = messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-center.gap-2.mb-1.text-xs button[type="button"]');
         const buttons = Array.from(
             (actionButtonsContainer || messageEl).querySelectorAll('button')
@@ -16017,12 +16347,14 @@
         if (!(messageEl instanceof HTMLElement) || !isChatPage()) return null;
 
         const actionButtonsContainer = getMessageActionButtonsContainer(messageEl);
-        const directReactionButton = actionButtonsContainer?.querySelector('button[title="Reagir"]');
+        const directReactionButton = actionButtonsContainer?.querySelector('button[title="Réagir"], button[title="Reagir"], button[aria-label*="Réagir"], button[aria-label*="React"]');
         if (directReactionButton instanceof HTMLButtonElement) {
             return directReactionButton;
         }
 
-        const usernameButton = messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-baseline button[type="button"]');
+        const usernameButton = isTr4kerPage()
+            ? messageEl.querySelector('[class*="msgSender"]')
+            : messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-baseline button[type="button"]');
         const replyContextButton = messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-center.gap-2.mb-1.text-xs button[type="button"]');
         const replyActionButton = getMessageReplyActionButton(messageEl);
         const buttons = Array.from(
@@ -16055,6 +16387,19 @@
 
     function isReactionPickerElement(element) {
         if (!(element instanceof HTMLDivElement)) return false;
+
+        if (isTr4kerPage()) {
+            const className = String(element.getAttribute('class') || '').toLowerCase();
+            const buttons = Array.from(element.querySelectorAll('button'));
+            const rect = element.getBoundingClientRect();
+            return (
+                rect.width > 0 &&
+                rect.height > 0 &&
+                buttons.length >= 3 &&
+                (/reaction|picker|emoji/.test(className) || buttons.some((button) => /emoji|reaction|react/i.test(getButtonSearchLabel(button))))
+            );
+        }
+
         if (!element.classList.contains('absolute')) return false;
         if (!element.classList.contains('bg-zinc-900')) return false;
         if (!element.classList.contains('border-zinc-700')) return false;
@@ -16069,6 +16414,9 @@
 
     function isReactionUsageGridElement(element) {
         if (!(element instanceof HTMLDivElement)) return false;
+        if (isTr4kerPage()) {
+            return element.classList.contains('grid') || element.querySelectorAll('button').length >= 3;
+        }
         if (!element.classList.contains('grid')) return false;
 
         return element.classList.contains('grid-cols-8') || element.classList.contains('grid-cols-7');
@@ -16090,6 +16438,19 @@
 
     function isNativeEmojiPickerElement(element) {
         if (!(element instanceof HTMLDivElement)) return false;
+
+        if (isTr4kerPage()) {
+            const className = String(element.getAttribute('class') || '').toLowerCase();
+            const buttons = Array.from(element.querySelectorAll('button'));
+            const rect = element.getBoundingClientRect();
+            return (
+                rect.width > 0 &&
+                rect.height > 0 &&
+                buttons.length >= 3 &&
+                (/emoji|picker/.test(className) || buttons.some((button) => button.querySelector('img')))
+            );
+        }
+
         if (!element.classList.contains('absolute')) return false;
         if (!element.classList.contains('bg-zinc-900')) return false;
         if (!element.classList.contains('border-zinc-700')) return false;
@@ -16111,10 +16472,24 @@
 
         const button = target.closest('button[type="button"]');
         if (!(button instanceof HTMLButtonElement)) return null;
-        if (!(button.querySelector('img') instanceof HTMLImageElement)) return null;
+        if (!isTr4kerPage() && !(button.querySelector('img') instanceof HTMLImageElement)) return null;
 
-        const picker = button.closest('div.absolute.bg-zinc-900.border.border-zinc-700.rounded-xl.shadow-2xl');
+        let picker = null;
+        if (isTr4kerPage()) {
+            let current = button.parentElement;
+            while (current && current !== document.body) {
+                if (current instanceof HTMLDivElement && isNativeEmojiPickerElement(current)) {
+                    picker = current;
+                    break;
+                }
+                current = current.parentElement;
+            }
+        } else {
+            picker = button.closest('div.absolute.bg-zinc-900.border.border-zinc-700.rounded-xl.shadow-2xl');
+        }
         if (!(picker instanceof HTMLDivElement) || !isNativeEmojiPickerElement(picker)) return null;
+
+        if (isTr4kerPage()) return button;
 
         const emojiGrid = button.closest('div.grid.grid-cols-7');
         if (!(emojiGrid instanceof HTMLDivElement) || !picker.contains(emojiGrid)) return null;
@@ -16125,6 +16500,15 @@
     function findNativeEmojiPickerFromTarget(target) {
         if (!(target instanceof Element)) return null;
 
+        if (isTr4kerPage()) {
+            let current = target instanceof HTMLElement ? target : null;
+            while (current && current !== document.body) {
+                if (current instanceof HTMLDivElement && isNativeEmojiPickerElement(current)) return current;
+                current = current.parentElement;
+            }
+            return null;
+        }
+
         const picker = target.closest('div.absolute.bg-zinc-900.border.border-zinc-700.rounded-xl.shadow-2xl');
         return picker instanceof HTMLDivElement && isNativeEmojiPickerElement(picker) ? picker : null;
     }
@@ -16134,7 +16518,9 @@
 
         const button = target.closest('button[type="button"]');
         if (!(button instanceof HTMLButtonElement)) return null;
-        const picker = button.closest('div.absolute.bg-zinc-900.border.border-zinc-700.rounded-xl.shadow-2xl.z-50');
+        const picker = isTr4kerPage()
+            ? findReactionUsagePickerRootFromTarget(button)
+            : button.closest('div.absolute.bg-zinc-900.border.border-zinc-700.rounded-xl.shadow-2xl.z-50');
         if (!(picker instanceof HTMLDivElement) || !isReactionPickerElement(picker)) return null;
 
         return button;
@@ -16398,12 +16784,13 @@
             oEmbedUrl.searchParams.set('url', normalizedWatchUrl);
             oEmbedUrl.searchParams.set('format', 'json');
 
-            const response = await fetch(oEmbedUrl.toString(), {
+            const response = await requestExternal(oEmbedUrl.toString(), {
                 method: 'GET',
                 headers: {
                     Accept: 'application/json'
                 },
-                credentials: 'omit'
+                credentials: 'omit',
+                timeout: 15000
             });
 
             if (!response.ok) return '';
@@ -16427,9 +16814,14 @@
         const normalizedUrl = String(rawUrl || '').trim();
         if (!normalizedUrl) return null;
 
+        const isYouTubeFragment = /^(?:watch\?v=|shorts\/|embed\/|live\/)/i.test(normalizedUrl);
+        const urlToParse = isYouTubeFragment
+            ? `https://www.youtube.com/${normalizedUrl}`
+            : normalizedUrl;
+
         let parsedUrl;
         try {
-            parsedUrl = new URL(normalizedUrl, location.origin);
+            parsedUrl = new URL(urlToParse, location.origin);
         } catch (e) {
             return null;
         }
@@ -16476,6 +16868,41 @@
             embedUrl: embedUrl.toString(),
             watchUrl: watchUrl.toString()
         };
+    }
+
+    function getYouTubeVideoDescriptorsFromText(rawText) {
+        const sourceText = String(rawText || '');
+        if (!sourceText) return [];
+
+        const descriptors = [];
+        const seenVideoIds = new Set();
+        YOUTUBE_FRAGMENT_RE.lastIndex = 0;
+
+        let match;
+        while ((match = YOUTUBE_FRAGMENT_RE.exec(sourceText)) !== null) {
+            const descriptor = getYouTubeVideoDescriptor(match[1]);
+            if (!descriptor || seenVideoIds.has(descriptor.videoId)) continue;
+
+            seenVideoIds.add(descriptor.videoId);
+            descriptors.push(descriptor);
+        }
+
+        return descriptors;
+    }
+
+    function createYouTubePlayButton(videoDescriptor) {
+        if (!videoDescriptor) return null;
+
+        const playButton = document.createElement('button');
+        playButton.type = 'button';
+        playButton.textContent = 'play';
+        playButton.title = 'Lire dans le player';
+        playButton.setAttribute('aria-label', 'Lire dans le player');
+        playButton.setAttribute('data-tm-youtube-play-link', '1');
+        playButton.setAttribute('data-tm-youtube-embed-url', videoDescriptor.embedUrl);
+        playButton.setAttribute('data-tm-youtube-video-id', videoDescriptor.videoId);
+        playButton.setAttribute('data-tm-youtube-watch-url', videoDescriptor.watchUrl);
+        return playButton;
     }
 
     function linkifyTextNodeUrls(textNode) {
@@ -16609,6 +17036,7 @@
 
         ensureYouTubeLinkActionStyle();
 
+        const linkedVideoIds = new Set();
         const candidateLinks = Array.from(textBlock.querySelectorAll('a[href]'));
         candidateLinks.forEach((link) => {
             if (!(link instanceof HTMLAnchorElement)) return;
@@ -16616,17 +17044,24 @@
             const videoDescriptor = getYouTubeVideoDescriptor(link.href);
             if (!videoDescriptor) return;
 
-            const playButton = document.createElement('button');
-            playButton.type = 'button';
-            playButton.textContent = 'play';
-            playButton.title = 'Lire dans le player';
-            playButton.setAttribute('aria-label', 'Lire dans le player');
-            playButton.setAttribute('data-tm-youtube-play-link', '1');
-            playButton.setAttribute('data-tm-youtube-embed-url', videoDescriptor.embedUrl);
-            playButton.setAttribute('data-tm-youtube-video-id', videoDescriptor.videoId);
-            playButton.setAttribute('data-tm-youtube-watch-url', videoDescriptor.watchUrl);
+            linkedVideoIds.add(videoDescriptor.videoId);
+            const playButton = createYouTubePlayButton(videoDescriptor);
+            if (!playButton) return;
 
             link.insertAdjacentElement('afterend', playButton);
+        });
+
+        // Tr4ker bloque les URLs dans les messages. Les utilisateurs peuvent
+        // donc envoyer uniquement le suffixe YouTube, par exemple watch?v=ID.
+        const textVideoDescriptors = getYouTubeVideoDescriptorsFromText(textBlock.textContent || '');
+        textVideoDescriptors.forEach((videoDescriptor) => {
+            if (linkedVideoIds.has(videoDescriptor.videoId)) return;
+
+            const playButton = createYouTubePlayButton(videoDescriptor);
+            if (!playButton) return;
+
+            textBlock.appendChild(document.createTextNode(' '));
+            textBlock.appendChild(playButton);
         });
     }
 
@@ -16665,6 +17100,10 @@
 
     function getMessageTextBlock(messageEl) {
         if (!(messageEl instanceof HTMLElement)) return null;
+
+        if (isTr4kerPage()) {
+            return messageEl.querySelector('[class*="msgBubble"]');
+        }
 
         if (isChatPage()) {
             return messageEl.querySelector(':scope > .flex-1.min-w-0 > .text-sm.text-gray-200.break-words');
@@ -17456,6 +17895,8 @@
                 processAllMessages();
                 refreshReactionQuickAccessButtons();
                 renderAfkPanel();
+            } else if (isTr4kerPage() && isChatPage() && !getChatPageMessagesRoot()) {
+                refreshForRoute();
             } else if (isHomePage() && !getHomepageChatContainer()) {
                 removeEmojiQuickAccessToolbar();
                 removeMessageReactionQuickAccessButtons();
@@ -17663,7 +18104,7 @@
         installRouteWatcher();
         document.addEventListener('click', handleStatsBoxActionClick, true);
         refreshForRoute();
-        console.log(`[Torr9 Chat] Script actif. Raccourcis : Ctrl+Alt+C / Ctrl+Cmd+C · Ctrl+Alt+R / Ctrl+Cmd+R · ${formatAfkShortcutLabel()}`);
+        console.log(`[Tr4ker Chat] Script actif. Raccourcis : Ctrl+Alt+C / Ctrl+Cmd+C · Ctrl+Alt+R / Ctrl+Cmd+R · ${formatAfkShortcutLabel()}`);
     }
 
     if (document.readyState === 'loading') {
