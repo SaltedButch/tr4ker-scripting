@@ -64,7 +64,6 @@ Ce script améliore la shoutbox de Torr9 sans compliquer son usage. L'idée est 
 ### 6. Confort de lecture
 
 - Taille de police ajustable pour mieux lire la shoutbox.
-- Thème clair beta disponible pour la shoutbox.
 - Détection et transformation des URLs en liens cliquables.
 - Prévisualisation au survol des liens directs vers des images.
 - Grossissement au survol des images déjà présentes dans le chat.

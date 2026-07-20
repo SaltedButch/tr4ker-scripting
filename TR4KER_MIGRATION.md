@@ -17,10 +17,10 @@ Cible principale : `https://tr4ker.net/communication?conv=1`
 | Chargement sur `tr4ker.net` | ✅ | `@match` Tr4ker et route `/communication` ajoutés. |
 | Détection des messages | ✅ | Utilise `[data-msg-id]` et le conteneur `messageList` de Tr4ker. |
 | Extraction pseudo/texte/heure | ✅ | Utilise `msgSender`, `msgBubble` et `msgTime`. L’identifiant du message sécurise les signatures. |
-| Blacklist / masquage de pseudos | ✅ | Le masquage agit sur les lignes Tr4ker et conserve les compteurs de session. |
+| Blacklist / masquage de pseudos | ✅ | Le masquage agit sur les lignes Tr4ker, conserve les compteurs de session et l’Alt+clic sur `msgSender` ajoute/retire un pseudo. |
 | Stats des messages masqués | ✅ | Le panneau existant réutilise la nouvelle racine du chat. |
 | Mise en avant de pseudos | ✅ | Compatible avec les lignes groupées Tr4ker via le message précédent. |
-| Détection des mentions | ✅ | Les mentions natives et le texte des bulles sont inspectés. |
+| Détection des mentions | ✅ | Les mentions natives, le texte des bulles et l’auteur des réponses citées sont inspectés ; les anciens réglages sans durée reprennent un clignotement de 6 secondes. |
 | Son de mention | 🟡 | Code adapté ; nécessite une validation navigateur après interaction utilisateur pour l’audio. |
 | Réponses natives | ✅ | Le bouton `[data-msg-actions]` / titre `Répondre` est reconnu. |
 | Contexte des citations | ✅ | Les blocs `quote`, `quoteAuthor` et `quoteBody` sont reconnus. |
@@ -31,13 +31,12 @@ Cible principale : `https://tr4ker.net/communication?conv=1`
 | Catalogue d’images | ✅ | Stockage local et interface conservés. |
 | Liens cliquables | ✅ | Le texte est maintenant ciblé via `msgBubble`. |
 | Aperçu des images liées | 🟡 | Le ciblage est adapté ; valider sur une URL d’image réellement postée. |
-| Player YouTube | ✅ | Reconnaît une URL complète ou le suffixe autorisé `watch?v=ID`, puis ouvre le player userscript sans créer de lien cliquable. |
-| Barre d’accès rapide aux emojis | 🟡 | Le textarea et les contrôles natifs sont reconnus ; le picker Tr4ker doit être validé en interaction réelle. |
-| Historique/favoris d’emojis | 🟡 | Les heuristiques de picker ont été élargies aux boutons Tr4ker. |
-| Réactions / favoris rapides | 🟡 | Le bouton `Réagir` et les pickers génériques sont reconnus ; confirmer la structure du picker ouvert. |
+| Player YouTube | 🟡 | Reconnaît une URL complète ou le suffixe autorisé `watch?v=ID`, puis ouvre le mini-lecteur déplaçable. L’iframe est injectée via `GM_addElement` pour contourner la CSP Tr4ker ; à valider après mise à jour de Tampermonkey. |
+| Barre d’accès rapide aux emojis | 🟡 | Le textarea et les contrôles natifs sont reconnus ; le rail userscript au-dessus de l’input est compact, harmonisé et défile horizontalement sur mobile. |
+| Historique/favoris d’emojis | 🟡 | Le tracker est lié au clic sur le bouton emoji natif de l’input ; les menus GIF/images/phrases et les accès rapides du script sont exclus, même si les popovers sont déplacés sous `body`. |
+| Réactions / favoris rapides | 🟡 | Le tracker est lié au clic sur le bouton `Réagir` du message concerné, y compris quand React déplace le popover sous `body`. Les contrôles GIF/images du script sont exclus, et les faux positifs historiques sont purgés. Le picker conserve son positionnement natif pour ne pas créer d’overflow horizontal. |
 | Taille du texte | ✅ | Application directe à `msgSender`, `msgMeta` et `msgBubble`. |
 | Scrollbar personnalisée | ✅ | La nouvelle racine `messageList` est ciblée. |
-| Thème clair | 🟡 | L’état et les réglages existent ; les règles de couleurs historiques restent à compléter pour le thème Tr4ker. |
 | Position des actions à gauche | 🟡 | Le conteneur d’actions est reconnu ; le style historique devra être ajusté si l’option est utilisée. |
 | Export/import de configuration | ✅ | Les réglages restent exportables et importables localement. |
 
@@ -47,7 +46,7 @@ Les clés actives utilisent désormais le préfixe `tm_t4_` (ou `tm_hidden_shout
 
 ## Requêtes externes et CSP
 
-Les appels Klipy, ImgBB et YouTube passent par `GM_xmlhttpRequest`, car la CSP de Tr4ker bloque les `fetch` cross-origin exécutés dans le contexte de la page. Une réinstallation du userscript est nécessaire pour que Tampermonkey prenne en compte `@grant GM_xmlhttpRequest` et les directives `@connect`.
+Les appels Klipy, ImgBB et YouTube passent par `GM_xmlhttpRequest`, car la CSP de Tr4ker bloque les `fetch` cross-origin exécutés dans le contexte de la page. Le player YouTube utilise `GM_addElement` pour injecter son iframe malgré la règle `frame-src/default-src`. Une réinstallation du userscript est nécessaire pour que Tampermonkey prenne en compte les nouveaux `@grant`.
 
 ## Vérifications restantes
 
@@ -56,7 +55,7 @@ Les appels Klipy, ImgBB et YouTube passent par `GM_xmlhttpRequest`, car la CSP d
 3. Ouvrir les pickers emoji/réaction et confirmer leurs sélecteurs après ouverture.
 4. Tester `watch?v=EHsfF1-2TDw` dans un message et vérifier l’ouverture du player YouTube.
 5. Tester un lien image, un GIF Klipy et une image collée.
-6. Ajuster le thème clair et la position des actions si le CSS Tr4ker réel diffère de l’export fourni.
+6. Ajuster la position des actions si le CSS Tr4ker réel diffère de l’export fourni.
 
 ## Limites connues
 
