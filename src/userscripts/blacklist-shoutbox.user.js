@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker Chat - Shoutbox 3.0
 // @namespace    http://tampermonkey.net/
-// @version      3.0.26
+// @version      3.0.32
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -185,15 +185,17 @@
                 headers,
                 data: options.body,
                 timeout: Math.max(0, Number(options.timeout) || 30000),
-                responseType: 'text',
+                responseType: String(options.responseType || 'text'),
                 anonymous: options.credentials === 'omit',
                 onload(response) {
                     const status = Math.max(0, Number(response?.status) || 0);
-                    const responseText = String(response?.responseText || response?.response || '');
+                    const rawResponse = response?.responseText ?? response?.response ?? '';
+                    const responseText = typeof rawResponse === 'string' ? rawResponse : '';
                     const normalizedResponse = {
                         status,
                         ok: status >= 200 && status < 300,
                         type: 'basic',
+                        responseHeaders: String(response?.responseHeaders || ''),
                         responseText,
                         text: async () => responseText,
                         json: async () => JSON.parse(responseText)
@@ -303,6 +305,7 @@
     const IMAGE_PREVIEW_ID = 'tm-torr9-image-preview';
     const IMAGE_VIEWER_MODAL_ID = 'tm-torr9-image-viewer-modal';
     const IMAGE_VIEWER_OVERLAY_ID = 'tm-torr9-image-viewer-overlay';
+    const IMAGE_CATALOG_DELETE_CONFIRMATION_ID = 'tm-t4-image-catalog-delete-confirmation';
     const YOUTUBE_PLAYER_ID = 'tm-torr9-youtube-player';
     const AFK_PANEL_ID = 'tm-torr9-afk-panel';
     const HOME_COLLAPSE_BUTTON_ID = 'tm-home-chat-collapse-toggle';
@@ -388,6 +391,7 @@
     const NATIVE_CHAT_INPUT_POPOVER_STYLE_ID = 'tm-torr9-native-chat-input-popover-style';
     const CHAT_INPUT_TOOLBAR_STYLE_ID = 'tm-t4-chat-input-toolbar-style';
     const CHAT_INPUT_TOOLBAR_RAIL_ATTR = 'data-tm-chat-input-toolbar-rail';
+    const CHAT_INPUT_TOOLBAR_INLINE_ATTR = 'data-tm-chat-input-toolbar-inline';
     const CHAT_INPUT_TOOLBAR_SPACE_ATTR = 'data-tm-chat-input-toolbar-space';
     const CHAT_INPUT_TOOLBAR_SYNC_BOUND_ATTR = 'data-tm-chat-input-toolbar-sync-bound';
     const CHAT_INPUT_TOOLBAR_RESERVED_HEIGHT_PX = 46;
@@ -426,6 +430,7 @@
     let routeWatcher = null;
     let modalOpen = false;
     let imageViewerOpen = false;
+    let imageCatalogDeleteConfirmationClose = null;
     let imageViewerKeydownHandler = null;
     let youtubePlayerKeydownHandler = null;
     let youtubePlayerResizeObserver = null;
@@ -3492,6 +3497,18 @@
                 top: var(--tm-message-actions-inline-top, 0px) !important;
                 transform: translateY(-${MESSAGE_ACTIONS_LEFT_VERTICAL_OFFSET_PX}px) !important;
             }
+
+            /* Les envois consécutifs de Tr4ker masquent la ligne auteur/date.
+               Sans ancre, une barre d'actions absolue se superpose au texte. */
+            [data-tm-message-actions-left="1"] [data-msg-id][data-tm-message-actions-stacked="1"] [data-msg-actions] {
+                position: relative !important;
+                left: auto !important;
+                top: auto !important;
+                transform: none !important;
+                width: max-content !important;
+                margin-top: 5px !important;
+                margin-left: 0 !important;
+            }
         `;
 
         document.head.appendChild(style);
@@ -3582,6 +3599,11 @@
                 min-width: 0;
                 height: 24px;
                 gap: 4px !important;
+            }
+
+            [${CHAT_INPUT_TOOLBAR_RAIL_ATTR}="1"][${CHAT_INPUT_TOOLBAR_INLINE_ATTR}="1"] {
+                min-height: var(--tm-chat-input-toolbar-inline-height, 32px);
+                height: var(--tm-chat-input-toolbar-inline-height, 32px);
             }
 
             [${CHAT_INPUT_TOOLBAR_RAIL_ATTR}="1"] button {
@@ -4060,10 +4082,32 @@
         });
     }
 
-    function validateImageUrl(imageUrl, timeoutMs = IMAGE_URL_VALIDATION_TIMEOUT_MS) {
+    async function validateImageUrl(imageUrl, timeoutMs = IMAGE_URL_VALIDATION_TIMEOUT_MS) {
         const normalizedImageUrl = normalizeImageCatalogUrl(imageUrl);
         if (!normalizedImageUrl) {
-            return Promise.resolve({ ok: false, message: 'URL image invalide.' });
+            return { ok: false, message: 'URL image invalide.' };
+        }
+
+        // Un visuel « Image not found » peut parfois être servi comme une image
+        // valide par le navigateur. Le statut HTTP obtenu par Tampermonkey est
+        // donc vérifié avant le décodage de l'image dans la page.
+        try {
+            const remoteResponse = await requestExternal(normalizedImageUrl, {
+                method: 'HEAD',
+                credentials: 'omit',
+                timeout: Math.min(Math.max(1000, Number(timeoutMs) || 0), 7000),
+                responseType: 'arraybuffer'
+            });
+            if (remoteResponse.status >= 400) {
+                return {
+                    ok: false,
+                    httpStatus: remoteResponse.status,
+                    message: `Le serveur image répond HTTP ${remoteResponse.status}.`
+                };
+            }
+        } catch (e) {
+            // Certains hébergeurs refusent HEAD : le test de décodage ci-dessous
+            // reste la solution de repli pour ces liens.
         }
 
         return new Promise((resolve) => {
@@ -4263,6 +4307,19 @@
         }
 
         if (normalizedRecord.deleteUrl) {
+            const currentRemoteImage = await validateImageUrl(
+                addImageUrlCacheBuster(normalizedRecord.url),
+                IMAGE_URL_VALIDATION_TIMEOUT_MS
+            );
+            if (!currentRemoteImage.ok && [404, 410].includes(currentRemoteImage.httpStatus)) {
+                const localDeletion = removeImageCatalogRecord(normalizedRecord.id);
+                if (!localDeletion.ok) return localDeletion;
+                return {
+                    ok: true,
+                    message: 'Image déjà supprimée sur ImgBB ; entrée locale retirée.'
+                };
+            }
+
             const remoteDeletion = await requestRemoteImageDeletion(normalizedRecord);
             if (!remoteDeletion.ok) return remoteDeletion;
         }
@@ -4959,16 +5016,30 @@
         if (!isChatPage()) {
             messageEl.style.removeProperty('--tm-message-actions-inline-left');
             messageEl.style.removeProperty('--tm-message-actions-inline-top');
+            messageEl.removeAttribute('data-tm-message-actions-stacked');
             return;
         }
 
         const metaRow = getMessageMetaRow(messageEl);
         const anchorEl = getMessageMetaAnchorElement(messageEl);
-        if (!(metaRow instanceof HTMLElement) || !(anchorEl instanceof HTMLElement)) {
+        const hasVisibleMetaAnchor =
+            metaRow instanceof HTMLElement &&
+            anchorEl instanceof HTMLElement &&
+            metaRow.getClientRects().length > 0 &&
+            anchorEl.getClientRects().length > 0;
+
+        if (!hasVisibleMetaAnchor) {
             messageEl.style.removeProperty('--tm-message-actions-inline-left');
             messageEl.style.removeProperty('--tm-message-actions-inline-top');
+            if (isTr4kerPage() && messageActionsLeftEnabled && getMessageActionButtonsContainer(messageEl)) {
+                messageEl.setAttribute('data-tm-message-actions-stacked', '1');
+            } else {
+                messageEl.removeAttribute('data-tm-message-actions-stacked');
+            }
             return;
         }
+
+        messageEl.removeAttribute('data-tm-message-actions-stacked');
 
         const messageRect = messageEl.getBoundingClientRect();
         const metaRowRect = metaRow.getBoundingClientRect();
@@ -7405,7 +7476,86 @@
         };
     }
 
+    function closeImageCatalogDeleteConfirmation(confirmed = false) {
+        if (typeof imageCatalogDeleteConfirmationClose === 'function') {
+            imageCatalogDeleteConfirmationClose(confirmed);
+        }
+    }
+
+    function confirmImageCatalogRemoteDeletion(record) {
+        closeImageCatalogDeleteConfirmation(false);
+
+        return new Promise((resolve) => {
+            const dialog = document.createElement('div');
+            dialog.id = IMAGE_CATALOG_DELETE_CONFIRMATION_ID;
+            dialog.setAttribute('role', 'dialog');
+            dialog.setAttribute('aria-modal', 'true');
+            dialog.setAttribute('aria-label', 'Confirmation de suppression ImgBB');
+            dialog.style.position = 'fixed';
+            dialog.style.inset = '0';
+            dialog.style.zIndex = '1000002';
+            dialog.style.display = 'flex';
+            dialog.style.alignItems = 'center';
+            dialog.style.justifyContent = 'center';
+            dialog.style.padding = '12px';
+            dialog.style.background = 'rgba(0,0,0,0.52)';
+            dialog.innerHTML = `
+                <div data-tm-image-delete-confirmation-card="1" style="
+                    width:min(400px, 100%);
+                    background:#18181b;
+                    border:1px solid rgba(255,255,255,0.12);
+                    border-radius:16px;
+                    box-shadow:0 20px 50px rgba(0,0,0,0.5);
+                    padding:18px;
+                    color:#fff;
+                    font-family:Inter,Arial,sans-serif;
+                ">
+                    <div style="font-size:14px;font-weight:700;">Supprimer l’image ImgBB ?</div>
+                    <div data-tm-image-delete-confirmation-description="1" style="margin-top:8px;font-size:12px;line-height:1.5;color:#d4d4d8;"></div>
+                    <div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:16px;">
+                        <button type="button" data-tm-image-delete-confirmation-cancel="1" style="border:none;background:#3f3f46;color:#fff;border-radius:9px;padding:9px 11px;cursor:pointer;font-weight:600;">Annuler</button>
+                        <button type="button" data-tm-image-delete-confirmation-confirm="1" style="border:none;background:#b91c1c;color:#fff;border-radius:9px;padding:9px 11px;cursor:pointer;font-weight:700;">Supprimer</button>
+                    </div>
+                </div>
+            `;
+
+            const description = dialog.querySelector('[data-tm-image-delete-confirmation-description="1"]');
+            if (description instanceof HTMLElement) {
+                description.textContent = `L’image « ${record?.title || 'sans titre'} » sera supprimée sur ImgBB. L’entrée locale ne sera retirée qu’après vérification.`;
+            }
+
+            const finish = (confirmed) => {
+                if (!dialog.isConnected && imageCatalogDeleteConfirmationClose !== finish) return;
+                document.removeEventListener('keydown', onKeyDown, true);
+                dialog.remove();
+                if (imageCatalogDeleteConfirmationClose === finish) {
+                    imageCatalogDeleteConfirmationClose = null;
+                }
+                resolve(confirmed === true);
+            };
+            const onKeyDown = (event) => {
+                if (event.key !== 'Escape') return;
+                event.preventDefault();
+                event.stopPropagation();
+                finish(false);
+            };
+
+            imageCatalogDeleteConfirmationClose = finish;
+            dialog.addEventListener('click', (event) => {
+                if (event.target === dialog) finish(false);
+                event.stopPropagation();
+            });
+            dialog.querySelector('[data-tm-image-delete-confirmation-cancel="1"]')?.addEventListener('click', () => finish(false));
+            const confirmButton = dialog.querySelector('[data-tm-image-delete-confirmation-confirm="1"]');
+            confirmButton?.addEventListener('click', () => finish(true));
+            document.addEventListener('keydown', onKeyDown, true);
+            document.body.appendChild(dialog);
+            if (confirmButton instanceof HTMLButtonElement) confirmButton.focus();
+        });
+    }
+
     function closeSettingsModal() {
+        closeImageCatalogDeleteConfirmation(false);
         const modal = document.getElementById(MODAL_ID);
         const overlay = document.getElementById(OVERLAY_ID);
         if (modal) modal.remove();
@@ -7447,6 +7597,7 @@
             imageCatalogPurgeBtn: modal.querySelector('#tm-image-catalog-purge'),
             imageCatalogClearBtn: modal.querySelector('#tm-image-catalog-clear'),
             imageCatalogList: modal.querySelector('#tm-image-catalog-list'),
+            imageCatalogStatus: modal.querySelector('#tm-image-catalog-status'),
             quickAccessModeSelect: modal.querySelector('#tm-quick-access-mode'),
             emojiQuickAccessLimitInput: modal.querySelector('#tm-emoji-quick-access-limit'),
             reactionQuickAccessLimitInput: modal.querySelector('#tm-reaction-quick-access-limit'),
@@ -8000,18 +8151,22 @@
         deleteBtn.style.cursor = 'pointer';
         deleteBtn.style.fontSize = '11px';
         deleteBtn.style.fontWeight = '600';
-        deleteBtn.addEventListener('click', async () => {
+        deleteBtn.addEventListener('click', async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+
             if (record.deleteUrl) {
-                const confirmed = window.confirm('Supprimer cette image via ImgBB ? L’entrée locale sera retirée seulement si la suppression est confirmée.');
+                const confirmed = await confirmImageCatalogRemoteDeletion(record);
                 if (!confirmed) return;
-                controls.setFeedback('Suppression ImgBB en cours, vérification du lien image...');
+                controls.setImageCatalogFeedback('Suppression ImgBB en cours, vérification du lien image...');
             }
 
             deleteBtn.disabled = true;
             deleteBtn.style.opacity = '0.65';
+            deleteBtn.textContent = 'Suppression…';
             const result = await deleteImageCatalogRecord(record);
             controls.refreshImageCatalogList();
-            controls.setFeedback(result.message, !result.ok);
+            controls.setImageCatalogFeedback(result.message, !result.ok);
         });
 
         actions.appendChild(copyBtn);
@@ -8029,6 +8184,8 @@
     function refreshSettingsImageCatalogList(elements, controls) {
         if (!(elements.imageCatalogList instanceof HTMLElement)) return;
 
+        const modal = elements.imageCatalogList.closest(`#${MODAL_ID}`);
+        const previousScrollTop = modal instanceof HTMLElement ? modal.scrollTop : null;
         saveImageCatalog(imageCatalog);
         elements.imageCatalogList.innerHTML = '';
 
@@ -8039,12 +8196,20 @@
             empty.style.color = '#a1a1aa';
             empty.style.padding = '5px 0';
             elements.imageCatalogList.appendChild(empty);
-            return;
+        } else {
+            imageCatalog.forEach((record) => {
+                elements.imageCatalogList.appendChild(createSettingsImageCatalogItem(record, elements, controls));
+            });
         }
 
-        imageCatalog.forEach((record) => {
-            elements.imageCatalogList.appendChild(createSettingsImageCatalogItem(record, elements, controls));
-        });
+        // Dans une modale à colonnes, reconstruire le catalogue peut provoquer
+        // un reflow et donner l'impression que la section ImgBB s'est fermée.
+        // On garde donc précisément la position de lecture de la modale.
+        if (modal instanceof HTMLElement && previousScrollTop !== null) {
+            window.requestAnimationFrame(() => {
+                if (modal.isConnected) modal.scrollTop = previousScrollTop;
+            });
+        }
     }
 
     async function purgeInvalidImageCatalogRecords(elements, controls) {
@@ -8061,7 +8226,10 @@
         let removedCount = imageCatalog.length - records.length;
 
         for (const record of records) {
-            const validation = await validateImageUrl(record.url, IMAGE_URL_VALIDATION_TIMEOUT_MS);
+            const validation = await validateImageUrl(
+                addImageUrlCacheBuster(record.url),
+                IMAGE_URL_VALIDATION_TIMEOUT_MS
+            );
             if (!validation.ok) {
                 removedCount += 1;
                 continue;
@@ -8277,6 +8445,13 @@
             elements.feedback.style.color = isError ? '#fca5a5' : '#93c5fd';
         }
 
+        function setImageCatalogFeedback(message, isError = false) {
+            setFeedback(message, isError);
+            if (!(elements.imageCatalogStatus instanceof HTMLElement)) return;
+            elements.imageCatalogStatus.textContent = message;
+            elements.imageCatalogStatus.style.color = isError ? '#fca5a5' : '#93c5fd';
+        }
+
         function syncSavedPhrasesMainSummary() {
             if (elements.phrasesSummary instanceof HTMLElement) {
                 elements.phrasesSummary.textContent = formatSavedPhrasesSummaryLabel();
@@ -8298,6 +8473,7 @@
 
         const controller = {
             setFeedback,
+            setImageCatalogFeedback,
             syncSavedPhrasesMainSummary,
             getSelectedMentionSoundScope: () => getSelectedSettingsMentionSoundScope(elements),
             syncMentionSoundControlsState: () => syncSettingsMentionSoundControls(elements),
@@ -8624,8 +8800,9 @@
         });
 
         elements.imageCatalogPurgeBtn?.addEventListener('click', async () => {
+            controls.setImageCatalogFeedback('Vérification des liens images...');
             const result = await purgeInvalidImageCatalogRecords(elements, controls);
-            controls.setFeedback(result.message, !result.ok);
+            controls.setImageCatalogFeedback(result.message, !result.ok);
         });
 
         elements.imageCatalogClearBtn?.addEventListener('click', () => {
@@ -9444,6 +9621,7 @@
                     </div>
 
                     <div id="tm-image-catalog-list" style="display:grid;gap:8px;margin-top:10px;"></div>
+                    <div id="tm-image-catalog-status" aria-live="polite" style="min-height:18px;margin-top:8px;font-size:11px;line-height:1.4;color:#71717a;"></div>
                 </div>
             </div>
         `;
@@ -12706,10 +12884,10 @@
             inlineInputHost instanceof HTMLElement &&
             inlineInputHost.parentElement === controlsRow
         ) {
-            const inlineRailBottomOffsetPx = isHomePage() ? 0 : 6;
+            const inlineInputHeight = Math.max(32, Math.round(inlineInputHost.getBoundingClientRect().height));
             rail.style.position = 'relative';
             rail.style.top = 'auto';
-            rail.style.bottom = `${inlineRailBottomOffsetPx}px`;
+            rail.style.bottom = '0';
             rail.style.left = 'auto';
             rail.style.right = 'auto';
             rail.style.justifyContent = 'flex-start';
@@ -12717,6 +12895,8 @@
             rail.style.flexShrink = '0';
             rail.style.minWidth = '0';
             rail.style.alignSelf = 'flex-end';
+            rail.setAttribute(CHAT_INPUT_TOOLBAR_INLINE_ATTR, '1');
+            rail.style.setProperty('--tm-chat-input-toolbar-inline-height', `${inlineInputHeight}px`);
             inlineInputHost.style.flex = '1 1 0%';
             inlineInputHost.style.minWidth = '0';
             inlineInputHost.style.width = '0';
@@ -12734,13 +12914,13 @@
                 controlsRow.insertBefore(rail, inlineInputHost);
             }
 
-            const inlineOffset = getInlineChatInputToolbarOffset(context, rail);
-            rail.style.transform = inlineOffset > 0
-                ? `translateY(-${inlineOffset}px)`
-                : 'translateY(0)';
+            rail.style.transform = 'translateY(0)';
 
             return;
         }
+
+        rail.removeAttribute(CHAT_INPUT_TOOLBAR_INLINE_ATTR);
+        rail.style.removeProperty('--tm-chat-input-toolbar-inline-height');
 
         if (inlineInputHost instanceof HTMLElement) {
             inlineInputHost.style.removeProperty('width');
@@ -15580,6 +15760,22 @@
         pendingImageUploadFiles = [...pendingImageUploadFiles, ...nextFiles].slice(0, 12);
     }
 
+    function setLocalImagePreviewSource(image, file) {
+        if (!(image instanceof HTMLImageElement) || !(file instanceof File)) return;
+
+        // Tr4ker n'autorise pas blob: dans img-src. Une Data URL est autorisée
+        // par sa CSP et ne sert qu'à l'aperçu local avant l'upload.
+        const reader = new FileReader();
+        reader.addEventListener('load', () => {
+            if (!image.isConnected || typeof reader.result !== 'string') return;
+            image.src = reader.result;
+        }, { once: true });
+        reader.addEventListener('error', () => {
+            image.removeAttribute('src');
+        }, { once: true });
+        reader.readAsDataURL(file);
+    }
+
     function refreshImageUploadPendingList(menu) {
         const { pendingList, uploadBtn } = getImageUploadMenuElements(menu);
         if (!(pendingList instanceof HTMLElement)) return;
@@ -15605,8 +15801,6 @@
                 row.style.border = '1px solid rgba(255,255,255,0.06)';
 
                 const preview = document.createElement('img');
-                const previewUrl = URL.createObjectURL(file);
-                preview.src = previewUrl;
                 preview.alt = file.name || `Image ${index + 1}`;
                 preview.loading = 'lazy';
                 preview.style.width = '56px';
@@ -15615,8 +15809,7 @@
                 preview.style.objectFit = 'cover';
                 preview.style.background = '#09090b';
                 preview.style.border = '1px solid rgba(255,255,255,0.08)';
-                preview.addEventListener('load', () => URL.revokeObjectURL(previewUrl), { once: true });
-                preview.addEventListener('error', () => URL.revokeObjectURL(previewUrl), { once: true });
+                setLocalImagePreviewSource(preview, file);
 
                 const body = document.createElement('div');
                 body.style.minWidth = '0';
@@ -15771,9 +15964,12 @@
         removeBtn.style.cursor = 'pointer';
         removeBtn.style.fontSize = '11px';
         removeBtn.style.fontWeight = '700';
-        removeBtn.addEventListener('click', async () => {
+        removeBtn.addEventListener('click', async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+
             if (record.deleteUrl) {
-                const confirmed = window.confirm('Supprimer cette image via ImgBB ? L’entrée locale sera retirée seulement si la suppression est confirmée.');
+                const confirmed = await confirmImageCatalogRemoteDeletion(record);
                 if (!confirmed) return;
                 setImageUploadMenuStatus(menu, 'Suppression ImgBB en cours, vérification du lien image...');
             }
