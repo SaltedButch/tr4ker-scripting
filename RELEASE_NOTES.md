@@ -91,5 +91,5 @@ Ce fichier suit l'état fonctionnel du userscript à partir de la version actuel
 - Bouton GIF Klipy dans le chat avec tendances, recherche et insertion automatique en BBCode image.
 - Raccourcis d'interaction sur la page chat avec double-clic pour répondre et clic long pour ouvrir les réactions.
 - Déplacement optionnel des actions de message à gauche pour rendre `Répondre` et `Réagir` plus accessibles.
-- Réglages de confort avec taille de police, URLs cliquables, prévisualisation des liens directs d'images au survol, ascenseur visible du chat, alignement des boutons du chat à droite et masquage du footer sur la page chat.
+- Réglages de confort avec taille de police, URLs cliquables, prévisualisation des liens directs d'images au survol, ascenseur visible du chat et alignement des boutons du chat à droite.
 - Mode debug qui n'efface pas les messages blacklistés mais les marque en rouge pour vérification.

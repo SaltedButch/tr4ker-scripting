@@ -38,7 +38,7 @@ Cible principale : `https://tr4ker.net/communication?conv=1`
 | Taille du texte | ✅ | Application directe à `msgSender`, `msgMeta` et `msgBubble`. |
 | Scrollbar personnalisée | ✅ | La nouvelle racine `messageList` est ciblée. |
 | Position des actions à gauche | 🟡 | Le conteneur d’actions est reconnu ; le style historique devra être ajusté si l’option est utilisée. |
-| Export/import de configuration | ✅ | Les réglages restent exportables et importables localement. |
+| Export/import de configuration | ✅ | Les réglages restent exportables et importables localement ; un export Torr9 utilisant les clés `tm_torr9_*` est automatiquement converti vers `tm_t4_*`, sans réactiver les options retirées. |
 
 ## Stockage local
 

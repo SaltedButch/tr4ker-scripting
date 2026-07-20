@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker Chat - Shoutbox 3.0
 // @namespace    http://tampermonkey.net/
-// @version      3.0.18
+// @version      3.0.20
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -39,7 +39,6 @@
     const STORAGE_KEY_CHAT_FONT_SCALE = 'tm_t4_chat_font_scale';
     const STORAGE_KEY_CHAT_SCROLLBAR_ENABLED = 'tm_t4_chat_scrollbar_enabled';
     const STORAGE_KEY_MESSAGE_ACTIONS_LEFT_ENABLED = 'tm_t4_message_actions_left_enabled';
-    const STORAGE_KEY_HIDE_CHAT_FOOTER_ENABLED = 'tm_t4_hide_chat_footer_enabled';
     const STORAGE_KEY_LINKIFY_URLS = 'tm_t4_linkify_urls';
     const STORAGE_KEY_EMBED_URL_IMAGES = 'tm_t4_embed_url_images';
     const STORAGE_KEY_SAVED_PHRASES = 'tm_t4_saved_phrases';
@@ -84,7 +83,6 @@
         STORAGE_KEY_CHAT_FONT_SCALE,
         STORAGE_KEY_CHAT_SCROLLBAR_ENABLED,
         STORAGE_KEY_MESSAGE_ACTIONS_LEFT_ENABLED,
-        STORAGE_KEY_HIDE_CHAT_FOOTER_ENABLED,
         STORAGE_KEY_LINKIFY_URLS,
         STORAGE_KEY_EMBED_URL_IMAGES,
         STORAGE_KEY_SAVED_PHRASES,
@@ -151,6 +149,14 @@
     }
 
     migrateLegacyStorageKeys();
+
+    // Option retirée : le footer historique n'existe plus sur Tr4ker.
+    try {
+        localStorage.removeItem('tm_t4_hide_chat_footer_enabled');
+        localStorage.removeItem('tm_torr9_hide_chat_footer_enabled');
+    } catch (error) {
+        // Le script reste fonctionnel lorsque le stockage est indisponible.
+    }
 
     /**
      * Effectue une requête externe hors du contexte réseau de la page.
@@ -225,7 +231,6 @@
         STORAGE_KEY_CHAT_FONT_SCALE,
         STORAGE_KEY_CHAT_SCROLLBAR_ENABLED,
         STORAGE_KEY_MESSAGE_ACTIONS_LEFT_ENABLED,
-        STORAGE_KEY_HIDE_CHAT_FOOTER_ENABLED,
         STORAGE_KEY_LINKIFY_URLS,
         STORAGE_KEY_EMBED_URL_IMAGES,
         STORAGE_KEY_SAVED_PHRASES,
@@ -332,7 +337,6 @@
     const EMBEDDED_IMAGE_STYLE_ID = 'tm-torr9-embedded-image-style';
     const YOUTUBE_LINK_ACTION_STYLE_ID = 'tm-torr9-youtube-link-action-style';
     const MESSAGE_ACTIONS_POSITION_STYLE_ID = 'tm-torr9-message-actions-position-style';
-    const HIDE_CHAT_FOOTER_STYLE_ID = 'tm-torr9-hide-chat-footer-style';
     const HOME_CHAT_POPOVER_STYLE_ID = 'tm-torr9-home-chat-popover-style';
     const NATIVE_CHAT_INPUT_POPOVER_STYLE_ID = 'tm-torr9-native-chat-input-popover-style';
     const CHAT_INPUT_TOOLBAR_STYLE_ID = 'tm-t4-chat-input-toolbar-style';
@@ -391,7 +395,6 @@
     let chatFontScale = loadChatFontScale();
     let chatScrollbarEnabled = loadChatScrollbarEnabled();
     let messageActionsLeftEnabled = loadMessageActionsLeftEnabled();
-    let hideChatFooterEnabled = loadHideChatFooterEnabled();
     let linkifyUrlsEnabled = loadLinkifyUrlsEnabled();
     let embedUrlImagesEnabled = loadEmbedUrlImagesEnabled();
     let savedPhrasesEnabled = loadSavedPhrasesEnabled();
@@ -2829,7 +2832,7 @@
             const exportDate = new Date().toISOString().slice(0, 10);
 
             link.href = url;
-            link.download = `torr9-config-script-${exportDate}.json`;
+            link.download = `tr4ker-chat-config-${exportDate}.json`;
             link.style.display = 'none';
 
             document.body?.appendChild(link);
@@ -2855,7 +2858,6 @@
         chatFontScale = loadChatFontScale();
         chatScrollbarEnabled = loadChatScrollbarEnabled();
         messageActionsLeftEnabled = loadMessageActionsLeftEnabled();
-        hideChatFooterEnabled = loadHideChatFooterEnabled();
         linkifyUrlsEnabled = loadLinkifyUrlsEnabled();
         embedUrlImagesEnabled = loadEmbedUrlImagesEnabled();
         savedPhrasesEnabled = loadSavedPhrasesEnabled();
@@ -2901,7 +2903,6 @@
         applyStatsBoxVisibilityState();
         applyChatPageScrollbarState();
         applyMessageActionsPositionState();
-        applyChatFooterVisibilityState();
         applyHomeChatPopoverState();
         applyNativeChatInputPopoverState();
         applyChatInputToolbarAlignmentState();
@@ -2938,8 +2939,17 @@
             return { ok: false, message: 'Format JSON invalide pour la configuration du script.' };
         }
 
+        let importedLegacyKeyCount = 0;
         SCRIPT_CONFIG_STORAGE_KEYS.forEach((storageKey) => {
-            const rawValue = importedStorage[storageKey];
+            const legacyStorageKey = storageKey.replace(/t4/g, 'torr9');
+            const rawValue = typeof importedStorage[storageKey] === 'string'
+                ? importedStorage[storageKey]
+                : importedStorage[legacyStorageKey];
+
+            if (typeof importedStorage[storageKey] !== 'string' && typeof rawValue === 'string') {
+                importedLegacyKeyCount += 1;
+            }
+
             if (typeof rawValue === 'string') {
                 writeStorageItem(storageKey, rawValue);
                 return;
@@ -2963,7 +2973,12 @@
         clearAfkReplayProtection();
         applyReloadedScriptConfiguration();
 
-        return { ok: true, message: 'Configuration du script importée.' };
+        return {
+            ok: true,
+            message: importedLegacyKeyCount > 0
+                ? `Configuration Torr9 importée (${importedLegacyKeyCount} réglage${importedLegacyKeyCount > 1 ? 's' : ''} migré${importedLegacyKeyCount > 1 ? 's' : ''}).`
+                : 'Configuration du script importée.'
+        };
     }
 
     function addSavedPhrase(phraseRaw, keywordsRaw = []) {
@@ -3305,15 +3320,6 @@
         writeStorageBoolean(STORAGE_KEY_MESSAGE_ACTIONS_LEFT_ENABLED, messageActionsLeftEnabled);
     }
 
-    function loadHideChatFooterEnabled() {
-        return readStorageBoolean(STORAGE_KEY_HIDE_CHAT_FOOTER_ENABLED, false);
-    }
-
-    function saveHideChatFooterEnabled(value) {
-        hideChatFooterEnabled = !!value;
-        writeStorageBoolean(STORAGE_KEY_HIDE_CHAT_FOOTER_ENABLED, hideChatFooterEnabled);
-    }
-
     function loadLinkifyUrlsEnabled() {
         return readStorageBoolean(STORAGE_KEY_LINKIFY_URLS, true);
     }
@@ -3453,37 +3459,6 @@
         }
 
         document.documentElement.removeAttribute('data-tm-message-actions-left');
-    }
-
-    function ensureHideChatFooterStyle() {
-        if (document.getElementById(HIDE_CHAT_FOOTER_STYLE_ID)) return;
-        if (!document.head) return;
-
-        const style = document.createElement('style');
-        style.id = HIDE_CHAT_FOOTER_STYLE_ID;
-        style.textContent = `
-            :root[data-tm-hide-chat-footer="1"] footer.bg-black\\/95.border-t.border-zinc-800\\/50.mt-auto {
-                display: none !important;
-            }
-            :root[data-tm-hide-chat-footer="1"] main div[class*="h-[100dvh]"] {
-                @media (min-width: 768px) {
-                    height: calc(100vh - 20px) !important;
-                }
-            }
-        `;
-
-        document.head.appendChild(style);
-    }
-
-    function applyChatFooterVisibilityState() {
-        ensureHideChatFooterStyle();
-
-        if (hideChatFooterEnabled && isChatPage()) {
-            document.documentElement.setAttribute('data-tm-hide-chat-footer', '1');
-            return;
-        }
-
-        document.documentElement.removeAttribute('data-tm-hide-chat-footer');
     }
 
     function ensureHomeChatPopoverStyle() {
@@ -7371,7 +7346,6 @@
             messageActionsLeftToggle: modal.querySelector('#tm-message-actions-left-toggle'),
             chatInputToolbarInlineToggle: modal.querySelector('#tm-chat-input-toolbar-inline-toggle'),
             chatInputToolbarAlignRightToggle: modal.querySelector('#tm-chat-input-toolbar-align-right-toggle'),
-            hideChatFooterToggle: modal.querySelector('#tm-hide-chat-footer-toggle'),
             embedUrlImagesToggle: modal.querySelector('#tm-embed-url-images-toggle'),
             resetStatsLayoutBtn: modal.querySelector('#tm-reset-stats-layout'),
             hideStatsToggle: modal.querySelector('#tm-hide-stats-toggle'),
@@ -8659,16 +8633,6 @@
             );
         });
 
-        elements.hideChatFooterToggle?.addEventListener('change', () => {
-            saveHideChatFooterEnabled(elements.hideChatFooterToggle.checked);
-            applyChatFooterVisibilityState();
-            controls.setFeedback(
-                hideChatFooterEnabled
-                    ? 'Pied de page masqué sur la page chat.'
-                    : 'Pied de page réaffiché sur la page chat.'
-            );
-        });
-
         elements.embedUrlImagesToggle?.addEventListener('change', () => {
             saveEmbedUrlImagesEnabled(elements.embedUrlImagesToggle.checked);
             processAllMessages();
@@ -9057,17 +9021,6 @@
                 <div style="margin-top:8px;font-size:11px;color:#71717a;line-height:1.45;">
                     Décoché : boutons à gauche. Coché : boutons à droite, que la barre soit au-dessus du champ ou sur la même ligne.
                 </div>
-
-                ${isChatView ? `
-                <label style="${styles.settingsCheckboxLabelWithMarginStyle}">
-                    <input id="tm-hide-chat-footer-toggle" type="checkbox" ${hideChatFooterEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle(styles.accessibilityCheckboxAccentColor)}">
-                    <span>Masquer le footer sur la page chat</span>
-                </label>
-
-                <div style="margin-top:8px;font-size:11px;color:#71717a;line-height:1.45;">
-                    Retire le footer du site sur la page de chat dédiée donner un effet pleine écran.
-                </div>
-                ` : ''}
 
                 <label style="${styles.settingsCheckboxLabelWithMarginStyle}">
                     <input id="tm-embed-url-images-toggle" type="checkbox" ${embedUrlImagesEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle(styles.accessibilityCheckboxAccentColor)}">
@@ -17969,7 +17922,6 @@
             statsHidden = loadStatsHidden();
             chatScrollbarEnabled = loadChatScrollbarEnabled();
             messageActionsLeftEnabled = loadMessageActionsLeftEnabled();
-            hideChatFooterEnabled = loadHideChatFooterEnabled();
 
             if (isHomePage() && !getHomepageChatContainer()) {
                 removeEmojiQuickAccessToolbar();
@@ -17986,7 +17938,6 @@
             applyBoxPosition();
             applyChatPageScrollbarState();
             applyMessageActionsPositionState();
-            applyChatFooterVisibilityState();
             applyHomeChatPopoverState();
             applyNativeChatInputPopoverState();
             injectEmojiQuickAccessToolbar();
@@ -18014,7 +17965,6 @@
             renderAfkPanel();
         } else {
             applyMessageActionsPositionState();
-            applyChatFooterVisibilityState();
             applyHomeChatPopoverState();
             applyNativeChatInputPopoverState();
             stopObserver();
