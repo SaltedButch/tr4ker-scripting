@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         torr9conf
+// @name         torr9conf [legacy_deprecated]
 // @namespace    http://tampermonkey.net/
 // @version      1.0.6
-// @description  Cache les lignes +18 sur my-uploads et stats si want_porn = false
+// @description  [legacy_deprecated] Ancien userscript Torr9 : cache les lignes +18 sur my-uploads et stats si want_porn = false
 // @icon         https://torr9.net/favicon.ico?favicon.71918ed5.ico
 // @match        https://torr9.net/*
 // @grant        none

@@ -1,4 +1,4 @@
-# torr9-scripting
+# tr4ker-scripting
 
 Repository ready for Tampermonkey userscript development with:
 
@@ -25,8 +25,9 @@ Repository ready for Tampermonkey userscript development with:
 - `tools/build_userscripts.py`: injects repository URLs and builds Tampermonkey artifacts.
 - `tools/check_userscripts_syntax.py`: runs `node --check` on every source userscript.
 - `tools/bump_version.py`: updates the `@version` metadata of one source script.
-- `RELEASE_NOTES.md`: release notes for `blacklist-shoutbox`.
+- `RELEASE_NOTES.md`: release notes for `pimpmyshoutbox`.
 - `RELEASE_NOTES_TORR9CONF.md`: release notes for `torr9conf`.
+- `TR4KER_MIGRATION.md`: suivi des fonctionnalités migrées et des validations restantes pour Tr4ker.
 - `Makefile`: optional shortcut for environments where `make` is available.
 
 ## Quick start
@@ -47,7 +48,7 @@ python3 tools/build_userscripts.py --list
 To bump a published version before a release:
 
 ```bash
-python3 tools/bump_version.py blacklist-shoutbox 2.16.0
+python3 tools/bump_version.py pimpmyshoutbox 3.0.33
 python3 tools/bump_version.py torr9conf 1.0.6
 ```
 
@@ -63,22 +64,22 @@ Published artifacts are served from the `userscripts` branch. For each source fi
 Current published scripts:
 
 ```text
-https://raw.githubusercontent.com/SaltedButch/torr9-scripting/userscripts/blacklist-shoutbox.user.js
-https://raw.githubusercontent.com/SaltedButch/torr9-scripting/userscripts/torr9conf.user.js
+https://raw.githubusercontent.com/SaltedButch/tr4ker-scripting/userscripts/pimpmyshoutbox.user.js
+https://raw.githubusercontent.com/SaltedButch/tr4ker-scripting/userscripts/torr9conf.user.js
 ```
 
 Current metadata URLs:
 
 ```text
-https://raw.githubusercontent.com/SaltedButch/torr9-scripting/userscripts/blacklist-shoutbox.meta.js
-https://raw.githubusercontent.com/SaltedButch/torr9-scripting/userscripts/torr9conf.meta.js
+https://raw.githubusercontent.com/SaltedButch/tr4ker-scripting/userscripts/pimpmyshoutbox.meta.js
+https://raw.githubusercontent.com/SaltedButch/tr4ker-scripting/userscripts/torr9conf.meta.js
 ```
 
 Those URLs are injected automatically at build time, so source files stay clean.
 
 Current script ids:
 
-- `blacklist-shoutbox`
+- `pimpmyshoutbox`
 - `torr9conf`
 
 ## Git flow

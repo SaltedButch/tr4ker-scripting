@@ -25,7 +25,7 @@ The repository follows a classic git flow:
 2. Bump the published metadata version of the impacted script:
 
    ```bash
-   python3 tools/bump_version.py blacklist-shoutbox 2.16.0
+   python3 tools/bump_version.py pimpmyshoutbox 3.0.33
    ```
 
 3. Rebuild artifacts:

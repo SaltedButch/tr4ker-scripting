@@ -1,6 +1,6 @@
-# Torr9 Chat - Shoutbox 2.0
+# PimpMyShoutbox
 
-Un userscript pour filtrer, mettre en avant, suivre les mentions et répondre plus vite dans la shoutbox de Torr9, directement depuis le site.
+Un userscript pour filtrer, mettre en avant, suivre les mentions et répondre plus vite dans le chat de Tr4ker, directement depuis le site.
 
 ---
 
@@ -15,7 +15,7 @@ Un userscript pour filtrer, mettre en avant, suivre les mentions et répondre pl
 
 ## Ce que fait le script
 
-Ce script améliore la shoutbox de Torr9 sans compliquer son usage. L'idée est simple : mieux filtrer, mieux repérer, mieux lire, et ajouter des outils pratiques pour répondre plus vite sans quitter l'interface.
+PimpMyShoutbox améliore le chat de Tr4ker sans compliquer son usage. L'idée est simple : mieux filtrer, mieux repérer, mieux lire, et ajouter des outils pratiques pour répondre plus vite sans quitter l'interface.
 
 ---
 
@@ -64,7 +64,6 @@ Ce script améliore la shoutbox de Torr9 sans compliquer son usage. L'idée est 
 ### 6. Confort de lecture
 
 - Taille de police ajustable pour mieux lire la shoutbox.
-- Thème clair beta disponible pour la shoutbox.
 - Détection et transformation des URLs en liens cliquables.
 - Prévisualisation au survol des liens directs vers des images.
 - Grossissement au survol des images déjà présentes dans le chat.
@@ -127,7 +126,7 @@ Tu peux l'utiliser très légèrement, juste pour masquer quelques pseudos, ou a
 
 ## Lien d'installation
 
-`https://raw.githubusercontent.com/SaltedButch/torr9-scripting/userscripts/blacklist-shoutbox.user.js`
+`https://raw.githubusercontent.com/SaltedButch/tr4ker-scripting/userscripts/pimpmyshoutbox.user.js`
 
 ---
 

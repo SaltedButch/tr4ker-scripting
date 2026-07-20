@@ -10,12 +10,13 @@ Ce fichier suit l'état fonctionnel du userscript à partir de la version actuel
 
 ## Version en préparation
 
+- Renommage du userscript en `PimpMyShoutbox` ; le fichier publié devient `pimpmyshoutbox.user.js`.
 - Ajout d’un mode manuel pour choisir soi-même les emojis et réactions depuis les pickers natifs, avec réordonnancement dans les paramètres, en alternative au classement automatique par compteur.
 
 ### TODO reprise refactor
 
 - Continuer à extraire des helpers partagés pour la création des modales et des composants UI répétitifs.
-- Réduire progressivement la taille globale de `blacklist-shoutbox.user.js`, toujours au-dessus de 10 000 lignes.
+- Réduire progressivement la taille globale de `pimpmyshoutbox.user.js`, toujours au-dessus de 10 000 lignes.
 - Traiter le point `KLIPY_API_KEY` en dur, relevé par l’audit comme dette technique à clarifier ou isoler proprement.
 - Rejouer `python3 tools/build_userscripts.py --check` et `python3 tools/audit_userscripts.py` après chaque bloc de refactor pour garder un suivi stable.
 - Ajouter et maintenir un contrôle syntaxique `node --check` dans la CI et dans la publication pour bloquer les userscripts non parsables avant `dist`.
@@ -91,5 +92,5 @@ Ce fichier suit l'état fonctionnel du userscript à partir de la version actuel
 - Bouton GIF Klipy dans le chat avec tendances, recherche et insertion automatique en BBCode image.
 - Raccourcis d'interaction sur la page chat avec double-clic pour répondre et clic long pour ouvrir les réactions.
 - Déplacement optionnel des actions de message à gauche pour rendre `Répondre` et `Réagir` plus accessibles.
-- Réglages de confort avec taille de police, URLs cliquables, prévisualisation des liens directs d'images au survol, ascenseur visible du chat, alignement des boutons du chat à droite, masquage du footer sur la page chat et thème clair beta.
+- Réglages de confort avec taille de police, URLs cliquables, prévisualisation des liens directs d'images au survol, ascenseur visible du chat et alignement des boutons du chat à droite.
 - Mode debug qui n'efface pas les messages blacklistés mais les marque en rouge pour vérification.

@@ -1,62 +1,266 @@
 // ==UserScript==
-// @name         Torr9 Chat - Shoutbox 2.0
+// @name         Tr4ker - PimpMyShoutbox
 // @namespace    http://tampermonkey.net/
-// @version      2.69
-// @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, Gif et confort avancé pour la shoutbox Torr9
-// @icon         https://torr9.net/favicon.ico?favicon.71918ed5.ico
+// @version      3.0.34
+// @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
-// @match        https://torr9.net/*
-// @grant        none
+// @match        https://tr4ker.net/*
+// @grant        GM_xmlhttpRequest
+// @grant        GM_addElement
+// @connect      api.klipy.com
+// @connect      api.imgbb.com
+// @connect      ibb.co
+// @connect      www.youtube.com
+// @connect      youtube.com
+// @connect      *
 // ==/UserScript==
 
 (function () {
     'use strict';
 
-    const STORAGE_KEY_USERS = 'tm_hidden_shout_users_torr9';
-    const STORAGE_KEY_POS_HOME = 'tm_torr9_stats_box_position_home';
-    const STORAGE_KEY_POS_CHAT = 'tm_torr9_stats_box_position_chat';
-    const STORAGE_KEY_SIZE_HOME = 'tm_torr9_stats_box_size_home';
-    const STORAGE_KEY_SIZE_CHAT = 'tm_torr9_stats_box_size_chat';
-    const STORAGE_KEY_STATS_COLLAPSED_HOME = 'tm_torr9_stats_box_collapsed_home';
-    const STORAGE_KEY_STATS_COLLAPSED_CHAT = 'tm_torr9_stats_box_collapsed_chat';
-    const STORAGE_KEY_STATS_HIDDEN_HOME = 'tm_torr9_stats_box_hidden_home';
-    const STORAGE_KEY_STATS_HIDDEN_CHAT = 'tm_torr9_stats_box_hidden_chat';
-    const STORAGE_KEY_DEBUG = 'tm_torr9_debug_mode';
-    const STORAGE_KEY_HOME_COLLAPSED = 'tm_torr9_home_chat_collapsed';
-    const STORAGE_KEY_HIGHLIGHTED_USERS = 'tm_highlighted_shout_users_torr9';
-    const STORAGE_KEY_MENTION_SETTINGS = 'tm_torr9_mention_highlight_settings';
-    const STORAGE_KEY_LAST_MENTION_SOUND_NOTIFICATION = 'tm_torr9_last_mention_sound_notification';
-    const STORAGE_KEY_RECENT_MENTION_SOUND_NOTIFICATIONS = 'tm_torr9_recent_mention_sound_notifications';
-    const STORAGE_KEY_CHAT_FONT_SCALE = 'tm_torr9_chat_font_scale';
-    const STORAGE_KEY_CHAT_SCROLLBAR_ENABLED = 'tm_torr9_chat_scrollbar_enabled';
-    const STORAGE_KEY_MESSAGE_ACTIONS_LEFT_ENABLED = 'tm_torr9_message_actions_left_enabled';
-    const STORAGE_KEY_HIDE_CHAT_FOOTER_ENABLED = 'tm_torr9_hide_chat_footer_enabled';
-    const STORAGE_KEY_LIGHT_THEME_HOME = 'tm_torr9_light_theme_home';
-    const STORAGE_KEY_LIGHT_THEME_CHAT = 'tm_torr9_light_theme_chat';
-    const STORAGE_KEY_LINKIFY_URLS = 'tm_torr9_linkify_urls';
-    const STORAGE_KEY_EMBED_URL_IMAGES = 'tm_torr9_embed_url_images';
-    const STORAGE_KEY_SAVED_PHRASES = 'tm_torr9_saved_phrases';
-    const STORAGE_KEY_SAVED_PHRASES_ENABLED = 'tm_torr9_saved_phrases_enabled';
-    const STORAGE_KEY_SAVED_PHRASES_REPLACE_INPUT = 'tm_torr9_saved_phrases_replace_input';
-    const STORAGE_KEY_KLIPY_GIFS_ENABLED = 'tm_torr9_klipy_gifs_enabled';
-    const STORAGE_KEY_EMOJI_USAGE_COUNTS = 'tm_torr9_emoji_usage_counts';
-    const STORAGE_KEY_REACTION_USAGE_COUNTS = 'tm_torr9_reaction_usage_counts';
-    const STORAGE_KEY_EMOJI_QUICK_ACCESS_LIMIT = 'tm_torr9_emoji_quick_access_limit';
-    const STORAGE_KEY_REACTION_QUICK_ACCESS_LIMIT = 'tm_torr9_reaction_quick_access_limit';
-    const STORAGE_KEY_QUICK_ACCESS_MODE = 'tm_torr9_quick_access_mode';
-    const STORAGE_KEY_MANUAL_EMOJI_FAVORITES = 'tm_torr9_manual_emoji_favorites';
-    const STORAGE_KEY_MANUAL_REACTION_FAVORITES = 'tm_torr9_manual_reaction_favorites';
-    const STORAGE_KEY_CHAT_INPUT_TOOLBAR_INLINE = 'tm_torr9_chat_input_toolbar_inline';
-    const STORAGE_KEY_CHAT_INPUT_TOOLBAR_ALIGN_RIGHT = 'tm_torr9_chat_input_toolbar_align_right';
-    const STORAGE_KEY_IMAGE_HOSTING_ENABLED = 'tm_torr9_image_hosting_enabled';
-    const STORAGE_KEY_IMGBB_API_KEY = 'tm_torr9_imgbb_api_key';
-    const STORAGE_KEY_IMAGE_HOSTING_EXPIRATION_SECONDS = 'tm_torr9_image_hosting_expiration_seconds';
-    const STORAGE_KEY_IMAGE_CATALOG = 'tm_torr9_image_catalog';
-    const STORAGE_KEY_AFK_STATE = 'tm_torr9_afk_state';
-    const STORAGE_KEY_AFK_ACTIVITY = 'tm_torr9_afk_activity';
-    const STORAGE_KEY_AFK_PANEL_POSITION = 'tm_torr9_afk_panel_position';
-    const STORAGE_KEY_AFK_PANEL_HIDDEN = 'tm_torr9_afk_panel_hidden';
-    const SESSION_STORAGE_KEY_AFK_TAB_ID = 'tm_torr9_afk_tab_id';
+    const STORAGE_KEY_USERS = 'tm_hidden_shout_users_t4';
+    const TR4KER_HOSTNAME = 'tr4ker.net';
+    const TR4KER_CHAT_INPUT_SELECTOR = 'textarea[placeholder^="Message dans"]';
+    const TR4KER_MESSAGE_SELECTOR = '[data-msg-id]';
+    const TR4KER_MESSAGE_ROOT_SELECTOR = '[class*="messageList"]';
+    const STORAGE_KEY_POS_HOME = 'tm_t4_stats_box_position_home';
+    const STORAGE_KEY_POS_CHAT = 'tm_t4_stats_box_position_chat';
+    const STORAGE_KEY_SIZE_HOME = 'tm_t4_stats_box_size_home';
+    const STORAGE_KEY_SIZE_CHAT = 'tm_t4_stats_box_size_chat';
+    const STORAGE_KEY_STATS_COLLAPSED_HOME = 'tm_t4_stats_box_collapsed_home';
+    const STORAGE_KEY_STATS_COLLAPSED_CHAT = 'tm_t4_stats_box_collapsed_chat';
+    const STORAGE_KEY_STATS_HIDDEN_HOME = 'tm_t4_stats_box_hidden_home';
+    const STORAGE_KEY_STATS_HIDDEN_CHAT = 'tm_t4_stats_box_hidden_chat';
+    const STORAGE_KEY_DEBUG = 'tm_t4_debug_mode';
+    const STORAGE_KEY_HOME_COLLAPSED = 'tm_t4_home_chat_collapsed';
+    const STORAGE_KEY_HIGHLIGHTED_USERS = 'tm_highlighted_shout_users_t4';
+    const STORAGE_KEY_MENTION_SETTINGS = 'tm_t4_mention_highlight_settings';
+    const STORAGE_KEY_LAST_MENTION_SOUND_NOTIFICATION = 'tm_t4_last_mention_sound_notification';
+    const STORAGE_KEY_RECENT_MENTION_SOUND_NOTIFICATIONS = 'tm_t4_recent_mention_sound_notifications';
+    const STORAGE_KEY_CHAT_FONT_SCALE = 'tm_t4_chat_font_scale';
+    const STORAGE_KEY_CHAT_SCROLLBAR_ENABLED = 'tm_t4_chat_scrollbar_enabled';
+    const STORAGE_KEY_MESSAGE_ACTIONS_LEFT_ENABLED = 'tm_t4_message_actions_left_enabled';
+    const STORAGE_KEY_LINKIFY_URLS = 'tm_t4_linkify_urls';
+    const STORAGE_KEY_EMBED_URL_IMAGES = 'tm_t4_embed_url_images';
+    const STORAGE_KEY_SAVED_PHRASES = 'tm_t4_saved_phrases';
+    const STORAGE_KEY_SAVED_PHRASES_ENABLED = 'tm_t4_saved_phrases_enabled';
+    const STORAGE_KEY_SAVED_PHRASES_REPLACE_INPUT = 'tm_t4_saved_phrases_replace_input';
+    const STORAGE_KEY_KLIPY_GIFS_ENABLED = 'tm_t4_klipy_gifs_enabled';
+    const STORAGE_KEY_EMOJI_USAGE_COUNTS = 'tm_t4_emoji_usage_counts';
+    const STORAGE_KEY_REACTION_USAGE_COUNTS = 'tm_t4_reaction_usage_counts';
+    const STORAGE_KEY_EMOJI_QUICK_ACCESS_LIMIT = 'tm_t4_emoji_quick_access_limit';
+    const STORAGE_KEY_REACTION_QUICK_ACCESS_LIMIT = 'tm_t4_reaction_quick_access_limit';
+    const STORAGE_KEY_QUICK_ACCESS_MODE = 'tm_t4_quick_access_mode';
+    const STORAGE_KEY_MANUAL_EMOJI_FAVORITES = 'tm_t4_manual_emoji_favorites';
+    const STORAGE_KEY_MANUAL_REACTION_FAVORITES = 'tm_t4_manual_reaction_favorites';
+    const STORAGE_KEY_CHAT_INPUT_TOOLBAR_INLINE = 'tm_t4_chat_input_toolbar_inline';
+    const STORAGE_KEY_CHAT_INPUT_TOOLBAR_ALIGN_RIGHT = 'tm_t4_chat_input_toolbar_align_right';
+    const STORAGE_KEY_IMAGE_HOSTING_ENABLED = 'tm_t4_image_hosting_enabled';
+    const STORAGE_KEY_IMGBB_API_KEY = 'tm_t4_imgbb_api_key';
+    const STORAGE_KEY_IMAGE_HOSTING_EXPIRATION_SECONDS = 'tm_t4_image_hosting_expiration_seconds';
+    const STORAGE_KEY_IMAGE_CATALOG = 'tm_t4_image_catalog';
+    const STORAGE_KEY_AFK_STATE = 'tm_t4_afk_state';
+    const STORAGE_KEY_AFK_ACTIVITY = 'tm_t4_afk_activity';
+    const STORAGE_KEY_AFK_PANEL_POSITION = 'tm_t4_afk_panel_position';
+    const STORAGE_KEY_AFK_PANEL_HIDDEN = 'tm_t4_afk_panel_hidden';
+    const SESSION_STORAGE_KEY_AFK_TAB_ID = 'tm_t4_afk_tab_id';
+    const STORAGE_KEY_MIGRATION_DONE = 'tm_t4_storage_migration_v1';
+    const STORAGE_KEYS_TO_MIGRATE = [
+        STORAGE_KEY_USERS,
+        STORAGE_KEY_POS_HOME,
+        STORAGE_KEY_POS_CHAT,
+        STORAGE_KEY_SIZE_HOME,
+        STORAGE_KEY_SIZE_CHAT,
+        STORAGE_KEY_STATS_COLLAPSED_HOME,
+        STORAGE_KEY_STATS_COLLAPSED_CHAT,
+        STORAGE_KEY_STATS_HIDDEN_HOME,
+        STORAGE_KEY_STATS_HIDDEN_CHAT,
+        STORAGE_KEY_DEBUG,
+        STORAGE_KEY_HOME_COLLAPSED,
+        STORAGE_KEY_HIGHLIGHTED_USERS,
+        STORAGE_KEY_MENTION_SETTINGS,
+        STORAGE_KEY_LAST_MENTION_SOUND_NOTIFICATION,
+        STORAGE_KEY_RECENT_MENTION_SOUND_NOTIFICATIONS,
+        STORAGE_KEY_CHAT_FONT_SCALE,
+        STORAGE_KEY_CHAT_SCROLLBAR_ENABLED,
+        STORAGE_KEY_MESSAGE_ACTIONS_LEFT_ENABLED,
+        STORAGE_KEY_LINKIFY_URLS,
+        STORAGE_KEY_EMBED_URL_IMAGES,
+        STORAGE_KEY_SAVED_PHRASES,
+        STORAGE_KEY_SAVED_PHRASES_ENABLED,
+        STORAGE_KEY_SAVED_PHRASES_REPLACE_INPUT,
+        STORAGE_KEY_KLIPY_GIFS_ENABLED,
+        STORAGE_KEY_EMOJI_USAGE_COUNTS,
+        STORAGE_KEY_REACTION_USAGE_COUNTS,
+        STORAGE_KEY_EMOJI_QUICK_ACCESS_LIMIT,
+        STORAGE_KEY_REACTION_QUICK_ACCESS_LIMIT,
+        STORAGE_KEY_QUICK_ACCESS_MODE,
+        STORAGE_KEY_MANUAL_EMOJI_FAVORITES,
+        STORAGE_KEY_MANUAL_REACTION_FAVORITES,
+        STORAGE_KEY_CHAT_INPUT_TOOLBAR_INLINE,
+        STORAGE_KEY_CHAT_INPUT_TOOLBAR_ALIGN_RIGHT,
+        STORAGE_KEY_IMAGE_HOSTING_ENABLED,
+        STORAGE_KEY_IMGBB_API_KEY,
+        STORAGE_KEY_IMAGE_HOSTING_EXPIRATION_SECONDS,
+        STORAGE_KEY_IMAGE_CATALOG,
+        STORAGE_KEY_AFK_STATE,
+        STORAGE_KEY_AFK_ACTIVITY,
+        STORAGE_KEY_AFK_PANEL_POSITION,
+        STORAGE_KEY_AFK_PANEL_HIDDEN
+    ];
+
+    /**
+     * Migre une seule fois les réglages enregistrés sous les anciennes clés
+     * Torr9 vers les clés Tr4ker `t4`, puis nettoie les anciennes entrées.
+     */
+    function migrateLegacyStorageKeys() {
+        try {
+            if (localStorage.getItem(STORAGE_KEY_MIGRATION_DONE) === '1') return;
+
+            STORAGE_KEYS_TO_MIGRATE.forEach((newKey) => {
+                const legacyKey = newKey.replace(/t4/g, 'torr9');
+                if (legacyKey === newKey) return;
+
+                const currentValue = localStorage.getItem(newKey);
+                const legacyValue = localStorage.getItem(legacyKey);
+
+                if (currentValue === null && legacyValue !== null) {
+                    localStorage.setItem(newKey, legacyValue);
+                }
+
+                if (localStorage.getItem(newKey) !== null) {
+                    localStorage.removeItem(legacyKey);
+                }
+            });
+
+            const legacySessionKey = SESSION_STORAGE_KEY_AFK_TAB_ID.replace(/t4/g, 'torr9');
+            const currentSessionValue = sessionStorage.getItem(SESSION_STORAGE_KEY_AFK_TAB_ID);
+            const legacySessionValue = sessionStorage.getItem(legacySessionKey);
+            if (currentSessionValue === null && legacySessionValue !== null) {
+                sessionStorage.setItem(SESSION_STORAGE_KEY_AFK_TAB_ID, legacySessionValue);
+            }
+            if (sessionStorage.getItem(SESSION_STORAGE_KEY_AFK_TAB_ID) !== null) {
+                sessionStorage.removeItem(legacySessionKey);
+            }
+
+            localStorage.setItem(STORAGE_KEY_MIGRATION_DONE, '1');
+        } catch (error) {
+            console.warn('[PimpMyShoutbox] Migration des réglages impossible.', error);
+        }
+    }
+
+    migrateLegacyStorageKeys();
+
+    // Option retirée : le footer historique n'existe plus sur Tr4ker.
+    try {
+        localStorage.removeItem('tm_t4_hide_chat_footer_enabled');
+        localStorage.removeItem('tm_torr9_hide_chat_footer_enabled');
+    } catch (error) {
+        // Le script reste fonctionnel lorsque le stockage est indisponible.
+    }
+
+    /**
+     * Effectue une requête externe hors du contexte réseau de la page.
+     * Tr4ker applique une CSP qui bloque les fetch cross-origin du userscript;
+     * GM_xmlhttpRequest passe par le canal réseau autorisé par Tampermonkey.
+     */
+    function requestExternal(url, options = {}) {
+        const requestFunction = typeof GM_xmlhttpRequest === 'function'
+            ? GM_xmlhttpRequest
+            : null;
+
+        if (!requestFunction) {
+            return Promise.reject(new Error('GM_xmlhttpRequest est indisponible. Réinstalle le userscript avec Tampermonkey.'));
+        }
+
+        const method = String(options.method || 'GET').toUpperCase();
+        const headers = options.headers && typeof options.headers === 'object'
+            ? options.headers
+            : {};
+
+        return new Promise((resolve, reject) => {
+            requestFunction({
+                method,
+                url: String(url || ''),
+                headers,
+                data: options.body,
+                timeout: Math.max(0, Number(options.timeout) || 30000),
+                responseType: String(options.responseType || 'text'),
+                anonymous: options.credentials === 'omit',
+                onload(response) {
+                    const status = Math.max(0, Number(response?.status) || 0);
+                    const rawResponse = response?.responseText ?? response?.response ?? '';
+                    const responseText = typeof rawResponse === 'string' ? rawResponse : '';
+                    const normalizedResponse = {
+                        status,
+                        ok: status >= 200 && status < 300,
+                        type: 'basic',
+                        responseHeaders: String(response?.responseHeaders || ''),
+                        responseText,
+                        text: async () => responseText,
+                        json: async () => JSON.parse(responseText)
+                    };
+                    normalizedResponse.clone = () => normalizedResponse;
+                    resolve(normalizedResponse);
+                },
+                onerror(response) {
+                    reject(new Error(`Requête externe impossible (HTTP ${response?.status || 0}).`));
+                },
+                ontimeout() {
+                    reject(new Error('Requête externe expirée.'));
+                },
+                onabort() {
+                    reject(new Error('Requête externe annulée.'));
+                }
+            });
+        });
+    }
+
+    function requestExternalArrayBuffer(url, options = {}) {
+        const requestFunction = typeof GM_xmlhttpRequest === 'function'
+            ? GM_xmlhttpRequest
+            : null;
+
+        if (!requestFunction) {
+            return Promise.reject(new Error('GM_xmlhttpRequest est indisponible. Réinstalle le userscript avec Tampermonkey.'));
+        }
+
+        const method = String(options.method || 'GET').toUpperCase();
+        const headers = options.headers && typeof options.headers === 'object'
+            ? options.headers
+            : {};
+
+        return new Promise((resolve, reject) => {
+            requestFunction({
+                method,
+                url: String(url || ''),
+                headers,
+                data: options.body,
+                timeout: Math.max(0, Number(options.timeout) || 30000),
+                responseType: 'arraybuffer',
+                anonymous: options.credentials === 'omit',
+                onload(response) {
+                    const status = Math.max(0, Number(response?.status) || 0);
+                    const audioData = response?.response;
+                    if (status < 200 || status >= 300 || !(audioData instanceof ArrayBuffer)) {
+                        reject(new Error(`Téléchargement audio impossible (HTTP ${status}).`));
+                        return;
+                    }
+                    resolve(audioData);
+                },
+                onerror(response) {
+                    reject(new Error(`Téléchargement audio impossible (HTTP ${response?.status || 0}).`));
+                },
+                ontimeout() {
+                    reject(new Error('Téléchargement audio expiré.'));
+                },
+                onabort() {
+                    reject(new Error('Téléchargement audio annulé.'));
+                }
+            });
+        });
+    }
+
     const SCRIPT_CONFIG_EXPORT_VERSION = 1;
     const SCRIPT_CONFIG_STORAGE_KEYS = [
         STORAGE_KEY_USERS,
@@ -75,9 +279,6 @@
         STORAGE_KEY_CHAT_FONT_SCALE,
         STORAGE_KEY_CHAT_SCROLLBAR_ENABLED,
         STORAGE_KEY_MESSAGE_ACTIONS_LEFT_ENABLED,
-        STORAGE_KEY_HIDE_CHAT_FOOTER_ENABLED,
-        STORAGE_KEY_LIGHT_THEME_HOME,
-        STORAGE_KEY_LIGHT_THEME_CHAT,
         STORAGE_KEY_LINKIFY_URLS,
         STORAGE_KEY_EMBED_URL_IMAGES,
         STORAGE_KEY_SAVED_PHRASES,
@@ -104,6 +305,7 @@
     const IMAGE_PREVIEW_ID = 'tm-torr9-image-preview';
     const IMAGE_VIEWER_MODAL_ID = 'tm-torr9-image-viewer-modal';
     const IMAGE_VIEWER_OVERLAY_ID = 'tm-torr9-image-viewer-overlay';
+    const IMAGE_CATALOG_DELETE_CONFIRMATION_ID = 'tm-t4-image-catalog-delete-confirmation';
     const YOUTUBE_PLAYER_ID = 'tm-torr9-youtube-player';
     const AFK_PANEL_ID = 'tm-torr9-afk-panel';
     const HOME_COLLAPSE_BUTTON_ID = 'tm-home-chat-collapse-toggle';
@@ -152,7 +354,7 @@
     const KLIPY_API_BASE_URL = 'https://api.klipy.com/v2';
     // Test key provided locally for development. Replace it before any public rollout.
     const KLIPY_API_KEY = 'msjEFIejxUS9DvPCk5NAvbnF4HK1hfVEz8zpgFAoo5kpjkSGGIqIJYJ4WGx2cRhJ';
-    const KLIPY_CLIENT_KEY = 'torr9-shoutbox-userscript';
+    const KLIPY_CLIENT_KEY = 'tr4ker-shoutbox-userscript';
     const KLIPY_MAX_RESULTS_PER_PAGE = 10;
     const KLIPY_SEARCH_MIN_LENGTH = 2;
     const KLIPY_SEARCH_DEBOUNCE_MS = 280;
@@ -163,8 +365,10 @@
     const LONG_PRESS_REACTION_PICKER_OFFSET_Y = 0;
     const REACTION_PICKER_Z_INDEX = 320;
     const REACTION_USAGE_DUPLICATE_WINDOW_MS = 700;
+    const NATIVE_PICKER_CONTEXT_TIMEOUT_MS = 90 * 1000;
     const IMGBB_API_KEY_URL = 'https://api.imgbb.com/';
     const IMGBB_UPLOAD_ENDPOINT = 'https://api.imgbb.com/1/upload';
+    const IMGBB_DELETE_ENDPOINT = 'https://ibb.co/json';
     const IMAGE_UPLOAD_MAX_BYTES = 32 * 1024 * 1024;
     const IMAGE_CATALOG_MAX_RECORDS = 120;
     const IMAGE_URL_VALIDATION_TIMEOUT_MS = 9000;
@@ -179,15 +383,15 @@
     const QUICK_ACCESS_MODES = new Set([QUICK_ACCESS_MODE_AUTO, QUICK_ACCESS_MODE_MANUAL]);
     const MAX_MANUAL_QUICK_ACCESS_FAVORITES = 24;
     const MENTION_STYLE_ID = 'tm-torr9-mention-style';
-    const LIGHT_THEME_STYLE_ID = 'tm-torr9-light-theme-style';
     const LINKIFIED_URL_STYLE_ID = 'tm-torr9-linkified-url-style';
     const EMBEDDED_IMAGE_STYLE_ID = 'tm-torr9-embedded-image-style';
     const YOUTUBE_LINK_ACTION_STYLE_ID = 'tm-torr9-youtube-link-action-style';
     const MESSAGE_ACTIONS_POSITION_STYLE_ID = 'tm-torr9-message-actions-position-style';
-    const HIDE_CHAT_FOOTER_STYLE_ID = 'tm-torr9-hide-chat-footer-style';
     const HOME_CHAT_POPOVER_STYLE_ID = 'tm-torr9-home-chat-popover-style';
     const NATIVE_CHAT_INPUT_POPOVER_STYLE_ID = 'tm-torr9-native-chat-input-popover-style';
+    const CHAT_INPUT_TOOLBAR_STYLE_ID = 'tm-t4-chat-input-toolbar-style';
     const CHAT_INPUT_TOOLBAR_RAIL_ATTR = 'data-tm-chat-input-toolbar-rail';
+    const CHAT_INPUT_TOOLBAR_INLINE_ATTR = 'data-tm-chat-input-toolbar-inline';
     const CHAT_INPUT_TOOLBAR_SPACE_ATTR = 'data-tm-chat-input-toolbar-space';
     const CHAT_INPUT_TOOLBAR_SYNC_BOUND_ATTR = 'data-tm-chat-input-toolbar-sync-bound';
     const CHAT_INPUT_TOOLBAR_RESERVED_HEIGHT_PX = 46;
@@ -203,6 +407,7 @@
     const NATIVE_CHAT_INPUT_POPOVER_LIFTED_ATTR = 'data-tm-native-chat-input-popovers-lifted';
     const URL_CANDIDATE_RE = /(?:https?:\/\/|www\.)[^\s<>"']+/i;
     const URL_MATCH_RE = /(?:https?:\/\/|www\.)[^\s<>"']+/gi;
+    const YOUTUBE_FRAGMENT_RE = /(?:^|[\s([{"'/])((?:watch\?v=|shorts\/|embed\/|live\/)([a-zA-Z0-9_-]{11})(?:&[a-zA-Z0-9_.~-]+=[a-zA-Z0-9_.~%+-]*)*)(?=$|[\s)\]}>,.!?;:'"])/gi;
     const DIRECT_IMAGE_PATH_RE = /\.(?:avif|bmp|gif|jpe?g|png|svg|webp)$/i;
     const MESSAGE_ACTIONS_LEFT_VERTICAL_OFFSET_PX = 10;
     const AFK_AUTO_REPLY_GLOBAL_COOLDOWN_MS = 60 * 1000;
@@ -225,6 +430,7 @@
     let routeWatcher = null;
     let modalOpen = false;
     let imageViewerOpen = false;
+    let imageCatalogDeleteConfirmationClose = null;
     let imageViewerKeydownHandler = null;
     let youtubePlayerKeydownHandler = null;
     let youtubePlayerResizeObserver = null;
@@ -241,8 +447,6 @@
     let chatFontScale = loadChatFontScale();
     let chatScrollbarEnabled = loadChatScrollbarEnabled();
     let messageActionsLeftEnabled = loadMessageActionsLeftEnabled();
-    let hideChatFooterEnabled = loadHideChatFooterEnabled();
-    let lightThemeEnabled = loadLightThemeEnabled();
     let linkifyUrlsEnabled = loadLinkifyUrlsEnabled();
     let embedUrlImagesEnabled = loadEmbedUrlImagesEnabled();
     let savedPhrasesEnabled = loadSavedPhrasesEnabled();
@@ -262,12 +466,14 @@
     let imageHostingExpirationSeconds = loadImageHostingExpirationSeconds();
     let imageCatalog = loadImageCatalog();
     let mentionSoundContext = null;
-    let mentionSoundElement = null;
+    const mentionSoundBufferCache = new Map();
     let lastMentionSoundRecord = loadLastMentionSoundRecord();
     let recentMentionSoundRecords = loadRecentMentionSoundRecords(lastMentionSoundRecord);
     let lastMentionSoundAt = lastMentionSoundRecord?.notifiedAt || 0;
     let lastChatContextKey = 'other';
     let longPressReactionState = null;
+    let nativeEmojiPickerContext = null;
+    let nativeReactionPickerContext = null;
     let lastTrackedReactionUsageKey = '';
     let lastTrackedReactionUsageAt = 0;
     let savedPhrasesToolbarEventsInstalled = false;
@@ -429,12 +635,19 @@
      * @property {number} lastUsedAt
      */
 
+    function isTr4kerPage() {
+        return location.hostname === TR4KER_HOSTNAME || location.hostname.endsWith(`.${TR4KER_HOSTNAME}`);
+    }
+
     function isChatPage() {
-        return location.pathname.startsWith('/chat');
+        return isTr4kerPage() && (
+            location.pathname === '/communication' ||
+            location.pathname.startsWith('/communication/')
+        );
     }
 
     function isHomePage() {
-        return location.pathname === '/' || location.pathname === '';
+        return false;
     }
 
     function isSupportedPage() {
@@ -448,7 +661,7 @@
     }
 
     function getCurrentPageLabel() {
-        return isChatPage() ? 'Chat' : 'Accueil';
+        return 'Tr4ker · Communication';
     }
 
     function getCurrentContextLabel() {
@@ -475,10 +688,6 @@
 
     function getStatsHiddenStorageKey() {
         return isChatPage() ? STORAGE_KEY_STATS_HIDDEN_CHAT : STORAGE_KEY_STATS_HIDDEN_HOME;
-    }
-
-    function getLightThemeStorageKey() {
-        return isChatPage() ? STORAGE_KEY_LIGHT_THEME_CHAT : STORAGE_KEY_LIGHT_THEME_HOME;
     }
 
     /**
@@ -854,8 +1063,27 @@
         if (!(button instanceof HTMLButtonElement)) return null;
 
         const image = button.querySelector('img');
-        const title = String(button.getAttribute('title') || '').trim();
-        const alt = String(image?.getAttribute('alt') || '').trim();
+        const rawText = String(button.textContent || '').trim();
+        const emojiValue = normalizeReactionEmojiValue(rawText);
+        const dataValue = String(
+            button.getAttribute('data-emoji') ||
+            button.getAttribute('data-value') ||
+            button.getAttribute('data-name') ||
+            ''
+        ).trim();
+        const title = String(
+            emojiValue ||
+            button.getAttribute('title') ||
+            button.getAttribute('aria-label') ||
+            dataValue ||
+            rawText
+        ).trim();
+        const alt = String(
+            image?.getAttribute('alt') ||
+            emojiValue ||
+            dataValue ||
+            rawText
+        ).trim();
         const src = normalizeEmojiUsageAssetPath(image?.getAttribute('src') || image?.currentSrc || '');
         const key = buildEmojiUsageKey(title, alt, src);
         if (!key) return null;
@@ -947,11 +1175,19 @@
         }
 
         const title = String(record?.title || '').trim();
+        if (normalizeReactionEmojiValue(title)) {
+            return title;
+        }
         if (/^:[^:\s][^:]*:$/.test(title)) {
             return title;
         }
 
-        const alt = String(record?.alt || '').trim().replace(/^:+|:+$/g, '');
+        const rawAlt = String(record?.alt || '').trim();
+        if (normalizeReactionEmojiValue(rawAlt)) {
+            return rawAlt;
+        }
+
+        const alt = rawAlt.replace(/^:+|:+$/g, '');
         if (alt) {
             return `:${alt}:`;
         }
@@ -1428,14 +1664,24 @@
         const parsed = readStorageJson(STORAGE_KEY_REACTION_USAGE_COUNTS, {});
         if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
 
-        return Object.fromEntries(
+        const normalizedRecords = Object.fromEntries(
             Object.entries(parsed)
                 .map(([, value]) => {
                     const record = normalizeReactionUsageRecord(value);
-                    return record ? [record.key, record] : null;
+                    return record && !isUserscriptControlReactionRecord(record)
+                        ? [record.key, record]
+                        : null;
                 })
                 .filter(Boolean)
         );
+
+        // Retirer les faux positifs produits par les anciennes heuristiques
+        // (par exemple le bouton « Ouvrir le picker GIF Klipy »).
+        if (Object.keys(normalizedRecords).length !== Object.keys(parsed).length) {
+            writeStorageJson(STORAGE_KEY_REACTION_USAGE_COUNTS, normalizedRecords);
+        }
+
+        return normalizedRecords;
     }
 
     function saveReactionUsageCounts() {
@@ -1645,6 +1891,14 @@
 
     function getReactionPickerCandidateButtons(picker) {
         if (!(picker instanceof HTMLElement)) return [];
+
+        if (isTr4kerPage()) {
+            return Array.from(picker.querySelectorAll('button')).filter((button) => (
+                button instanceof HTMLButtonElement &&
+                !button.disabled &&
+                findReactionUsageButtonFromTarget(button) === button
+            ));
+        }
 
         return Array.from(picker.querySelectorAll('div.grid button')).filter((button) => (
             button instanceof HTMLButtonElement &&
@@ -2452,7 +2706,7 @@
         return {
             version: SAVED_PHRASES_EXPORT_VERSION,
             exportedAt: new Date().toISOString(),
-            source: 'Torr9 Chat - Shoutbox 2.0',
+            source: 'PimpMyShoutbox',
             phrases: savedPhrases
                 .map((phrase) => normalizeSavedPhraseRecord(phrase, true))
                 .filter(Boolean)
@@ -2611,7 +2865,7 @@
         return {
             version: SCRIPT_CONFIG_EXPORT_VERSION,
             exportedAt: new Date().toISOString(),
-            source: 'Torr9 Chat - Shoutbox 2.0',
+            source: 'PimpMyShoutbox',
             storage,
             afkConfig: {
                 autoReplyMessage: normalizeAfkAutoReplyMessage(afkState.autoReplyMessage),
@@ -2630,7 +2884,7 @@
             const exportDate = new Date().toISOString().slice(0, 10);
 
             link.href = url;
-            link.download = `torr9-config-script-${exportDate}.json`;
+            link.download = `tr4ker-chat-config-${exportDate}.json`;
             link.style.display = 'none';
 
             document.body?.appendChild(link);
@@ -2656,8 +2910,6 @@
         chatFontScale = loadChatFontScale();
         chatScrollbarEnabled = loadChatScrollbarEnabled();
         messageActionsLeftEnabled = loadMessageActionsLeftEnabled();
-        hideChatFooterEnabled = loadHideChatFooterEnabled();
-        lightThemeEnabled = loadLightThemeEnabled();
         linkifyUrlsEnabled = loadLinkifyUrlsEnabled();
         embedUrlImagesEnabled = loadEmbedUrlImagesEnabled();
         savedPhrasesEnabled = loadSavedPhrasesEnabled();
@@ -2701,10 +2953,8 @@
         applyBoxPosition(loadPosition());
         constrainStatsBoxToViewport(false, false);
         applyStatsBoxVisibilityState();
-        applyLightThemeState();
         applyChatPageScrollbarState();
         applyMessageActionsPositionState();
-        applyChatFooterVisibilityState();
         applyHomeChatPopoverState();
         applyNativeChatInputPopoverState();
         applyChatInputToolbarAlignmentState();
@@ -2741,8 +2991,17 @@
             return { ok: false, message: 'Format JSON invalide pour la configuration du script.' };
         }
 
+        let importedLegacyKeyCount = 0;
         SCRIPT_CONFIG_STORAGE_KEYS.forEach((storageKey) => {
-            const rawValue = importedStorage[storageKey];
+            const legacyStorageKey = storageKey.replace(/t4/g, 'torr9');
+            const rawValue = typeof importedStorage[storageKey] === 'string'
+                ? importedStorage[storageKey]
+                : importedStorage[legacyStorageKey];
+
+            if (typeof importedStorage[storageKey] !== 'string' && typeof rawValue === 'string') {
+                importedLegacyKeyCount += 1;
+            }
+
             if (typeof rawValue === 'string') {
                 writeStorageItem(storageKey, rawValue);
                 return;
@@ -2766,7 +3025,12 @@
         clearAfkReplayProtection();
         applyReloadedScriptConfiguration();
 
-        return { ok: true, message: 'Configuration du script importée.' };
+        return {
+            ok: true,
+            message: importedLegacyKeyCount > 0
+                ? `Configuration Torr9 importée (${importedLegacyKeyCount} réglage${importedLegacyKeyCount > 1 ? 's' : ''} migré${importedLegacyKeyCount > 1 ? 's' : ''}).`
+                : 'Configuration du script importée.'
+        };
     }
 
     function addSavedPhrase(phraseRaw, keywordsRaw = []) {
@@ -2944,6 +3208,7 @@
             return getDefaultMentionSettings();
         }
 
+        const parsedBlinkSeconds = Number(value.blinkSeconds);
         const soundScope = normalizeMentionSoundScope(
             value.soundScope ?? (value.soundEnabled === true ? 'both' : 'off')
         );
@@ -2952,7 +3217,12 @@
             username: normalizeName(value.username || ''),
             color: normalizeHexColor(value.color, DEFAULT_MENTION_COLOR),
             opacityPercent: parseOpacityPercentInput(value.opacityPercent, DEFAULT_MENTION_OPACITY),
-            blinkSeconds: clamp(Number(value.blinkSeconds) || 0, 0, 30),
+            // Les anciens réglages Torr9 peuvent ne pas contenir ce champ :
+            // dans ce cas, conserver le comportement historique (6 secondes)
+            // plutôt que de désactiver le clignotement avec une valeur 0.
+            blinkSeconds: Number.isFinite(parsedBlinkSeconds)
+                ? clamp(parsedBlinkSeconds, 0, 30)
+                : DEFAULT_MENTION_BLINK_SECONDS,
             keepHighlightAfterBlink: value.keepHighlightAfterBlink !== false,
             includeReplyContext: value.includeReplyContext === true,
             soundEnabled: isMentionSoundScopeEnabled(soundScope),
@@ -3084,10 +3354,6 @@
         writeStorageItem(STORAGE_KEY_CHAT_FONT_SCALE, String(chatFontScale));
     }
 
-    function loadLightThemeEnabled() {
-        return readStorageBoolean(getLightThemeStorageKey(), false);
-    }
-
     function loadChatScrollbarEnabled() {
         return readStorageBoolean(STORAGE_KEY_CHAT_SCROLLBAR_ENABLED, false);
     }
@@ -3104,20 +3370,6 @@
     function saveMessageActionsLeftEnabled(value) {
         messageActionsLeftEnabled = !!value;
         writeStorageBoolean(STORAGE_KEY_MESSAGE_ACTIONS_LEFT_ENABLED, messageActionsLeftEnabled);
-    }
-
-    function loadHideChatFooterEnabled() {
-        return readStorageBoolean(STORAGE_KEY_HIDE_CHAT_FOOTER_ENABLED, false);
-    }
-
-    function saveHideChatFooterEnabled(value) {
-        hideChatFooterEnabled = !!value;
-        writeStorageBoolean(STORAGE_KEY_HIDE_CHAT_FOOTER_ENABLED, hideChatFooterEnabled);
-    }
-
-    function saveLightThemeEnabled(value) {
-        lightThemeEnabled = !!value;
-        writeStorageBoolean(getLightThemeStorageKey(), lightThemeEnabled);
     }
 
     function loadLinkifyUrlsEnabled() {
@@ -3153,76 +3405,6 @@
         return `${scaled}px`;
     }
 
-    function ensureLightThemeStyle() {
-        if (document.getElementById(LIGHT_THEME_STYLE_ID)) return;
-        if (!document.head) return;
-
-        const style = document.createElement('style');
-        style.id = LIGHT_THEME_STYLE_ID;
-        style.textContent = `
-            :root[data-tm-torr9-theme="light"] #${PANEL_ID} {
-                background: rgba(255,255,255,0.96) !important;
-                border-color: rgba(148,163,184,0.35) !important;
-                box-shadow: 0 14px 30px rgba(15,23,42,0.12) !important;
-                color: #0f172a !important;
-            }
-
-            :root[data-tm-torr9-theme="light"] #${PANEL_ID} div,
-            :root[data-tm-torr9-theme="light"] #${PANEL_ID} span,
-            :root[data-tm-torr9-theme="light"] #${PANEL_ID} p {
-                color: #0f172a !important;
-            }
-
-            :root[data-tm-torr9-theme="light"] #${PANEL_ID} button,
-            :root[data-tm-torr9-theme="light"] #${HOME_COLLAPSE_BUTTON_ID} {
-                background: #e2e8f0 !important;
-                border-color: rgba(148,163,184,0.35) !important;
-                color: #0f172a !important;
-            }
-
-            :root[data-tm-torr9-theme="light"] #${TOAST_ID} {
-                background: rgba(255,255,255,0.98) !important;
-                border-color: rgba(148,163,184,0.3) !important;
-                box-shadow: 0 14px 30px rgba(15,23,42,0.12) !important;
-                color: #0f172a !important;
-            }
-
-            [data-tm-chat-surface="light"] {
-                background: linear-gradient(180deg, rgba(248,250,252,0.96), rgba(241,245,249,0.96));
-                border-radius: 16px;
-                box-shadow: inset 0 0 0 1px rgba(148,163,184,0.18);
-                padding: 10px;
-            }
-
-            [data-tm-chat-surface="light"] .group.relative.flex.items-start {
-                background: rgba(255,255,255,0.92);
-                border: 1px solid rgba(226,232,240,0.98);
-                border-radius: 14px;
-                box-shadow: 0 8px 18px rgba(15,23,42,0.05);
-                margin-bottom: 6px;
-                padding: 8px 10px;
-            }
-
-            [data-tm-chat-surface="light"] .group.relative.flex.items-start > .flex-1.min-w-0 > .flex.items-baseline button[type="button"],
-            [data-tm-chat-surface="light"] .group.relative.flex.items-start span.text-xs.font-bold {
-                color: #0f172a !important;
-            }
-
-            [data-tm-chat-surface="light"] .group.relative.flex.items-start > .flex-1.min-w-0 > .text-sm.text-gray-200.break-words,
-            [data-tm-chat-surface="light"] .group.relative.flex.items-start > .flex-1.min-w-0 > p.break-words.leading-snug {
-                color: #1f2937 !important;
-            }
-
-            [data-tm-chat-surface="light"] .group.relative.flex.items-start > .flex-1.min-w-0 > .flex.items-baseline span,
-            [data-tm-chat-surface="light"] .group.relative.flex.items-start > .flex-1.min-w-0 > .flex.items-center span:not(.text-xs.font-bold),
-            [data-tm-chat-surface="light"] .group.relative.flex.items-start > .flex-1.min-w-0 > .flex.items-center.gap-2.mb-1.text-xs button[type="button"] {
-                color: #64748b !important;
-            }
-        `;
-
-        document.head.appendChild(style);
-    }
-
     function ensureLinkifiedUrlStyle() {
         if (document.getElementById(LINKIFIED_URL_STYLE_ID)) return;
         if (!document.head) return;
@@ -3243,15 +3425,6 @@
                 color: #a5f3fc !important;
             }
 
-            :root[data-tm-torr9-theme="light"] a[data-tm-linkified-url="1"],
-            [data-tm-chat-surface="light"] a[data-tm-linkified-url="1"] {
-                color: #0369a1 !important;
-            }
-
-            :root[data-tm-torr9-theme="light"] a[data-tm-linkified-url="1"]:hover,
-            [data-tm-chat-surface="light"] a[data-tm-linkified-url="1"]:hover {
-                color: #075985 !important;
-            }
         `;
 
         document.head.appendChild(style);
@@ -3299,12 +3472,6 @@
                 border-color: rgba(248,113,113,0.4);
             }
 
-            :root[data-tm-torr9-theme="light"] button[data-tm-youtube-play-link="1"],
-            [data-tm-chat-surface="light"] button[data-tm-youtube-play-link="1"] {
-                background: rgba(254,226,226,0.96);
-                border-color: rgba(248,113,113,0.35);
-                color: #991b1b;
-            }
         `;
 
         document.head.appendChild(style);
@@ -3323,6 +3490,25 @@
                 top: var(--tm-message-actions-inline-top, 0px) !important;
                 transform: translateY(-${MESSAGE_ACTIONS_LEFT_VERTICAL_OFFSET_PX}px) !important;
             }
+
+            [data-tm-message-actions-left="1"] [data-msg-id] [data-msg-actions] {
+                position: absolute !important;
+                left: min(var(--tm-message-actions-inline-left, 2.4rem), calc(100% - 5rem)) !important;
+                top: var(--tm-message-actions-inline-top, 0px) !important;
+                transform: translateY(-${MESSAGE_ACTIONS_LEFT_VERTICAL_OFFSET_PX}px) !important;
+            }
+
+            /* Les envois consécutifs de Tr4ker masquent la ligne auteur/date.
+               Sans ancre, une barre d'actions absolue se superpose au texte. */
+            [data-tm-message-actions-left="1"] [data-msg-id][data-tm-message-actions-stacked="1"] [data-msg-actions] {
+                position: relative !important;
+                left: auto !important;
+                top: auto !important;
+                transform: none !important;
+                width: max-content !important;
+                margin-top: 5px !important;
+                margin-left: 0 !important;
+            }
         `;
 
         document.head.appendChild(style);
@@ -3337,37 +3523,6 @@
         }
 
         document.documentElement.removeAttribute('data-tm-message-actions-left');
-    }
-
-    function ensureHideChatFooterStyle() {
-        if (document.getElementById(HIDE_CHAT_FOOTER_STYLE_ID)) return;
-        if (!document.head) return;
-
-        const style = document.createElement('style');
-        style.id = HIDE_CHAT_FOOTER_STYLE_ID;
-        style.textContent = `
-            :root[data-tm-hide-chat-footer="1"] footer.bg-black\\/95.border-t.border-zinc-800\\/50.mt-auto {
-                display: none !important;
-            }
-            :root[data-tm-hide-chat-footer="1"] main div[class*="h-[100dvh]"] {
-                @media (min-width: 768px) {
-                    height: calc(100vh - 20px) !important;
-                }
-            }
-        `;
-
-        document.head.appendChild(style);
-    }
-
-    function applyChatFooterVisibilityState() {
-        ensureHideChatFooterStyle();
-
-        if (hideChatFooterEnabled && isChatPage()) {
-            document.documentElement.setAttribute('data-tm-hide-chat-footer', '1');
-            return;
-        }
-
-        document.documentElement.removeAttribute('data-tm-hide-chat-footer');
     }
 
     function ensureHomeChatPopoverStyle() {
@@ -3410,6 +3565,119 @@
             [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] [${NATIVE_CHAT_INPUT_ACTION_SOURCE_ATTR}="1"] > .absolute.bottom-24,
             [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] [${NATIVE_CHAT_INPUT_ACTION_SOURCE_ATTR}="1"] > .fixed.bottom-24 {
                 z-index: 1400 !important;
+            }
+        `;
+
+        document.head.appendChild(style);
+    }
+
+    function ensureChatInputToolbarStyle() {
+        if (document.getElementById(CHAT_INPUT_TOOLBAR_STYLE_ID)) return;
+        if (!document.head) return;
+
+        const style = document.createElement('style');
+        style.id = CHAT_INPUT_TOOLBAR_STYLE_ID;
+        style.textContent = `
+            [${CHAT_INPUT_TOOLBAR_RAIL_ATTR}="1"] {
+                box-sizing: border-box;
+                min-height: 32px;
+                height: 32px;
+                padding: 3px 6px;
+                gap: 4px !important;
+                border: 1px solid color-mix(in srgb, var(--outline-variant, #474747) 78%, transparent);
+                border-radius: 9px;
+                background: color-mix(in srgb, var(--surface-container-high, #2a2a2a) 92%, transparent);
+                box-shadow: 0 5px 14px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+                scrollbar-width: none;
+            }
+
+            [${CHAT_INPUT_TOOLBAR_RAIL_ATTR}="1"]::-webkit-scrollbar {
+                display: none;
+            }
+
+            [${CHAT_INPUT_TOOLBAR_RAIL_ATTR}="1"] > div {
+                min-width: 0;
+                height: 24px;
+                gap: 4px !important;
+            }
+
+            [${CHAT_INPUT_TOOLBAR_RAIL_ATTR}="1"][${CHAT_INPUT_TOOLBAR_INLINE_ATTR}="1"] {
+                min-height: var(--tm-chat-input-toolbar-inline-height, 32px);
+                height: var(--tm-chat-input-toolbar-inline-height, 32px);
+            }
+
+            [${CHAT_INPUT_TOOLBAR_RAIL_ATTR}="1"] button {
+                box-sizing: border-box;
+                min-width: 26px;
+                height: 24px !important;
+                padding: 0 8px !important;
+                border-radius: 6px !important;
+                font-family: Geist Variable, Inter, Arial, sans-serif !important;
+                font-size: 10px !important;
+                font-weight: 700 !important;
+                line-height: 1 !important;
+                box-shadow: none !important;
+                transition: background 120ms ease, border-color 120ms ease, transform 120ms ease !important;
+            }
+
+            [${CHAT_INPUT_TOOLBAR_RAIL_ATTR}="1"] button:hover {
+                filter: none !important;
+                transform: translateY(-1px) !important;
+            }
+
+            #${EMOJI_QUICK_ACCESS_WRAPPER_ID} button {
+                width: 24px !important;
+                padding: 0 !important;
+                border-color: transparent !important;
+                background: transparent !important;
+            }
+
+            #${EMOJI_QUICK_ACCESS_WRAPPER_ID} button:hover {
+                background: color-mix(in srgb, var(--primary, #fff) 12%, transparent) !important;
+            }
+
+            #${EMOJI_QUICK_ACCESS_WRAPPER_ID} button img {
+                width: 18px !important;
+                height: 18px !important;
+            }
+
+            #${GIF_MENU_WRAPPER_ID} button {
+                background: rgba(22, 163, 74, 0.18) !important;
+                border-color: rgba(74, 222, 128, 0.28) !important;
+                color: #dcfce7 !important;
+            }
+
+            #${IMAGE_UPLOAD_MENU_WRAPPER_ID} button {
+                background: rgba(2, 132, 199, 0.18) !important;
+                border-color: rgba(125, 211, 252, 0.3) !important;
+                color: #e0f2fe !important;
+            }
+
+            #${PHRASES_MENU_WRAPPER_ID} > button:first-child {
+                background: rgba(124, 58, 237, 0.18) !important;
+                border-color: rgba(167, 139, 250, 0.3) !important;
+                color: #ede9fe !important;
+            }
+
+            #${PHRASES_MENU_WRAPPER_ID} > button:nth-child(2) {
+                width: 24px !important;
+                padding: 0 !important;
+                background: rgba(59, 130, 246, 0.16) !important;
+                border-color: rgba(96, 165, 250, 0.3) !important;
+                color: #dbeafe !important;
+                font-size: 15px !important;
+            }
+
+            @media (max-width: 700px) {
+                [${CHAT_INPUT_TOOLBAR_RAIL_ATTR}="1"] {
+                    max-width: calc(100% - 16px);
+                    overflow-x: auto !important;
+                    overscroll-behavior-inline: contain;
+                }
+
+                [${CHAT_INPUT_TOOLBAR_RAIL_ATTR}="1"] > div {
+                    flex: 0 0 auto;
+                }
             }
         `;
 
@@ -3513,22 +3781,6 @@
                 background: linear-gradient(180deg, rgba(255,255,255,1), rgba(248,250,252,0.98)) !important;
             }
 
-            :root[data-tm-torr9-theme="light"] [data-tm-chat-scrollbar="1"],
-            [data-tm-chat-surface="light"][data-tm-chat-scrollbar="1"] {
-                scrollbar-color: rgba(30,41,59,0.82) rgba(226,232,240,0.96) !important;
-            }
-
-            :root[data-tm-torr9-theme="light"] [data-tm-chat-scrollbar="1"]::-webkit-scrollbar-track,
-            [data-tm-chat-surface="light"][data-tm-chat-scrollbar="1"]::-webkit-scrollbar-track {
-                background: rgba(226,232,240,0.96) !important;
-            }
-
-            :root[data-tm-torr9-theme="light"] [data-tm-chat-scrollbar="1"]::-webkit-scrollbar-thumb,
-            [data-tm-chat-surface="light"][data-tm-chat-scrollbar="1"]::-webkit-scrollbar-thumb {
-                background: linear-gradient(180deg, rgba(51,65,85,0.92), rgba(15,23,42,0.82)) !important;
-                border-color: rgba(248,250,252,0.96) !important;
-                box-shadow: none !important;
-            }
         `;
 
         document.head.appendChild(style);
@@ -3569,34 +3821,6 @@
         currentScroller.style.setProperty('scrollbar-width', 'auto', 'important');
         currentScroller.style.setProperty('-ms-overflow-style', 'auto', 'important');
         currentScroller.style.setProperty('scrollbar-gutter', 'stable both-edges', 'important');
-    }
-
-    function applyLightThemeState() {
-        ensureLightThemeStyle();
-
-        if (lightThemeEnabled) {
-            document.documentElement.setAttribute('data-tm-torr9-theme', 'light');
-        } else {
-            document.documentElement.removeAttribute('data-tm-torr9-theme');
-        }
-
-        const activeRoot = getActiveChatRoot();
-        if (activeRoot instanceof HTMLElement) {
-            if (lightThemeEnabled) {
-                activeRoot.setAttribute('data-tm-chat-surface', 'light');
-            } else {
-                activeRoot.removeAttribute('data-tm-chat-surface');
-            }
-        }
-
-        const homeContainer = getHomepageChatContainer();
-        if (homeContainer instanceof HTMLElement) {
-            if (lightThemeEnabled && isHomePage()) {
-                homeContainer.setAttribute('data-tm-chat-surface', 'light');
-            } else {
-                homeContainer.removeAttribute('data-tm-chat-surface');
-            }
-        }
     }
 
     function normalizeStatsBoxPosition(value) {
@@ -3858,10 +4082,32 @@
         });
     }
 
-    function validateImageUrl(imageUrl, timeoutMs = IMAGE_URL_VALIDATION_TIMEOUT_MS) {
+    async function validateImageUrl(imageUrl, timeoutMs = IMAGE_URL_VALIDATION_TIMEOUT_MS) {
         const normalizedImageUrl = normalizeImageCatalogUrl(imageUrl);
         if (!normalizedImageUrl) {
-            return Promise.resolve({ ok: false, message: 'URL image invalide.' });
+            return { ok: false, message: 'URL image invalide.' };
+        }
+
+        // Un visuel « Image not found » peut parfois être servi comme une image
+        // valide par le navigateur. Le statut HTTP obtenu par Tampermonkey est
+        // donc vérifié avant le décodage de l'image dans la page.
+        try {
+            const remoteResponse = await requestExternal(normalizedImageUrl, {
+                method: 'HEAD',
+                credentials: 'omit',
+                timeout: Math.min(Math.max(1000, Number(timeoutMs) || 0), 7000),
+                responseType: 'arraybuffer'
+            });
+            if (remoteResponse.status >= 400) {
+                return {
+                    ok: false,
+                    httpStatus: remoteResponse.status,
+                    message: `Le serveur image répond HTTP ${remoteResponse.status}.`
+                };
+            }
+        } catch (e) {
+            // Certains hébergeurs refusent HEAD : le test de décodage ci-dessous
+            // reste la solution de repli pour ces liens.
         }
 
         return new Promise((resolve) => {
@@ -3936,10 +4182,43 @@
         return { ok: false, message: 'L’image distante charge encore.' };
     }
 
+    function getImgBbDeleteRequestDetails(deleteUrl) {
+        const normalizedDeleteUrl = normalizeImageCatalogUrl(deleteUrl);
+        if (!normalizedDeleteUrl) return null;
+
+        try {
+            const url = new URL(normalizedDeleteUrl);
+            if (!/^(?:www\.)?ibb\.co$/i.test(url.hostname)) return null;
+
+            const pathParts = url.pathname.split('/').filter(Boolean);
+            const [imageId, imageHash] = pathParts;
+            if (
+                pathParts.length !== 2 ||
+                !/^[a-zA-Z0-9_-]+$/.test(imageId || '') ||
+                !/^[a-zA-Z0-9_-]+$/.test(imageHash || '')
+            ) {
+                return null;
+            }
+
+            return {
+                imageId,
+                imageHash,
+                pathname: `/${imageId}/${imageHash}`
+            };
+        } catch (e) {
+            return null;
+        }
+    }
+
     async function requestRemoteImageDeletion(record) {
         const deleteUrl = normalizeImageCatalogUrl(record?.deleteUrl);
         if (!deleteUrl) {
             return { ok: false, message: 'URL de suppression distante introuvable.' };
+        }
+
+        const deleteRequestDetails = getImgBbDeleteRequestDetails(deleteUrl);
+        if (!deleteRequestDetails) {
+            return { ok: false, message: 'URL de suppression ImgBB invalide.' };
         }
 
         const requestResult = {
@@ -3951,11 +4230,22 @@
         };
 
         try {
-            const response = await fetch(deleteUrl, {
-                method: 'GET',
+            const formData = new FormData();
+            formData.append('pathname', deleteRequestDetails.pathname);
+            formData.append('action', 'delete');
+            formData.append('delete', 'image');
+            formData.append('from', 'resource');
+            formData.append('deleting[id]', deleteRequestDetails.imageId);
+            formData.append('deleting[hash]', deleteRequestDetails.imageHash);
+
+            // delete_url mène à la page de gestion ImgBB. La suppression est
+            // réellement effectuée par son POST vers /json, avec l'identifiant
+            // et le jeton présents dans cette URL.
+            const response = await requestExternal(IMGBB_DELETE_ENDPOINT, {
+                method: 'POST',
+                body: formData,
                 credentials: 'omit',
-                cache: 'no-store',
-                redirect: 'follow'
+                timeout: 15000
             });
 
             requestResult.responseReadable = response.type !== 'opaque';
@@ -3964,9 +4254,15 @@
 
             if (requestResult.responseReadable) {
                 try {
-                    requestResult.responseText = (await response.clone().text()).slice(0, 300);
+                    const responseText = await response.clone().text();
+                    requestResult.responseText = responseText.slice(0, 300);
+                    const payload = JSON.parse(responseText);
+                    if (payload?.success === false || payload?.status === false) {
+                        requestResult.responseOk = false;
+                    }
                 } catch (e) {
-                    requestResult.responseText = '';
+                    // ImgBB ne garantit pas un corps JSON ; le statut HTTP et
+                    // la vérification du lien image restent alors la référence.
                 }
             }
         } catch (e) {
@@ -4011,6 +4307,19 @@
         }
 
         if (normalizedRecord.deleteUrl) {
+            const currentRemoteImage = await validateImageUrl(
+                addImageUrlCacheBuster(normalizedRecord.url),
+                IMAGE_URL_VALIDATION_TIMEOUT_MS
+            );
+            if (!currentRemoteImage.ok && [404, 410].includes(currentRemoteImage.httpStatus)) {
+                const localDeletion = removeImageCatalogRecord(normalizedRecord.id);
+                if (!localDeletion.ok) return localDeletion;
+                return {
+                    ok: true,
+                    message: 'Image déjà supprimée sur ImgBB ; entrée locale retirée.'
+                };
+            }
+
             const remoteDeletion = await requestRemoteImageDeletion(normalizedRecord);
             if (!remoteDeletion.ok) return remoteDeletion;
         }
@@ -4105,10 +4414,11 @@
         const formData = new FormData();
         formData.append('image', file, file.name || `image-${Date.now()}`);
 
-        const response = await fetch(requestUrl.toString(), {
+        const response = await requestExternal(requestUrl.toString(), {
             method: 'POST',
             body: formData,
-            credentials: 'omit'
+            credentials: 'omit',
+            timeout: 60000
         });
 
         let payload = null;
@@ -4262,7 +4572,7 @@
             return klipyGifResponseCache.get(cacheKey);
         }
 
-        const response = await fetch(buildKlipyApiUrl(endpoint, {
+        const response = await requestExternal(buildKlipyApiUrl(endpoint, {
             q: normalizedQuery,
             pos,
             limit: KLIPY_MAX_RESULTS_PER_PAGE,
@@ -4273,7 +4583,8 @@
             headers: {
                 Accept: 'application/json'
             },
-            credentials: 'omit'
+            credentials: 'omit',
+            timeout: 20000
         });
 
         let payload = null;
@@ -4310,6 +4621,8 @@
     }
 
     function getHomepageChatContainer() {
+        if (isTr4kerPage()) return null;
+
         const headers = Array.from(document.querySelectorAll('span.font-medium.text-white.text-sm'));
         for (const span of headers) {
             if (span.textContent.trim() === 'Chat') {
@@ -4337,6 +4650,15 @@
     function getChatPageHeaderTitle() {
         if (!isChatPage()) return '';
 
+        if (isTr4kerPage()) {
+            const title = document.querySelector('[class*="convTitleGroup"] [class*="convTitleRow"], [class*="convTitleRow"]');
+            const value = String(title?.textContent || '').trim();
+            if (value && normalizeChatContextLabel(value) !== 'chat') return value;
+
+            const conversationId = new URLSearchParams(location.search).get('conv');
+            return conversationId ? `Conversation #${conversationId}` : 'Conversation';
+        }
+
         const titles = Array.from(document.querySelectorAll('h2.text-sm.font-semibold.text-white.truncate'));
         for (const title of titles) {
             const value = String(title.textContent || '').trim();
@@ -4350,6 +4672,10 @@
 
     function getChatPageHeaderElement() {
         if (!isChatPage()) return null;
+
+        if (isTr4kerPage()) {
+            return document.querySelector('[class*="_header_1cvih"], [class*="chatArea"] [class*="header"]');
+        }
 
         const titles = Array.from(document.querySelectorAll('h2.text-sm.font-semibold.text-white.truncate'));
         for (const title of titles) {
@@ -4368,6 +4694,24 @@
 
     function getChatPageMessagesRoot() {
         if (!isChatPage()) return null;
+
+        if (isTr4kerPage()) {
+            const stableRoot = document.querySelector(TR4KER_MESSAGE_ROOT_SELECTOR);
+            if (stableRoot instanceof HTMLElement) return stableRoot;
+
+            const firstMessage = document.querySelector(TR4KER_MESSAGE_SELECTOR);
+            if (!(firstMessage instanceof HTMLElement)) return null;
+
+            let ancestor = firstMessage.parentElement;
+            while (ancestor && ancestor !== document.body) {
+                if (ancestor.querySelectorAll(TR4KER_MESSAGE_SELECTOR).length > 1) {
+                    return ancestor;
+                }
+                ancestor = ancestor.parentElement;
+            }
+
+            return firstMessage.parentElement;
+        }
 
         const header = getChatPageHeaderElement();
         const getDirectMessageCount = (scroller) => {
@@ -4421,22 +4765,22 @@
         if (!debugMode) return;
 
         if (details === null) {
-            console.debug('[Torr9 Chat][Mention]', message);
+            console.debug('[PimpMyShoutbox][Mention]', message);
             return;
         }
 
-        console.debug('[Torr9 Chat][Mention]', message, details);
+        console.debug('[PimpMyShoutbox][Mention]', message, details);
     }
 
     function logEmojiDebug(message, details = null) {
         if (!debugMode) return;
 
         if (details === null) {
-            console.log('[Torr9 Chat][Emoji]', message);
+            console.log('[PimpMyShoutbox][Emoji]', message);
             return;
         }
 
-        console.log('[Torr9 Chat][Emoji]', message, details);
+        console.log('[PimpMyShoutbox][Emoji]', message, details);
     }
 
     function normalizeMentionComparableText(value) {
@@ -4450,6 +4794,22 @@
 
     function getCurrentChatContext() {
         if (!isChatPage()) return null;
+
+        if (isTr4kerPage()) {
+            const title = getChatPageHeaderTitle();
+            if (isTr4kerPrivateConversation()) {
+                return {
+                    type: 'private',
+                    name: title || 'Conversation privée'
+                };
+            }
+
+            const conversationId = new URLSearchParams(location.search).get('conv');
+            return {
+                type: 'channel',
+                name: title || (conversationId ? `conversation-${conversationId}` : 'conversation')
+            };
+        }
 
         const headerTitle = getChatPageHeaderTitle();
         if (headerTitle) {
@@ -4479,9 +4839,36 @@
         return `${context.type}:${normalizeChatContextLabel(context.name)}`;
     }
 
+    function isTr4kerPrivateConversation() {
+        if (!isChatPage() || !isTr4kerPage()) return false;
+
+        const activeNavigationItem = document.querySelector('[class*="navItem"][class*="active"]');
+        const activeSection = activeNavigationItem?.closest('section');
+        const activeSectionLabel = normalizeChatContextLabel(
+            activeSection?.querySelector('[class*="sectionLabelText"]')?.textContent || ''
+        );
+        if (activeSectionLabel === 'messages prives') return true;
+        if (activeSectionLabel === 'canaux') return false;
+
+        const header = getChatPageHeaderElement();
+        if (!(header instanceof HTMLElement)) return false;
+
+        const description = normalizeChatContextLabel(
+            header.querySelector('[class*="convDescription"]')?.textContent || ''
+        );
+        if (/\bcanal\b/.test(description)) return false;
+
+        const icon = normalizeChatContextLabel(
+            header.querySelector('[class*="convIcon"]')?.textContent || ''
+        );
+        return /^(person|person_2|alternate_email|account_circle)$/.test(icon);
+    }
+
     function isMentionAndHighlightContextAllowed() {
         if (isHomePage()) return true;
         if (!isChatPage()) return false;
+
+        if (isTr4kerPage()) return !isTr4kerPrivateConversation();
 
         const context = getCurrentChatContext();
         if (!context) return true;
@@ -4498,6 +4885,8 @@
     }
 
     function getHomepageMessagesRoot(container = null) {
+        if (isTr4kerPage()) return null;
+
         const chatContainer = container || getHomepageChatContainer();
         if (!(chatContainer instanceof HTMLElement)) return null;
         return chatContainer.querySelector('.custom-scrollbar');
@@ -4507,6 +4896,25 @@
         if (!(messageEl instanceof HTMLElement)) return;
 
         const safeScale = clampChatFontScale(scale);
+
+        if (isTr4kerPage()) {
+            const userButton = messageEl.querySelector('[class*="msgSender"]');
+            const textBlock = messageEl.querySelector('[class*="msgBubble"]');
+            const metaSpans = messageEl.querySelectorAll('[class*="msgMeta"] > *');
+
+            if (userButton instanceof HTMLElement) {
+                userButton.style.fontSize = scalePixels(14, safeScale);
+                userButton.style.lineHeight = '1.35';
+            }
+            metaSpans.forEach((span) => {
+                if (span instanceof HTMLElement) span.style.fontSize = scalePixels(12, safeScale);
+            });
+            if (textBlock instanceof HTMLElement) {
+                textBlock.style.fontSize = scalePixels(14, safeScale);
+                textBlock.style.lineHeight = safeScale >= 1.2 ? '1.6' : '1.5';
+            }
+            return;
+        }
 
         if (isChatPage()) {
             const userButton = messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-baseline button[type="button"]');
@@ -4560,6 +4968,10 @@
     function getMessageMetaRow(messageEl) {
         if (!(messageEl instanceof HTMLElement) || !isChatPage()) return null;
 
+        if (isTr4kerPage()) {
+            return messageEl.querySelector('[class*="msgMeta"]');
+        }
+
         const exactMetaRow = messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-baseline.gap-2.mb-0\\.5');
         if (exactMetaRow instanceof HTMLElement) {
             return exactMetaRow;
@@ -4604,16 +5016,30 @@
         if (!isChatPage()) {
             messageEl.style.removeProperty('--tm-message-actions-inline-left');
             messageEl.style.removeProperty('--tm-message-actions-inline-top');
+            messageEl.removeAttribute('data-tm-message-actions-stacked');
             return;
         }
 
         const metaRow = getMessageMetaRow(messageEl);
         const anchorEl = getMessageMetaAnchorElement(messageEl);
-        if (!(metaRow instanceof HTMLElement) || !(anchorEl instanceof HTMLElement)) {
+        const hasVisibleMetaAnchor =
+            metaRow instanceof HTMLElement &&
+            anchorEl instanceof HTMLElement &&
+            metaRow.getClientRects().length > 0 &&
+            anchorEl.getClientRects().length > 0;
+
+        if (!hasVisibleMetaAnchor) {
             messageEl.style.removeProperty('--tm-message-actions-inline-left');
             messageEl.style.removeProperty('--tm-message-actions-inline-top');
+            if (isTr4kerPage() && messageActionsLeftEnabled && getMessageActionButtonsContainer(messageEl)) {
+                messageEl.setAttribute('data-tm-message-actions-stacked', '1');
+            } else {
+                messageEl.removeAttribute('data-tm-message-actions-stacked');
+            }
             return;
         }
+
+        messageEl.removeAttribute('data-tm-message-actions-stacked');
 
         const messageRect = messageEl.getBoundingClientRect();
         const metaRowRect = metaRow.getBoundingClientRect();
@@ -4642,6 +5068,11 @@
     function getUsernameFromMessage(messageEl) {
         if (!(messageEl instanceof HTMLElement)) return null;
 
+        if (isTr4kerPage()) {
+            const sender = messageEl.querySelector('[class*="msgSender"]');
+            return sender instanceof HTMLElement ? sender.textContent.trim() : null;
+        }
+
         if (isChatPage()) {
             const userBtn = messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-baseline button[type="button"]');
             if (!userBtn) return null;
@@ -4659,6 +5090,10 @@
 
     function isChatMessage(el) {
         if (!(el instanceof HTMLElement)) return false;
+
+        if (isTr4kerPage()) {
+            return el.matches(TR4KER_MESSAGE_SELECTOR) && !!el.querySelector('[class*="msgBubble"]');
+        }
 
         // On ne veut matcher que le conteneur principal du message,
         // pas les div internes.
@@ -5204,15 +5639,16 @@
         const senderUsername = normalizeName(senderDisplayName);
         const messageText = getMessageTextContent(messageEl);
         const replyContextText = getMessageReplyContextText(messageEl);
+        const replyAuthorText = getMessageReplyAuthorText(messageEl);
         const normalizedMessageText = normalizeMentionComparableText(messageText);
-        const normalizedReplyContextText = normalizeMentionComparableText(replyContextText).replace(/^@+/, '');
+        const normalizedReplyAuthorText = normalizeMentionComparableText(replyAuthorText).replace(/^@+/, '');
         const mentionRegex = new RegExp(
             `(^|[^\\p{L}\\p{N}_])@${escapeRegExp(normalizedWatchedUsername)}(?=$|[^\\p{L}\\p{N}_])`,
             'u'
         );
 
         const directMentionMatched = !!normalizedMessageText && mentionRegex.test(normalizedMessageText);
-        const replyMentionMatched = isChatPage() && normalizedReplyContextText === normalizedWatchedUsername;
+        const replyMentionMatched = isChatPage() && normalizedReplyAuthorText === normalizedWatchedUsername;
         const matched = directMentionMatched || replyMentionMatched;
 
         return {
@@ -6462,7 +6898,13 @@
         if (existingState?.signature === signature) return;
         if (existingState?.timeoutId) clearTimeout(existingState.timeoutId);
 
-        messageEl.style.animation = 'tm-torr9-mention-pulse 0.9s ease-in-out infinite';
+        // Tr4ker applique ses propres styles sur les lignes de message.
+        // La priorité empêche ces styles de neutraliser l'animation userscript.
+        messageEl.style.setProperty(
+            'animation',
+            'tm-torr9-mention-pulse 0.9s ease-in-out infinite',
+            'important'
+        );
 
         const timeoutId = window.setTimeout(() => {
             messageEl.style.removeProperty('animation');
@@ -6509,16 +6951,39 @@
             if (!normalizedCustomUrl) return false;
 
             try {
-                if (!mentionSoundElement) {
-                    mentionSoundElement = new Audio();
-                    mentionSoundElement.preload = 'auto';
+                const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContextCtor) return false;
+
+                if (!mentionSoundContext) {
+                    mentionSoundContext = new AudioContextCtor();
                 }
 
-                mentionSoundElement.pause();
-                mentionSoundElement.currentTime = 0;
-                mentionSoundElement.src = normalizedCustomUrl;
-                mentionSoundElement.volume = 1;
-                await mentionSoundElement.play();
+                if (mentionSoundContext.state === 'suspended') {
+                    await mentionSoundContext.resume();
+                }
+
+                let audioBufferPromise = mentionSoundBufferCache.get(normalizedCustomUrl);
+                if (!audioBufferPromise) {
+                    // Le fichier est récupéré par Tampermonkey puis décodé en
+                    // mémoire. Aucun élément <audio> ne charge l'URL depuis la
+                    // page : la CSP media-src de Tr4ker ne peut donc pas le bloquer.
+                    audioBufferPromise = requestExternalArrayBuffer(normalizedCustomUrl)
+                        .then((audioData) => mentionSoundContext.decodeAudioData(audioData.slice(0)))
+                        .catch((error) => {
+                            mentionSoundBufferCache.delete(normalizedCustomUrl);
+                            throw error;
+                        });
+                    mentionSoundBufferCache.set(normalizedCustomUrl, audioBufferPromise);
+                }
+
+                const audioBuffer = await audioBufferPromise;
+                const source = mentionSoundContext.createBufferSource();
+                const gainNode = mentionSoundContext.createGain();
+                source.buffer = audioBuffer;
+                gainNode.gain.value = 1;
+                source.connect(gainNode);
+                gainNode.connect(mentionSoundContext.destination);
+                source.start();
                 return true;
             } catch (e) {
                 return false;
@@ -7011,7 +7476,86 @@
         };
     }
 
+    function closeImageCatalogDeleteConfirmation(confirmed = false) {
+        if (typeof imageCatalogDeleteConfirmationClose === 'function') {
+            imageCatalogDeleteConfirmationClose(confirmed);
+        }
+    }
+
+    function confirmImageCatalogRemoteDeletion(record) {
+        closeImageCatalogDeleteConfirmation(false);
+
+        return new Promise((resolve) => {
+            const dialog = document.createElement('div');
+            dialog.id = IMAGE_CATALOG_DELETE_CONFIRMATION_ID;
+            dialog.setAttribute('role', 'dialog');
+            dialog.setAttribute('aria-modal', 'true');
+            dialog.setAttribute('aria-label', 'Confirmation de suppression ImgBB');
+            dialog.style.position = 'fixed';
+            dialog.style.inset = '0';
+            dialog.style.zIndex = '1000002';
+            dialog.style.display = 'flex';
+            dialog.style.alignItems = 'center';
+            dialog.style.justifyContent = 'center';
+            dialog.style.padding = '12px';
+            dialog.style.background = 'rgba(0,0,0,0.52)';
+            dialog.innerHTML = `
+                <div data-tm-image-delete-confirmation-card="1" style="
+                    width:min(400px, 100%);
+                    background:#18181b;
+                    border:1px solid rgba(255,255,255,0.12);
+                    border-radius:16px;
+                    box-shadow:0 20px 50px rgba(0,0,0,0.5);
+                    padding:18px;
+                    color:#fff;
+                    font-family:Inter,Arial,sans-serif;
+                ">
+                    <div style="font-size:14px;font-weight:700;">Supprimer l’image ImgBB ?</div>
+                    <div data-tm-image-delete-confirmation-description="1" style="margin-top:8px;font-size:12px;line-height:1.5;color:#d4d4d8;"></div>
+                    <div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:16px;">
+                        <button type="button" data-tm-image-delete-confirmation-cancel="1" style="border:none;background:#3f3f46;color:#fff;border-radius:9px;padding:9px 11px;cursor:pointer;font-weight:600;">Annuler</button>
+                        <button type="button" data-tm-image-delete-confirmation-confirm="1" style="border:none;background:#b91c1c;color:#fff;border-radius:9px;padding:9px 11px;cursor:pointer;font-weight:700;">Supprimer</button>
+                    </div>
+                </div>
+            `;
+
+            const description = dialog.querySelector('[data-tm-image-delete-confirmation-description="1"]');
+            if (description instanceof HTMLElement) {
+                description.textContent = `L’image « ${record?.title || 'sans titre'} » sera supprimée sur ImgBB. L’entrée locale ne sera retirée qu’après vérification.`;
+            }
+
+            const finish = (confirmed) => {
+                if (!dialog.isConnected && imageCatalogDeleteConfirmationClose !== finish) return;
+                document.removeEventListener('keydown', onKeyDown, true);
+                dialog.remove();
+                if (imageCatalogDeleteConfirmationClose === finish) {
+                    imageCatalogDeleteConfirmationClose = null;
+                }
+                resolve(confirmed === true);
+            };
+            const onKeyDown = (event) => {
+                if (event.key !== 'Escape') return;
+                event.preventDefault();
+                event.stopPropagation();
+                finish(false);
+            };
+
+            imageCatalogDeleteConfirmationClose = finish;
+            dialog.addEventListener('click', (event) => {
+                if (event.target === dialog) finish(false);
+                event.stopPropagation();
+            });
+            dialog.querySelector('[data-tm-image-delete-confirmation-cancel="1"]')?.addEventListener('click', () => finish(false));
+            const confirmButton = dialog.querySelector('[data-tm-image-delete-confirmation-confirm="1"]');
+            confirmButton?.addEventListener('click', () => finish(true));
+            document.addEventListener('keydown', onKeyDown, true);
+            document.body.appendChild(dialog);
+            if (confirmButton instanceof HTMLButtonElement) confirmButton.focus();
+        });
+    }
+
     function closeSettingsModal() {
+        closeImageCatalogDeleteConfirmation(false);
         const modal = document.getElementById(MODAL_ID);
         const overlay = document.getElementById(OVERLAY_ID);
         if (modal) modal.remove();
@@ -7053,6 +7597,7 @@
             imageCatalogPurgeBtn: modal.querySelector('#tm-image-catalog-purge'),
             imageCatalogClearBtn: modal.querySelector('#tm-image-catalog-clear'),
             imageCatalogList: modal.querySelector('#tm-image-catalog-list'),
+            imageCatalogStatus: modal.querySelector('#tm-image-catalog-status'),
             quickAccessModeSelect: modal.querySelector('#tm-quick-access-mode'),
             emojiQuickAccessLimitInput: modal.querySelector('#tm-emoji-quick-access-limit'),
             reactionQuickAccessLimitInput: modal.querySelector('#tm-reaction-quick-access-limit'),
@@ -7106,9 +7651,7 @@
             messageActionsLeftToggle: modal.querySelector('#tm-message-actions-left-toggle'),
             chatInputToolbarInlineToggle: modal.querySelector('#tm-chat-input-toolbar-inline-toggle'),
             chatInputToolbarAlignRightToggle: modal.querySelector('#tm-chat-input-toolbar-align-right-toggle'),
-            hideChatFooterToggle: modal.querySelector('#tm-hide-chat-footer-toggle'),
             embedUrlImagesToggle: modal.querySelector('#tm-embed-url-images-toggle'),
-            lightThemeToggle: modal.querySelector('#tm-light-theme-toggle'),
             resetStatsLayoutBtn: modal.querySelector('#tm-reset-stats-layout'),
             hideStatsToggle: modal.querySelector('#tm-hide-stats-toggle'),
             debugToggle: modal.querySelector('#tm-debug-toggle'),
@@ -7608,18 +8151,22 @@
         deleteBtn.style.cursor = 'pointer';
         deleteBtn.style.fontSize = '11px';
         deleteBtn.style.fontWeight = '600';
-        deleteBtn.addEventListener('click', async () => {
+        deleteBtn.addEventListener('click', async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+
             if (record.deleteUrl) {
-                const confirmed = window.confirm('Supprimer cette image via ImgBB ? L’entrée locale sera retirée seulement si la suppression est confirmée.');
+                const confirmed = await confirmImageCatalogRemoteDeletion(record);
                 if (!confirmed) return;
-                controls.setFeedback('Suppression ImgBB en cours, vérification du lien image...');
+                controls.setImageCatalogFeedback('Suppression ImgBB en cours, vérification du lien image...');
             }
 
             deleteBtn.disabled = true;
             deleteBtn.style.opacity = '0.65';
+            deleteBtn.textContent = 'Suppression…';
             const result = await deleteImageCatalogRecord(record);
             controls.refreshImageCatalogList();
-            controls.setFeedback(result.message, !result.ok);
+            controls.setImageCatalogFeedback(result.message, !result.ok);
         });
 
         actions.appendChild(copyBtn);
@@ -7637,6 +8184,8 @@
     function refreshSettingsImageCatalogList(elements, controls) {
         if (!(elements.imageCatalogList instanceof HTMLElement)) return;
 
+        const modal = elements.imageCatalogList.closest(`#${MODAL_ID}`);
+        const previousScrollTop = modal instanceof HTMLElement ? modal.scrollTop : null;
         saveImageCatalog(imageCatalog);
         elements.imageCatalogList.innerHTML = '';
 
@@ -7647,12 +8196,20 @@
             empty.style.color = '#a1a1aa';
             empty.style.padding = '5px 0';
             elements.imageCatalogList.appendChild(empty);
-            return;
+        } else {
+            imageCatalog.forEach((record) => {
+                elements.imageCatalogList.appendChild(createSettingsImageCatalogItem(record, elements, controls));
+            });
         }
 
-        imageCatalog.forEach((record) => {
-            elements.imageCatalogList.appendChild(createSettingsImageCatalogItem(record, elements, controls));
-        });
+        // Dans une modale à colonnes, reconstruire le catalogue peut provoquer
+        // un reflow et donner l'impression que la section ImgBB s'est fermée.
+        // On garde donc précisément la position de lecture de la modale.
+        if (modal instanceof HTMLElement && previousScrollTop !== null) {
+            window.requestAnimationFrame(() => {
+                if (modal.isConnected) modal.scrollTop = previousScrollTop;
+            });
+        }
     }
 
     async function purgeInvalidImageCatalogRecords(elements, controls) {
@@ -7669,7 +8226,10 @@
         let removedCount = imageCatalog.length - records.length;
 
         for (const record of records) {
-            const validation = await validateImageUrl(record.url, IMAGE_URL_VALIDATION_TIMEOUT_MS);
+            const validation = await validateImageUrl(
+                addImageUrlCacheBuster(record.url),
+                IMAGE_URL_VALIDATION_TIMEOUT_MS
+            );
             if (!validation.ok) {
                 removedCount += 1;
                 continue;
@@ -7885,6 +8445,13 @@
             elements.feedback.style.color = isError ? '#fca5a5' : '#93c5fd';
         }
 
+        function setImageCatalogFeedback(message, isError = false) {
+            setFeedback(message, isError);
+            if (!(elements.imageCatalogStatus instanceof HTMLElement)) return;
+            elements.imageCatalogStatus.textContent = message;
+            elements.imageCatalogStatus.style.color = isError ? '#fca5a5' : '#93c5fd';
+        }
+
         function syncSavedPhrasesMainSummary() {
             if (elements.phrasesSummary instanceof HTMLElement) {
                 elements.phrasesSummary.textContent = formatSavedPhrasesSummaryLabel();
@@ -7906,6 +8473,7 @@
 
         const controller = {
             setFeedback,
+            setImageCatalogFeedback,
             syncSavedPhrasesMainSummary,
             getSelectedMentionSoundScope: () => getSelectedSettingsMentionSoundScope(elements),
             syncMentionSoundControlsState: () => syncSettingsMentionSoundControls(elements),
@@ -8232,8 +8800,9 @@
         });
 
         elements.imageCatalogPurgeBtn?.addEventListener('click', async () => {
+            controls.setImageCatalogFeedback('Vérification des liens images...');
             const result = await purgeInvalidImageCatalogRecords(elements, controls);
-            controls.setFeedback(result.message, !result.ok);
+            controls.setImageCatalogFeedback(result.message, !result.ok);
         });
 
         elements.imageCatalogClearBtn?.addEventListener('click', () => {
@@ -8395,16 +8964,6 @@
             );
         });
 
-        elements.hideChatFooterToggle?.addEventListener('change', () => {
-            saveHideChatFooterEnabled(elements.hideChatFooterToggle.checked);
-            applyChatFooterVisibilityState();
-            controls.setFeedback(
-                hideChatFooterEnabled
-                    ? 'Pied de page masqué sur la page chat.'
-                    : 'Pied de page réaffiché sur la page chat.'
-            );
-        });
-
         elements.embedUrlImagesToggle?.addEventListener('change', () => {
             saveEmbedUrlImagesEnabled(elements.embedUrlImagesToggle.checked);
             processAllMessages();
@@ -8412,20 +8971,6 @@
                 embedUrlImagesEnabled
                     ? 'Prévisualisation des images au survol activée.'
                     : 'Prévisualisation des images au survol désactivée.'
-            );
-        });
-
-        elements.lightThemeToggle?.addEventListener('change', () => {
-            saveLightThemeEnabled(elements.lightThemeToggle.checked);
-            applyLightThemeState();
-            processAllMessages();
-            if (lightThemeEnabled) {
-                showToast(`Thème clair beta activé pour ${currentPageLabel}. Fonction encore récente, rendu susceptible d’évoluer.`);
-            }
-            controls.setFeedback(
-                lightThemeEnabled
-                    ? `Thème clair activé pour ${currentPageLabel}.`
-                    : `Thème clair désactivé pour ${currentPageLabel}.`
             );
         });
 
@@ -8808,17 +9353,6 @@
                     Décoché : boutons à gauche. Coché : boutons à droite, que la barre soit au-dessus du champ ou sur la même ligne.
                 </div>
 
-                ${isChatView ? `
-                <label style="${styles.settingsCheckboxLabelWithMarginStyle}">
-                    <input id="tm-hide-chat-footer-toggle" type="checkbox" ${hideChatFooterEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle(styles.accessibilityCheckboxAccentColor)}">
-                    <span>Masquer le footer sur la page chat</span>
-                </label>
-
-                <div style="margin-top:8px;font-size:11px;color:#71717a;line-height:1.45;">
-                    Retire le footer du site sur la page de chat dédiée donner un effet pleine écran.
-                </div>
-                ` : ''}
-
                 <label style="${styles.settingsCheckboxLabelWithMarginStyle}">
                     <input id="tm-embed-url-images-toggle" type="checkbox" ${embedUrlImagesEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle(styles.accessibilityCheckboxAccentColor)}">
                     <span>Prévisualiser les liens directs d'images au survol</span>
@@ -8828,14 +9362,6 @@
                     Affiche un aperçu flottant uniquement pour les URLs qui pointent directement vers un fichier image.
                 </div>
 
-                <label style="${styles.settingsCheckboxLabelWithMarginStyle}">
-                    <input id="tm-light-theme-toggle" type="checkbox" ${lightThemeEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle(styles.accessibilityCheckboxAccentColor)}">
-                    <span>Thème clair <span style="font-weight:700;text-decoration:underline;">beta</span> pour la shoutbox</span>
-                </label>
-
-                <div style="margin-top:8px;font-size:11px;color:#71717a;line-height:1.45;">
-                    Éclaircit la zone de chat, les messages, la stats box et les toasts du script. Réglage enregistré séparément pour ${currentPageLabel}.
-                </div>
             </div>
         `;
     }
@@ -9095,6 +9621,7 @@
                     </div>
 
                     <div id="tm-image-catalog-list" style="display:grid;gap:8px;margin-top:10px;"></div>
+                    <div id="tm-image-catalog-status" aria-live="polite" style="min-height:18px;margin-top:8px;font-size:11px;line-height:1.4;color:#71717a;"></div>
                 </div>
             </div>
         `;
@@ -9963,17 +10490,6 @@
         body.style.minHeight = '0';
         body.style.background = '#09090b';
 
-        const iframe = document.createElement('iframe');
-        iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
-        iframe.allowFullscreen = true;
-        iframe.referrerPolicy = 'strict-origin-when-cross-origin';
-        iframe.style.display = 'block';
-        iframe.style.width = '100%';
-        iframe.style.height = '100%';
-        iframe.style.border = '0';
-        iframe.style.background = '#000';
-
-        body.appendChild(iframe);
         header.appendChild(title);
         headerActions.appendChild(collapseBtn);
         headerActions.appendChild(closeBtn);
@@ -10056,43 +10572,71 @@
         const normalizedEmbedUrl = String(embedUrl || '').trim();
         if (!normalizedEmbedUrl) return;
 
-        const videoId = String(options?.videoId || '').trim();
-        const watchUrl = String(options?.watchUrl || '').trim();
         const player = getOrCreateYouTubePlayer();
         if (!(player instanceof HTMLElement)) return;
 
-        const iframe = player.querySelector('iframe');
-        if (!(iframe instanceof HTMLIFrameElement)) return;
+        const body = player.querySelector('[data-tm-youtube-player-body="1"]');
+        if (!(body instanceof HTMLElement)) return;
 
+        // L'iframe est ajoutée par Tampermonkey afin de ne pas être soumise à
+        // la directive frame-src/default-src de Tr4ker. Cela conserve le
+        // mini-lecteur déplaçable, sans ouvrir un nouvel onglet.
+        body.querySelector('iframe')?.remove();
+
+        const iframeAttributes = {
+            src: normalizedEmbedUrl,
+            allow: 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share',
+            allowfullscreen: '',
+            referrerpolicy: 'strict-origin-when-cross-origin',
+            style: 'display:block;width:100%;height:100%;border:0;background:#000;'
+        };
+        let iframe = null;
+
+        if (typeof GM_addElement === 'function') {
+            iframe = GM_addElement(body, 'iframe', iframeAttributes);
+        }
+
+        if (!(iframe instanceof HTMLIFrameElement)) {
+            // Compatibilité avec les anciens gestionnaires de userscripts :
+            // le lecteur reste affiché, mais peut rester soumis à la CSP.
+            iframe = document.createElement('iframe');
+            iframe.src = normalizedEmbedUrl;
+            iframe.allow = iframeAttributes.allow;
+            iframe.allowFullscreen = true;
+            iframe.referrerPolicy = iframeAttributes.referrerpolicy;
+            iframe.style.cssText = iframeAttributes.style;
+            body.appendChild(iframe);
+        }
+
+        if (isYouTubePlayerCollapsed(player)) {
+            setYouTubePlayerCollapsed(false, player);
+        }
+
+        const videoId = String(options?.videoId || '').trim();
+        const watchUrl = String(options?.watchUrl || '').trim();
         player.dataset.tmYoutubeVideoId = videoId;
         setYouTubePlayerTitle(
             youtubeVideoTitleCache.get(videoId) ||
             getFallbackYouTubePlayerTitle(videoId)
         );
-        iframe.src = normalizedEmbedUrl;
 
         if (videoId && watchUrl && !youtubeVideoTitleCache.has(videoId)) {
             const requestSerial = ++youtubePlayerTitleRequestSerial;
 
             void fetchYouTubeVideoTitle(videoId, watchUrl).then((resolvedTitle) => {
-                if (!resolvedTitle) return;
-                if (requestSerial !== youtubePlayerTitleRequestSerial) return;
+                if (!resolvedTitle || requestSerial !== youtubePlayerTitleRequestSerial) return;
 
                 const activePlayer = document.getElementById(YOUTUBE_PLAYER_ID);
                 if (!(activePlayer instanceof HTMLElement)) return;
                 if ((activePlayer.dataset.tmYoutubeVideoId || '') !== videoId) return;
-
                 setYouTubePlayerTitle(resolvedTitle);
             });
         }
 
         if (!youtubePlayerKeydownHandler) {
             youtubePlayerKeydownHandler = (event) => {
-                if (event.key !== 'Escape') return;
-                if (modalOpen || imageViewerOpen) return;
-
-                const activePlayer = document.getElementById(YOUTUBE_PLAYER_ID);
-                if (!(activePlayer instanceof HTMLElement)) return;
+                if (event.key !== 'Escape' || modalOpen || imageViewerOpen) return;
+                if (!(document.getElementById(YOUTUBE_PLAYER_ID) instanceof HTMLElement)) return;
 
                 event.preventDefault();
                 closeYouTubePlayer();
@@ -11896,6 +12440,9 @@
 
         let score = 0;
         const label = getChatInputCandidateLabel(element);
+        if (isTr4kerPage() && element.matches(TR4KER_CHAT_INPUT_SELECTOR)) {
+            score += 1000;
+        }
         const controlsRow = getChatInputControlsRow(element);
 
         if (/\b(message|messages|ecrire|écrire|repondre|répondre|chat|shout)\b/.test(label)) {
@@ -12111,6 +12658,12 @@
     function getChatInput() {
         let input = null;
 
+        if (isTr4kerPage()) {
+            input = document.querySelector(TR4KER_CHAT_INPUT_SELECTOR);
+            if (input instanceof HTMLElement && isChatInputCandidate(input)) return input;
+            input = null;
+        }
+
         if (isChatPage()) {
             const header = getChatPageHeaderElement();
             if (header && header.parentElement) {
@@ -12186,6 +12739,10 @@
         const controlsRow = context?.controlsRow;
         const input = context?.input;
 
+        if (isTr4kerPage()) {
+            ensureChatInputToolbarStyle();
+        }
+
         if (
             input instanceof HTMLElement &&
             input.getAttribute(CHAT_INPUT_TOOLBAR_SYNC_BOUND_ATTR) !== '1'
@@ -12237,6 +12794,10 @@
         }
 
         return null;
+    }
+
+    function getChatInputToolbarReservedHeightPx() {
+        return isTr4kerPage() ? 44 : CHAT_INPUT_TOOLBAR_RESERVED_HEIGHT_PX;
     }
 
     function getChatInputToolbarRail(mountParent) {
@@ -12323,10 +12884,10 @@
             inlineInputHost instanceof HTMLElement &&
             inlineInputHost.parentElement === controlsRow
         ) {
-            const inlineRailBottomOffsetPx = isHomePage() ? 0 : 6;
+            const inlineInputHeight = Math.max(32, Math.round(inlineInputHost.getBoundingClientRect().height));
             rail.style.position = 'relative';
             rail.style.top = 'auto';
-            rail.style.bottom = `${inlineRailBottomOffsetPx}px`;
+            rail.style.bottom = '0';
             rail.style.left = 'auto';
             rail.style.right = 'auto';
             rail.style.justifyContent = 'flex-start';
@@ -12334,6 +12895,8 @@
             rail.style.flexShrink = '0';
             rail.style.minWidth = '0';
             rail.style.alignSelf = 'flex-end';
+            rail.setAttribute(CHAT_INPUT_TOOLBAR_INLINE_ATTR, '1');
+            rail.style.setProperty('--tm-chat-input-toolbar-inline-height', `${inlineInputHeight}px`);
             inlineInputHost.style.flex = '1 1 0%';
             inlineInputHost.style.minWidth = '0';
             inlineInputHost.style.width = '0';
@@ -12351,24 +12914,26 @@
                 controlsRow.insertBefore(rail, inlineInputHost);
             }
 
-            const inlineOffset = getInlineChatInputToolbarOffset(context, rail);
-            rail.style.transform = inlineOffset > 0
-                ? `translateY(-${inlineOffset}px)`
-                : 'translateY(0)';
+            rail.style.transform = 'translateY(0)';
 
             return;
         }
+
+        rail.removeAttribute(CHAT_INPUT_TOOLBAR_INLINE_ATTR);
+        rail.style.removeProperty('--tm-chat-input-toolbar-inline-height');
 
         if (inlineInputHost instanceof HTMLElement) {
             inlineInputHost.style.removeProperty('width');
             inlineInputHost.style.removeProperty('max-width');
         }
 
+        const isTr4kerDockedToolbar = isTr4kerPage() && !chatInputToolbarInline;
+
         rail.style.position = 'absolute';
-        rail.style.top = '0';
+        rail.style.top = isTr4kerDockedToolbar ? '6px' : '0';
         rail.style.bottom = 'auto';
-        rail.style.left = '0';
-        rail.style.right = '0';
+        rail.style.left = isTr4kerDockedToolbar ? '8px' : '0';
+        rail.style.right = isTr4kerDockedToolbar ? '8px' : '0';
         rail.style.justifyContent = chatInputToolbarAlignRight ? 'flex-end' : 'flex-start';
         rail.style.flexWrap = 'nowrap';
         rail.style.flexShrink = '0';
@@ -12387,7 +12952,7 @@
 
             const rail = getChatInputToolbarRail(element);
             if (!chatInputToolbarInline && hasVisibleChatInputToolbar(rail)) {
-                element.style.paddingTop = `${CHAT_INPUT_TOOLBAR_RESERVED_HEIGHT_PX}px`;
+                element.style.paddingTop = `${getChatInputToolbarReservedHeightPx()}px`;
                 return;
             }
 
@@ -12406,7 +12971,7 @@
         if (hasVisibleChatInputToolbar(rail)) {
             positionChatInputToolbarRail(context, rail);
             if (!chatInputToolbarInline && context.mountParent instanceof HTMLElement) {
-                context.mountParent.style.paddingTop = `${CHAT_INPUT_TOOLBAR_RESERVED_HEIGHT_PX}px`;
+                context.mountParent.style.paddingTop = `${getChatInputToolbarReservedHeightPx()}px`;
                 context.mountParent.setAttribute(CHAT_INPUT_TOOLBAR_SPACE_ATTR, '1');
                 return;
             }
@@ -12524,6 +13089,11 @@
     function getChatInputControlsRow(input = getChatInput()) {
         if (!(input instanceof HTMLElement)) return null;
 
+        if (isTr4kerPage()) {
+            const inputArea = input.closest('[class*="inputArea"]');
+            if (inputArea instanceof HTMLElement) return inputArea;
+        }
+
         const inputWrapper = input.closest('.relative.flex-1');
         if (inputWrapper instanceof HTMLElement && inputWrapper.parentElement instanceof HTMLElement) {
             return inputWrapper.parentElement;
@@ -12574,6 +13144,7 @@
         const looksNativeUtilityButton = looksLikeNativeChatInputUtilityButton(button);
 
         if (isNativeChatInputSendButton(button)) return false;
+        if (isTr4kerPage()) return isEmojiButton || isImageButton;
         if (!looksNativeUtilityButton) return false;
         return isEmojiButton || isImageButton || !!button.querySelector('svg');
     }
@@ -12598,6 +13169,13 @@
     }
 
     function getNativeChatInputActionButtons(input = getChatInput()) {
+        if (isTr4kerPage() && input instanceof HTMLElement) {
+            const directButtons = Array.from(
+                (input.parentElement || input).querySelectorAll('button[type="button"]')
+            ).filter((button) => isNativeChatInputUtilityButton(button));
+            return Array.from(new Set(directButtons)).slice(0, 2);
+        }
+
         const actionContainers = getChatInputActionContainers(input);
         if (actionContainers.length === 0) return [];
 
@@ -12828,6 +13406,13 @@
     }
 
     function syncNativeChatInputActionButtons(input = getChatInput()) {
+        if (isTr4kerPage()) {
+            // Tr4ker owns the React popovers associated with these buttons. Keep
+            // the native controls in place so their event/ref lifecycle remains intact.
+            restoreNativeChatInputActionButtons();
+            return;
+        }
+
         if (!shouldUseChatInputToolbarRail()) {
             restoreNativeChatInputActionButtons();
             return;
@@ -15175,6 +15760,22 @@
         pendingImageUploadFiles = [...pendingImageUploadFiles, ...nextFiles].slice(0, 12);
     }
 
+    function setLocalImagePreviewSource(image, file) {
+        if (!(image instanceof HTMLImageElement) || !(file instanceof File)) return;
+
+        // Tr4ker n'autorise pas blob: dans img-src. Une Data URL est autorisée
+        // par sa CSP et ne sert qu'à l'aperçu local avant l'upload.
+        const reader = new FileReader();
+        reader.addEventListener('load', () => {
+            if (!image.isConnected || typeof reader.result !== 'string') return;
+            image.src = reader.result;
+        }, { once: true });
+        reader.addEventListener('error', () => {
+            image.removeAttribute('src');
+        }, { once: true });
+        reader.readAsDataURL(file);
+    }
+
     function refreshImageUploadPendingList(menu) {
         const { pendingList, uploadBtn } = getImageUploadMenuElements(menu);
         if (!(pendingList instanceof HTMLElement)) return;
@@ -15200,8 +15801,6 @@
                 row.style.border = '1px solid rgba(255,255,255,0.06)';
 
                 const preview = document.createElement('img');
-                const previewUrl = URL.createObjectURL(file);
-                preview.src = previewUrl;
                 preview.alt = file.name || `Image ${index + 1}`;
                 preview.loading = 'lazy';
                 preview.style.width = '56px';
@@ -15210,8 +15809,7 @@
                 preview.style.objectFit = 'cover';
                 preview.style.background = '#09090b';
                 preview.style.border = '1px solid rgba(255,255,255,0.08)';
-                preview.addEventListener('load', () => URL.revokeObjectURL(previewUrl), { once: true });
-                preview.addEventListener('error', () => URL.revokeObjectURL(previewUrl), { once: true });
+                setLocalImagePreviewSource(preview, file);
 
                 const body = document.createElement('div');
                 body.style.minWidth = '0';
@@ -15366,9 +15964,12 @@
         removeBtn.style.cursor = 'pointer';
         removeBtn.style.fontSize = '11px';
         removeBtn.style.fontWeight = '700';
-        removeBtn.addEventListener('click', async () => {
+        removeBtn.addEventListener('click', async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+
             if (record.deleteUrl) {
-                const confirmed = window.confirm('Supprimer cette image via ImgBB ? L’entrée locale sera retirée seulement si la suppression est confirmée.');
+                const confirmed = await confirmImageCatalogRemoteDeletion(record);
                 if (!confirmed) return;
                 setImageUploadMenuStatus(menu, 'Suppression ImgBB en cours, vérification du lien image...');
             }
@@ -15809,6 +16410,11 @@
     function getMessageTextContent(messageEl) {
         if (!(messageEl instanceof HTMLElement)) return '';
 
+        if (isTr4kerPage()) {
+            const textBlock = messageEl.querySelector('[class*="msgBubble"]');
+            return (textBlock?.textContent || '').trim();
+        }
+
         if (isChatPage()) {
             const textBlock = messageEl.querySelector(':scope > .flex-1.min-w-0 > .text-sm.text-gray-200.break-words');
             return (textBlock?.textContent || '').trim();
@@ -15824,6 +16430,10 @@
 
     function getMessageTimestampText(messageEl) {
         if (!(messageEl instanceof HTMLElement)) return '';
+
+        if (isTr4kerPage()) {
+            return String(messageEl.querySelector('[class*="msgTime"]')?.textContent || '').trim();
+        }
 
         if (isChatPage()) {
             const metaSpans = Array.from(messageEl.querySelectorAll(':scope > .flex-1.min-w-0 > .flex.items-baseline span'));
@@ -15879,7 +16489,9 @@
         const messageTimestampKey = parseMessageTimestampKey(messageTimestamp);
         const normalizedMessageText = normalizeMentionComparableText(messageText);
         const normalizedReplyContextText = normalizeMentionComparableText(replyContextText).replace(/^@+/, '');
-        const stableTimestampToken = messageTimestampKey > 0
+        const stableTimestampToken = isTr4kerPage() && messageEl.hasAttribute('data-msg-id')
+            ? `id:${messageEl.getAttribute('data-msg-id')}`
+            : messageTimestampKey > 0
             ? String(messageTimestampKey)
             : normalizeMentionComparableText(messageTimestamp);
 
@@ -15920,12 +16532,32 @@
     function getMessageReplyContextText(messageEl) {
         if (!(messageEl instanceof HTMLElement) || !isChatPage()) return '';
 
+        if (isTr4kerPage()) {
+            const author = messageEl.querySelector('[class*="quoteAuthor"]');
+            const body = messageEl.querySelector('[class*="quoteBody"]');
+            return [author?.textContent, body?.textContent].filter(Boolean).join(' : ').trim();
+        }
+
         const replyButton = messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-center.gap-2.mb-1.text-xs button[type="button"]');
         return String(replyButton?.textContent || '').trim();
     }
 
+    function getMessageReplyAuthorText(messageEl) {
+        if (!(messageEl instanceof HTMLElement) || !isChatPage()) return '';
+
+        if (isTr4kerPage()) {
+            return String(messageEl.querySelector('[class*="quoteAuthor"]')?.textContent || '').trim();
+        }
+
+        return getMessageReplyContextText(messageEl);
+    }
+
     function getMessageReplyContextRow(messageEl) {
         if (!(messageEl instanceof HTMLElement) || !isChatPage()) return null;
+
+        if (isTr4kerPage()) {
+            return messageEl.querySelector('[class*="quote"]');
+        }
 
         return messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-center.gap-2.mb-1.text-xs');
     }
@@ -15968,6 +16600,10 @@
     function getMessageActionButtonsContainer(messageEl) {
         if (!(messageEl instanceof HTMLElement) || !isChatPage()) return null;
 
+        if (isTr4kerPage()) {
+            return messageEl.querySelector('[data-msg-actions]');
+        }
+
         return messageEl.querySelector(
             ':scope > .absolute.right-2.-top-3.flex.items-center.gap-0\\.5.bg-zinc-900.border.border-zinc-700.rounded-lg.shadow-lg.px-1.py-0\\.5.z-10'
         );
@@ -15977,12 +16613,14 @@
         if (!(messageEl instanceof HTMLElement) || !isChatPage()) return null;
 
         const actionButtonsContainer = getMessageActionButtonsContainer(messageEl);
-        const directReplyButton = actionButtonsContainer?.querySelector('button[title="Repondre"]');
+        const directReplyButton = actionButtonsContainer?.querySelector('button[title="Répondre"], button[title="Repondre"], button[aria-label*="Répondre"], button[aria-label*="Reply"]');
         if (directReplyButton instanceof HTMLButtonElement) {
             return directReplyButton;
         }
 
-        const usernameButton = messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-baseline button[type="button"]');
+        const usernameButton = isTr4kerPage()
+            ? messageEl.querySelector('[class*="msgSender"]')
+            : messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-baseline button[type="button"]');
         const replyContextButton = messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-center.gap-2.mb-1.text-xs button[type="button"]');
         const buttons = Array.from(
             (actionButtonsContainer || messageEl).querySelectorAll('button')
@@ -16017,12 +16655,14 @@
         if (!(messageEl instanceof HTMLElement) || !isChatPage()) return null;
 
         const actionButtonsContainer = getMessageActionButtonsContainer(messageEl);
-        const directReactionButton = actionButtonsContainer?.querySelector('button[title="Reagir"]');
+        const directReactionButton = actionButtonsContainer?.querySelector('button[title="Réagir"], button[title="Reagir"], button[aria-label*="Réagir"], button[aria-label*="React"]');
         if (directReactionButton instanceof HTMLButtonElement) {
             return directReactionButton;
         }
 
-        const usernameButton = messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-baseline button[type="button"]');
+        const usernameButton = isTr4kerPage()
+            ? messageEl.querySelector('[class*="msgSender"]')
+            : messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-baseline button[type="button"]');
         const replyContextButton = messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-center.gap-2.mb-1.text-xs button[type="button"]');
         const replyActionButton = getMessageReplyActionButton(messageEl);
         const buttons = Array.from(
@@ -16055,6 +16695,30 @@
 
     function isReactionPickerElement(element) {
         if (!(element instanceof HTMLDivElement)) return false;
+
+        if (isTr4kerPage()) {
+            if (isUserscriptEmojiControl(element)) return false;
+
+            const context = getActiveNativeReactionPickerContext();
+            if (!context) return false;
+
+            const className = String(element.getAttribute('class') || '').toLowerCase();
+            const buttons = Array.from(element.querySelectorAll('button'));
+            const rect = element.getBoundingClientRect();
+            const messageEl = element.closest('[data-msg-id]');
+
+            // Le popover peut être rendu dans la ligne du message ou déplacé
+            // sous body par React. Son contexte est donc le clic préalable sur
+            // le bouton « Réagir » du message concerné, jamais son apparence.
+            return (
+                rect.width > 0 &&
+                rect.height > 0 &&
+                buttons.length >= 3 &&
+                /reaction|picker|emoji/.test(className) &&
+                (!(messageEl instanceof HTMLElement) || messageEl === context.messageEl)
+            );
+        }
+
         if (!element.classList.contains('absolute')) return false;
         if (!element.classList.contains('bg-zinc-900')) return false;
         if (!element.classList.contains('border-zinc-700')) return false;
@@ -16069,6 +16733,9 @@
 
     function isReactionUsageGridElement(element) {
         if (!(element instanceof HTMLDivElement)) return false;
+        if (isTr4kerPage()) {
+            return element.classList.contains('grid') || element.querySelectorAll('button').length >= 3;
+        }
         if (!element.classList.contains('grid')) return false;
 
         return element.classList.contains('grid-cols-8') || element.classList.contains('grid-cols-7');
@@ -16088,8 +16755,120 @@
         return null;
     }
 
+    function isUserscriptEmojiControl(element) {
+        if (!(element instanceof Element)) return false;
+
+        return !!element.closest(
+            `[${CHAT_INPUT_TOOLBAR_RAIL_ATTR}="1"], ` +
+            `#${EMOJI_QUICK_ACCESS_WRAPPER_ID}, ` +
+            `#${PHRASES_MENU_WRAPPER_ID}, ` +
+            `#${GIF_MENU_WRAPPER_ID}, ` +
+            `#${IMAGE_UPLOAD_MENU_WRAPPER_ID}, ` +
+            '[data-tm-saved-phrases-menu="1"], ' +
+            '[data-tm-klipy-gif-menu="1"], ' +
+            '[data-tm-image-upload-menu="1"]'
+        );
+    }
+
+    function getActiveNativeEmojiPickerContext() {
+        if (!nativeEmojiPickerContext) return null;
+        if (Date.now() - nativeEmojiPickerContext.openedAt <= NATIVE_PICKER_CONTEXT_TIMEOUT_MS) {
+            return nativeEmojiPickerContext;
+        }
+
+        nativeEmojiPickerContext = null;
+        return null;
+    }
+
+    function getActiveNativeReactionPickerContext() {
+        if (!nativeReactionPickerContext) return null;
+        if (Date.now() - nativeReactionPickerContext.openedAt <= NATIVE_PICKER_CONTEXT_TIMEOUT_MS) {
+            return nativeReactionPickerContext;
+        }
+
+        nativeReactionPickerContext = null;
+        return null;
+    }
+
+    function findNativeEmojiInputTrigger(target) {
+        if (!(target instanceof Element) || !isTr4kerPage()) return null;
+
+        const button = target.closest('button');
+        if (!(button instanceof HTMLButtonElement) || isUserscriptEmojiControl(button)) return null;
+
+        const input = getChatInput();
+        if (!(input instanceof HTMLElement)) return null;
+
+        const inputScope = input.closest('[class*="inputField"], [class*="inputArea"]');
+        if (!(inputScope instanceof HTMLElement) || !inputScope.contains(button)) return null;
+
+        return /\b(?:emoji|emojis|emote)\b/.test(getButtonSearchLabel(button)) ? button : null;
+    }
+
+    function installNativePickerContextTracker() {
+        document.addEventListener('click', (event) => {
+            if (!isChatPage() || !isTr4kerPage()) return;
+            if (!(event.target instanceof Element)) return;
+
+            const emojiTrigger = findNativeEmojiInputTrigger(event.target);
+            if (emojiTrigger instanceof HTMLButtonElement) {
+                nativeEmojiPickerContext = {
+                    openedAt: Date.now(),
+                    trigger: emojiTrigger
+                };
+                nativeReactionPickerContext = null;
+                return;
+            }
+
+            const clickedButton = event.target.closest('button');
+            if (!(clickedButton instanceof HTMLButtonElement) || isUserscriptEmojiControl(clickedButton)) return;
+
+            const messageEl = findMessageElementFromTarget(clickedButton);
+            const reactionButton = messageEl instanceof HTMLElement
+                ? getMessageReactionActionButton(messageEl)
+                : null;
+            if (clickedButton !== reactionButton && !reactionButton?.contains(clickedButton)) return;
+
+            nativeReactionPickerContext = {
+                openedAt: Date.now(),
+                messageEl,
+                trigger: reactionButton
+            };
+            nativeEmojiPickerContext = null;
+        }, true);
+    }
+
+    function isUserscriptControlReactionRecord(record) {
+        const label = normalizeMentionComparableText(
+            [record?.label, record?.title, record?.alt]
+                .filter(Boolean)
+                .join(' ')
+        );
+
+        return /\b(?:ouvrir|fermer|open|close)\b.*\b(?:picker|menu)\b.*\b(?:gif|klipy|image|img)\b/.test(label);
+    }
+
     function isNativeEmojiPickerElement(element) {
         if (!(element instanceof HTMLDivElement)) return false;
+
+        if (isTr4kerPage()) {
+            // Les menus GIF/images/phrases du userscript contiennent aussi des
+            // boutons et des images. Ils ne doivent jamais être pris pour le
+            // picker emoji natif ni alimenter ses favoris.
+            if (isUserscriptEmojiControl(element)) return false;
+            if (!getActiveNativeEmojiPickerContext()) return false;
+
+            const className = String(element.getAttribute('class') || '').toLowerCase();
+            const buttons = Array.from(element.querySelectorAll('button'));
+            const rect = element.getBoundingClientRect();
+            return (
+                rect.width > 0 &&
+                rect.height > 0 &&
+                buttons.length >= 3 &&
+                (/emoji|picker/.test(className) || buttons.some((button) => button.querySelector('img')))
+            );
+        }
+
         if (!element.classList.contains('absolute')) return false;
         if (!element.classList.contains('bg-zinc-900')) return false;
         if (!element.classList.contains('border-zinc-700')) return false;
@@ -16109,12 +16888,46 @@
     function findNativeEmojiPickerButtonFromTarget(target) {
         if (!(target instanceof Element)) return null;
 
-        const button = target.closest('button[type="button"]');
+        // Les boutons du picker Tr4ker n'ont pas systématiquement type="button".
+        const button = target.closest('button');
         if (!(button instanceof HTMLButtonElement)) return null;
-        if (!(button.querySelector('img') instanceof HTMLImageElement)) return null;
+        if (isUserscriptEmojiControl(button)) return null;
+        if (!isTr4kerPage() && !(button.querySelector('img') instanceof HTMLImageElement)) return null;
 
-        const picker = button.closest('div.absolute.bg-zinc-900.border.border-zinc-700.rounded-xl.shadow-2xl');
+        let picker = null;
+        if (isTr4kerPage()) {
+            let current = button.parentElement;
+            while (current && current !== document.body) {
+                if (current instanceof HTMLDivElement && isNativeEmojiPickerElement(current)) {
+                    picker = current;
+                    break;
+                }
+                current = current.parentElement;
+            }
+        } else {
+            picker = button.closest('div.absolute.bg-zinc-900.border.border-zinc-700.rounded-xl.shadow-2xl');
+        }
         if (!(picker instanceof HTMLDivElement) || !isNativeEmojiPickerElement(picker)) return null;
+
+        if (isTr4kerPage()) {
+            const pickerButtonText = String(button.textContent || '').trim();
+            const pickerMetadata = [
+                button.getAttribute('data-emoji'),
+                button.getAttribute('data-value'),
+                button.getAttribute('data-name'),
+                button.getAttribute('title'),
+                button.getAttribute('aria-label')
+            ]
+                .map((value) => String(value || '').trim())
+                .filter(Boolean);
+            const hasEmojiAsset = button.querySelector('img') instanceof HTMLImageElement;
+            const hasUnicodeEmoji = !!normalizeReactionEmojiValue(pickerButtonText);
+            const hasShortcode = pickerMetadata.some((value) => /^:[^:\s][^:]*:$/.test(value));
+
+            // Ignore les onglets et boutons de navigation du picker : seuls les
+            // éléments qui représentent réellement un emoji sont comptabilisés.
+            return hasEmojiAsset || hasUnicodeEmoji || hasShortcode ? button : null;
+        }
 
         const emojiGrid = button.closest('div.grid.grid-cols-7');
         if (!(emojiGrid instanceof HTMLDivElement) || !picker.contains(emojiGrid)) return null;
@@ -16125,6 +16938,15 @@
     function findNativeEmojiPickerFromTarget(target) {
         if (!(target instanceof Element)) return null;
 
+        if (isTr4kerPage()) {
+            let current = target instanceof HTMLElement ? target : null;
+            while (current && current !== document.body) {
+                if (current instanceof HTMLDivElement && isNativeEmojiPickerElement(current)) return current;
+                current = current.parentElement;
+            }
+            return null;
+        }
+
         const picker = target.closest('div.absolute.bg-zinc-900.border.border-zinc-700.rounded-xl.shadow-2xl');
         return picker instanceof HTMLDivElement && isNativeEmojiPickerElement(picker) ? picker : null;
     }
@@ -16134,7 +16956,9 @@
 
         const button = target.closest('button[type="button"]');
         if (!(button instanceof HTMLButtonElement)) return null;
-        const picker = button.closest('div.absolute.bg-zinc-900.border.border-zinc-700.rounded-xl.shadow-2xl.z-50');
+        const picker = isTr4kerPage()
+            ? findReactionUsagePickerRootFromTarget(button)
+            : button.closest('div.absolute.bg-zinc-900.border.border-zinc-700.rounded-xl.shadow-2xl.z-50');
         if (!(picker instanceof HTMLDivElement) || !isReactionPickerElement(picker)) return null;
 
         return button;
@@ -16145,9 +16969,37 @@
 
         const button = target.closest('button');
         if (!(button instanceof HTMLButtonElement)) return null;
+        if (isUserscriptEmojiControl(button)) return null;
 
         const picker = findReactionUsagePickerRootFromTarget(button);
         if (!(picker instanceof HTMLDivElement)) return null;
+
+        if (isTr4kerPage()) {
+            const context = getActiveNativeReactionPickerContext();
+            if (!context) return null;
+
+            const buttonMessageEl = findMessageElementFromTarget(button);
+            const pickerMessageEl = picker.closest('[data-msg-id]');
+            if (
+                (buttonMessageEl instanceof HTMLElement && buttonMessageEl !== context.messageEl) ||
+                (pickerMessageEl instanceof HTMLElement && pickerMessageEl !== context.messageEl)
+            ) return null;
+
+            const record = extractReactionUsageRecordFromButton(button);
+            const hasEmojiValue = !!normalizeReactionEmojiValue(
+                record?.emojiValue || record?.label || record?.title || record?.alt || ''
+            );
+            const hasEmojiAsset = button.querySelector('img') instanceof HTMLImageElement;
+            const hasEmojiDataset = [
+                button.getAttribute('data-emoji'),
+                button.getAttribute('data-value'),
+                button.getAttribute('data-name')
+            ].some((value) => !!String(value || '').trim());
+
+            // Tr4ker utilise des classes CSS modules, sans conteneur `div.grid`.
+            // Écarter les contrôles du picker et ne conserver que les emojis.
+            return hasEmojiValue || hasEmojiAsset || hasEmojiDataset ? button : null;
+        }
 
         const nearestGrid = button.closest('div.grid');
         if (!(nearestGrid instanceof HTMLDivElement) || !picker.contains(nearestGrid)) return null;
@@ -16394,16 +17246,17 @@
         }
 
         try {
-            const oEmbedUrl = new URL('https://www.youtube.com/oembed');
+            const oEmbedUrl = new URL('https://www.youtube.com/');
             oEmbedUrl.searchParams.set('url', normalizedWatchUrl);
             oEmbedUrl.searchParams.set('format', 'json');
 
-            const response = await fetch(oEmbedUrl.toString(), {
+            const response = await requestExternal(oEmbedUrl.toString(), {
                 method: 'GET',
                 headers: {
                     Accept: 'application/json'
                 },
-                credentials: 'omit'
+                credentials: 'omit',
+                timeout: 15000
             });
 
             if (!response.ok) return '';
@@ -16427,9 +17280,14 @@
         const normalizedUrl = String(rawUrl || '').trim();
         if (!normalizedUrl) return null;
 
+        const isYouTubeFragment = /^(?:watch\?v=|shorts\/|embed\/|live\/)/i.test(normalizedUrl);
+        const urlToParse = isYouTubeFragment
+            ? `https://www.youtube.com/${normalizedUrl}`
+            : normalizedUrl;
+
         let parsedUrl;
         try {
-            parsedUrl = new URL(normalizedUrl, location.origin);
+            parsedUrl = new URL(urlToParse, location.origin);
         } catch (e) {
             return null;
         }
@@ -16450,7 +17308,10 @@
             }
         }
 
-        if (!/^[a-zA-Z0-9_-]{6,}$/.test(videoId)) return null;
+        // Un identifiant de vidéo YouTube fait exactement 11 caractères.
+        // Cette contrainte évite qu'un texte adjacent (par exemple « play »)
+        // soit absorbé dans l'identifiant lors d'un nouveau rendu du message.
+        if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) return null;
 
         const startSeconds = Math.max(
             parseYouTubeTimeToSeconds(parsedUrl.searchParams.get('t')),
@@ -16476,6 +17337,65 @@
             embedUrl: embedUrl.toString(),
             watchUrl: watchUrl.toString()
         };
+    }
+
+    function getYouTubeVideoDescriptorsFromText(rawText) {
+        const sourceText = String(rawText || '');
+        if (!sourceText) return [];
+
+        const descriptors = [];
+        const seenVideoIds = new Set();
+        YOUTUBE_FRAGMENT_RE.lastIndex = 0;
+
+        let match;
+        while ((match = YOUTUBE_FRAGMENT_RE.exec(sourceText)) !== null) {
+            const descriptor = getYouTubeVideoDescriptor(match[1]);
+            if (!descriptor || seenVideoIds.has(descriptor.videoId)) continue;
+
+            seenVideoIds.add(descriptor.videoId);
+            descriptors.push(descriptor);
+        }
+
+        return descriptors;
+    }
+
+    function getYouTubeVideoDescriptorsFromTextBlock(textBlock) {
+        if (!(textBlock instanceof HTMLElement)) return [];
+
+        const descriptors = [];
+        const seenVideoIds = new Set();
+        const walker = document.createTreeWalker(textBlock, NodeFilter.SHOW_TEXT);
+        let textNode;
+
+        while ((textNode = walker.nextNode())) {
+            const parent = textNode.parentElement;
+            // Les liens et les boutons sont déjà traités séparément. Ne pas
+            // relire le libellé « play » injecté par le userscript.
+            if (parent?.closest('a, button[data-tm-youtube-play-link="1"]')) continue;
+
+            getYouTubeVideoDescriptorsFromText(textNode.nodeValue || '').forEach((descriptor) => {
+                if (seenVideoIds.has(descriptor.videoId)) return;
+                seenVideoIds.add(descriptor.videoId);
+                descriptors.push(descriptor);
+            });
+        }
+
+        return descriptors;
+    }
+
+    function createYouTubePlayButton(videoDescriptor) {
+        if (!videoDescriptor) return null;
+
+        const playButton = document.createElement('button');
+        playButton.type = 'button';
+        playButton.textContent = 'play';
+        playButton.title = 'Lire dans le player';
+        playButton.setAttribute('aria-label', 'Lire dans le player');
+        playButton.setAttribute('data-tm-youtube-play-link', '1');
+        playButton.setAttribute('data-tm-youtube-embed-url', videoDescriptor.embedUrl);
+        playButton.setAttribute('data-tm-youtube-video-id', videoDescriptor.videoId);
+        playButton.setAttribute('data-tm-youtube-watch-url', videoDescriptor.watchUrl);
+        return playButton;
     }
 
     function linkifyTextNodeUrls(textNode) {
@@ -16609,6 +17529,7 @@
 
         ensureYouTubeLinkActionStyle();
 
+        const linkedVideoIds = new Set();
         const candidateLinks = Array.from(textBlock.querySelectorAll('a[href]'));
         candidateLinks.forEach((link) => {
             if (!(link instanceof HTMLAnchorElement)) return;
@@ -16616,17 +17537,24 @@
             const videoDescriptor = getYouTubeVideoDescriptor(link.href);
             if (!videoDescriptor) return;
 
-            const playButton = document.createElement('button');
-            playButton.type = 'button';
-            playButton.textContent = 'play';
-            playButton.title = 'Lire dans le player';
-            playButton.setAttribute('aria-label', 'Lire dans le player');
-            playButton.setAttribute('data-tm-youtube-play-link', '1');
-            playButton.setAttribute('data-tm-youtube-embed-url', videoDescriptor.embedUrl);
-            playButton.setAttribute('data-tm-youtube-video-id', videoDescriptor.videoId);
-            playButton.setAttribute('data-tm-youtube-watch-url', videoDescriptor.watchUrl);
+            linkedVideoIds.add(videoDescriptor.videoId);
+            const playButton = createYouTubePlayButton(videoDescriptor);
+            if (!playButton) return;
 
             link.insertAdjacentElement('afterend', playButton);
+        });
+
+        // Tr4ker bloque les URLs dans les messages. Les utilisateurs peuvent
+        // donc envoyer uniquement le suffixe YouTube, par exemple watch?v=ID.
+        const textVideoDescriptors = getYouTubeVideoDescriptorsFromTextBlock(textBlock);
+        textVideoDescriptors.forEach((videoDescriptor) => {
+            if (linkedVideoIds.has(videoDescriptor.videoId)) return;
+
+            const playButton = createYouTubePlayButton(videoDescriptor);
+            if (!playButton) return;
+
+            textBlock.appendChild(document.createTextNode(' '));
+            textBlock.appendChild(playButton);
         });
     }
 
@@ -16653,6 +17581,16 @@
     }
 
     function updateMessageTextBlockUrls(messageEl) {
+        // Les bulles de Tr4ker sont gérées directement par React. Remplacer un
+        // nœud texte ici désynchronise l'arbre DOM de React et peut faire
+        // échouer le démontage d'une conversation (NotFoundError/removeChild).
+        // Tr4ker rend déjà les URL sous forme de liens natifs : ne modifions
+        // donc jamais son texte, mais gardons le bouton du mini-player YouTube.
+        if (isTr4kerPage()) {
+            syncYouTubePlayButtons(messageEl);
+            return;
+        }
+
         if (linkifyUrlsEnabled) {
             linkifyMessageTextBlock(messageEl);
             syncEmbeddedImagePreviews(messageEl);
@@ -16665,6 +17603,10 @@
 
     function getMessageTextBlock(messageEl) {
         if (!(messageEl instanceof HTMLElement)) return null;
+
+        if (isTr4kerPage()) {
+            return messageEl.querySelector('[class*="msgBubble"]');
+        }
 
         if (isChatPage()) {
             return messageEl.querySelector(':scope > .flex-1.min-w-0 > .text-sm.text-gray-200.break-words');
@@ -16887,12 +17829,14 @@
         const directMentionMatched = !!normalizedWatchedUsername && !!normalizedMessageText && mentionRegex.test(normalizedMessageText);
 
         let replyContextText = '';
+        let replyAuthorText = '';
         let normalizedReplyContextText = '';
         let replyMentionMatched = false;
 
         if (mentionSettings.includeReplyContext === true && isChatPage()) {
             replyContextText = getMessageReplyContextText(messageEl);
-            normalizedReplyContextText = normalizeMentionComparableText(replyContextText).replace(/^@+/, '');
+            replyAuthorText = getMessageReplyAuthorText(messageEl);
+            normalizedReplyContextText = normalizeMentionComparableText(replyAuthorText).replace(/^@+/, '');
             replyMentionMatched = !!normalizedWatchedUsername && normalizedReplyContextText === normalizedWatchedUsername;
         }
 
@@ -16904,6 +17848,7 @@
             messageText,
             normalizedMessageText,
             replyContextText,
+            replyAuthorText,
             normalizedReplyContextText,
             directMentionMatched,
             replyMentionMatched,
@@ -16915,6 +17860,11 @@
 
     function findUsernameTrigger(target) {
         if (!(target instanceof Element)) return null;
+
+        if (isTr4kerPage()) {
+            // Le bouton de pseudo Tr4ker ne porte pas d'attribut type="button".
+            return target.closest('button[class*="msgSender"], [class*="msgSender"]');
+        }
 
         if (isChatPage()) {
             return target.closest('button[type="button"]');
@@ -17022,6 +17972,11 @@
         document.addEventListener('click', (event) => {
             if (modalOpen || !isChatPage()) return;
 
+            // Le picker Tr4ker est ancré à la ligne du message. Le transformer
+            // en élément fixed agrandit parfois la zone défilable horizontalement
+            // du chat : on laisse donc le positionnement natif intact.
+            if (isTr4kerPage()) return;
+
             const target = event.target;
             if (!(target instanceof Element)) return;
 
@@ -17081,7 +18036,9 @@
 
                     longPressReactionState.triggered = true;
                     reactionButton.click();
-                    positionReactionPickerNearPointer(event.clientX, event.clientY);
+                    if (!isTr4kerPage()) {
+                        positionReactionPickerNearPointer(event.clientX, event.clientY);
+                    }
                 }, LONG_PRESS_REACTION_DELAY_MS)
             };
 
@@ -17336,6 +18293,18 @@
         }
     }
 
+    function prepareForTr4kerRouteTransition() {
+        if (!isTr4kerPage()) return;
+
+        // Ne pas laisser l'observateur traiter une bulle pendant que React la
+        // démonte. Les contrôles YouTube seront recréés après le rendu du
+        // nouveau canal par refreshForRoute().
+        stopObserver();
+        document.querySelectorAll('button[data-tm-youtube-play-link="1"]').forEach((button) => {
+            button.remove();
+        });
+    }
+
     function refreshForRoute() {
         const currentChatContextKey = getCurrentChatContextKey();
 
@@ -17352,8 +18321,6 @@
             statsHidden = loadStatsHidden();
             chatScrollbarEnabled = loadChatScrollbarEnabled();
             messageActionsLeftEnabled = loadMessageActionsLeftEnabled();
-            hideChatFooterEnabled = loadHideChatFooterEnabled();
-            lightThemeEnabled = loadLightThemeEnabled();
 
             if (isHomePage() && !getHomepageChatContainer()) {
                 removeEmojiQuickAccessToolbar();
@@ -17368,10 +18335,8 @@
             createStatsBox();
             syncHomepageCollapseUi(true);
             applyBoxPosition();
-            applyLightThemeState();
             applyChatPageScrollbarState();
             applyMessageActionsPositionState();
-            applyChatFooterVisibilityState();
             applyHomeChatPopoverState();
             applyNativeChatInputPopoverState();
             injectEmojiQuickAccessToolbar();
@@ -17398,10 +18363,7 @@
             refreshReactionQuickAccessButtons();
             renderAfkPanel();
         } else {
-            lightThemeEnabled = false;
-            applyLightThemeState();
             applyMessageActionsPositionState();
-            applyChatFooterVisibilityState();
             applyHomeChatPopoverState();
             applyNativeChatInputPopoverState();
             stopObserver();
@@ -17456,6 +18418,8 @@
                 processAllMessages();
                 refreshReactionQuickAccessButtons();
                 renderAfkPanel();
+            } else if (isTr4kerPage() && isChatPage() && !getChatPageMessagesRoot()) {
+                refreshForRoute();
             } else if (isHomePage() && !getHomepageChatContainer()) {
                 removeEmojiQuickAccessToolbar();
                 removeMessageReactionQuickAccessButtons();
@@ -17543,18 +18507,21 @@
         const originalReplaceState = history.replaceState;
 
         history.pushState = function () {
+            prepareForTr4kerRouteTransition();
             const result = originalPushState.apply(this, arguments);
             setTimeout(refreshForRoute, 50);
             return result;
         };
 
         history.replaceState = function () {
+            prepareForTr4kerRouteTransition();
             const result = originalReplaceState.apply(this, arguments);
             setTimeout(refreshForRoute, 50);
             return result;
         };
 
         window.addEventListener('popstate', () => {
+            prepareForTr4kerRouteTransition();
             setTimeout(refreshForRoute, 50);
         });
 
@@ -17655,6 +18622,7 @@
         installSavedPhrasesReplyContextTracker();
         installNativeReactionButtonPositionHandler();
         installNativeReactionShortcutHandler();
+        installNativePickerContextTracker();
         installNativeEmojiUsageTracker();
         installReactionUsageTracker();
         installImagePreviewHandler();
@@ -17663,7 +18631,7 @@
         installRouteWatcher();
         document.addEventListener('click', handleStatsBoxActionClick, true);
         refreshForRoute();
-        console.log(`[Torr9 Chat] Script actif. Raccourcis : Ctrl+Alt+C / Ctrl+Cmd+C · Ctrl+Alt+R / Ctrl+Cmd+R · ${formatAfkShortcutLabel()}`);
+        console.log(`[PimpMyShoutbox] Script actif. Raccourcis : Ctrl+Alt+C / Ctrl+Cmd+C · Ctrl+Alt+R / Ctrl+Cmd+R · ${formatAfkShortcutLabel()}`);
     }
 
     if (document.readyState === 'loading') {
