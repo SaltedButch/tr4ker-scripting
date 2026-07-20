@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Tr4ker Chat - Shoutbox 3.0
+// @name         Tr4ker - PimpMyShoutbox
 // @namespace    http://tampermonkey.net/
-// @version      3.0.32
+// @version      3.0.34
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -145,7 +145,7 @@
 
             localStorage.setItem(STORAGE_KEY_MIGRATION_DONE, '1');
         } catch (error) {
-            console.warn('[Tr4ker Chat] Migration des réglages impossible.', error);
+            console.warn('[PimpMyShoutbox] Migration des réglages impossible.', error);
         }
     }
 
@@ -2706,7 +2706,7 @@
         return {
             version: SAVED_PHRASES_EXPORT_VERSION,
             exportedAt: new Date().toISOString(),
-            source: 'Tr4ker Chat - Shoutbox 3.0',
+            source: 'PimpMyShoutbox',
             phrases: savedPhrases
                 .map((phrase) => normalizeSavedPhraseRecord(phrase, true))
                 .filter(Boolean)
@@ -2865,7 +2865,7 @@
         return {
             version: SCRIPT_CONFIG_EXPORT_VERSION,
             exportedAt: new Date().toISOString(),
-            source: 'Tr4ker Chat - Shoutbox 3.0',
+            source: 'PimpMyShoutbox',
             storage,
             afkConfig: {
                 autoReplyMessage: normalizeAfkAutoReplyMessage(afkState.autoReplyMessage),
@@ -4765,22 +4765,22 @@
         if (!debugMode) return;
 
         if (details === null) {
-            console.debug('[Tr4ker Chat][Mention]', message);
+            console.debug('[PimpMyShoutbox][Mention]', message);
             return;
         }
 
-        console.debug('[Tr4ker Chat][Mention]', message, details);
+        console.debug('[PimpMyShoutbox][Mention]', message, details);
     }
 
     function logEmojiDebug(message, details = null) {
         if (!debugMode) return;
 
         if (details === null) {
-            console.log('[Tr4ker Chat][Emoji]', message);
+            console.log('[PimpMyShoutbox][Emoji]', message);
             return;
         }
 
-        console.log('[Tr4ker Chat][Emoji]', message, details);
+        console.log('[PimpMyShoutbox][Emoji]', message, details);
     }
 
     function normalizeMentionComparableText(value) {
@@ -18631,7 +18631,7 @@
         installRouteWatcher();
         document.addEventListener('click', handleStatsBoxActionClick, true);
         refreshForRoute();
-        console.log(`[Tr4ker Chat] Script actif. Raccourcis : Ctrl+Alt+C / Ctrl+Cmd+C · Ctrl+Alt+R / Ctrl+Cmd+R · ${formatAfkShortcutLabel()}`);
+        console.log(`[PimpMyShoutbox] Script actif. Raccourcis : Ctrl+Alt+C / Ctrl+Cmd+C · Ctrl+Alt+R / Ctrl+Cmd+R · ${formatAfkShortcutLabel()}`);
     }
 
     if (document.readyState === 'loading') {

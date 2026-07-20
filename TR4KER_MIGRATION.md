@@ -5,7 +5,7 @@ Cible principale : `https://tr4ker.net/communication?conv=1`
 
 ## Légende
 
-- ✅ Migré/adapté dans `src/userscripts/blacklist-shoutbox.user.js`
+- ✅ Migré/adapté dans `src/userscripts/pimpmyshoutbox.user.js`
 - 🟡 Adapté mais à valider sur une session Tr4ker connectée
 - ⏸️ Non applicable ou dépend d’un comportement qui n’est pas présent dans les sources HTML fournies
 - ❌ Bloqué par une information/API manquante
