@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker Chat - Shoutbox 3.0
 // @namespace    http://tampermonkey.net/
-// @version      3.0.24
+// @version      3.0.26
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -12,6 +12,7 @@
 // @connect      ibb.co
 // @connect      www.youtube.com
 // @connect      youtube.com
+// @connect      *
 // ==/UserScript==
 
 (function () {
@@ -213,6 +214,51 @@
         });
     }
 
+    function requestExternalArrayBuffer(url, options = {}) {
+        const requestFunction = typeof GM_xmlhttpRequest === 'function'
+            ? GM_xmlhttpRequest
+            : null;
+
+        if (!requestFunction) {
+            return Promise.reject(new Error('GM_xmlhttpRequest est indisponible. Réinstalle le userscript avec Tampermonkey.'));
+        }
+
+        const method = String(options.method || 'GET').toUpperCase();
+        const headers = options.headers && typeof options.headers === 'object'
+            ? options.headers
+            : {};
+
+        return new Promise((resolve, reject) => {
+            requestFunction({
+                method,
+                url: String(url || ''),
+                headers,
+                data: options.body,
+                timeout: Math.max(0, Number(options.timeout) || 30000),
+                responseType: 'arraybuffer',
+                anonymous: options.credentials === 'omit',
+                onload(response) {
+                    const status = Math.max(0, Number(response?.status) || 0);
+                    const audioData = response?.response;
+                    if (status < 200 || status >= 300 || !(audioData instanceof ArrayBuffer)) {
+                        reject(new Error(`Téléchargement audio impossible (HTTP ${status}).`));
+                        return;
+                    }
+                    resolve(audioData);
+                },
+                onerror(response) {
+                    reject(new Error(`Téléchargement audio impossible (HTTP ${response?.status || 0}).`));
+                },
+                ontimeout() {
+                    reject(new Error('Téléchargement audio expiré.'));
+                },
+                onabort() {
+                    reject(new Error('Téléchargement audio annulé.'));
+                }
+            });
+        });
+    }
+
     const SCRIPT_CONFIG_EXPORT_VERSION = 1;
     const SCRIPT_CONFIG_STORAGE_KEYS = [
         STORAGE_KEY_USERS,
@@ -319,6 +365,7 @@
     const NATIVE_PICKER_CONTEXT_TIMEOUT_MS = 90 * 1000;
     const IMGBB_API_KEY_URL = 'https://api.imgbb.com/';
     const IMGBB_UPLOAD_ENDPOINT = 'https://api.imgbb.com/1/upload';
+    const IMGBB_DELETE_ENDPOINT = 'https://ibb.co/json';
     const IMAGE_UPLOAD_MAX_BYTES = 32 * 1024 * 1024;
     const IMAGE_CATALOG_MAX_RECORDS = 120;
     const IMAGE_URL_VALIDATION_TIMEOUT_MS = 9000;
@@ -414,7 +461,7 @@
     let imageHostingExpirationSeconds = loadImageHostingExpirationSeconds();
     let imageCatalog = loadImageCatalog();
     let mentionSoundContext = null;
-    let mentionSoundElement = null;
+    const mentionSoundBufferCache = new Map();
     let lastMentionSoundRecord = loadLastMentionSoundRecord();
     let recentMentionSoundRecords = loadRecentMentionSoundRecords(lastMentionSoundRecord);
     let lastMentionSoundAt = lastMentionSoundRecord?.notifiedAt || 0;
@@ -4091,10 +4138,43 @@
         return { ok: false, message: 'L’image distante charge encore.' };
     }
 
+    function getImgBbDeleteRequestDetails(deleteUrl) {
+        const normalizedDeleteUrl = normalizeImageCatalogUrl(deleteUrl);
+        if (!normalizedDeleteUrl) return null;
+
+        try {
+            const url = new URL(normalizedDeleteUrl);
+            if (!/^(?:www\.)?ibb\.co$/i.test(url.hostname)) return null;
+
+            const pathParts = url.pathname.split('/').filter(Boolean);
+            const [imageId, imageHash] = pathParts;
+            if (
+                pathParts.length !== 2 ||
+                !/^[a-zA-Z0-9_-]+$/.test(imageId || '') ||
+                !/^[a-zA-Z0-9_-]+$/.test(imageHash || '')
+            ) {
+                return null;
+            }
+
+            return {
+                imageId,
+                imageHash,
+                pathname: `/${imageId}/${imageHash}`
+            };
+        } catch (e) {
+            return null;
+        }
+    }
+
     async function requestRemoteImageDeletion(record) {
         const deleteUrl = normalizeImageCatalogUrl(record?.deleteUrl);
         if (!deleteUrl) {
             return { ok: false, message: 'URL de suppression distante introuvable.' };
+        }
+
+        const deleteRequestDetails = getImgBbDeleteRequestDetails(deleteUrl);
+        if (!deleteRequestDetails) {
+            return { ok: false, message: 'URL de suppression ImgBB invalide.' };
         }
 
         const requestResult = {
@@ -4106,8 +4186,20 @@
         };
 
         try {
-            const response = await requestExternal(deleteUrl, {
-                method: 'GET',
+            const formData = new FormData();
+            formData.append('pathname', deleteRequestDetails.pathname);
+            formData.append('action', 'delete');
+            formData.append('delete', 'image');
+            formData.append('from', 'resource');
+            formData.append('deleting[id]', deleteRequestDetails.imageId);
+            formData.append('deleting[hash]', deleteRequestDetails.imageHash);
+
+            // delete_url mène à la page de gestion ImgBB. La suppression est
+            // réellement effectuée par son POST vers /json, avec l'identifiant
+            // et le jeton présents dans cette URL.
+            const response = await requestExternal(IMGBB_DELETE_ENDPOINT, {
+                method: 'POST',
+                body: formData,
                 credentials: 'omit',
                 timeout: 15000
             });
@@ -4118,9 +4210,15 @@
 
             if (requestResult.responseReadable) {
                 try {
-                    requestResult.responseText = (await response.clone().text()).slice(0, 300);
+                    const responseText = await response.clone().text();
+                    requestResult.responseText = responseText.slice(0, 300);
+                    const payload = JSON.parse(responseText);
+                    if (payload?.success === false || payload?.status === false) {
+                        requestResult.responseOk = false;
+                    }
                 } catch (e) {
-                    requestResult.responseText = '';
+                    // ImgBB ne garantit pas un corps JSON ; le statut HTTP et
+                    // la vérification du lien image restent alors la référence.
                 }
             }
         } catch (e) {
@@ -6782,33 +6880,39 @@
             if (!normalizedCustomUrl) return false;
 
             try {
-                const currentAudioUrl = mentionSoundElement?.dataset.tmMentionSoundUrl || '';
-                if (!mentionSoundElement || currentAudioUrl !== normalizedCustomUrl) {
-                    mentionSoundElement?.pause();
-                    mentionSoundElement?.remove();
+                const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContextCtor) return false;
 
-                    // Tampermonkey injecte l'élément média hors de la CSP de
-                    // Tr4ker : les URLs audio personnalisées restent donc
-                    // utilisables sans autoriser leur domaine dans media-src.
-                    const injectedAudio = typeof GM_addElement === 'function'
-                        ? GM_addElement('audio', {
-                            src: normalizedCustomUrl,
-                            preload: 'auto',
-                            style: 'display:none;'
-                        })
-                        : null;
-
-                    mentionSoundElement = injectedAudio instanceof HTMLAudioElement
-                        ? injectedAudio
-                        : new Audio(normalizedCustomUrl);
-                    mentionSoundElement.preload = 'auto';
-                    mentionSoundElement.dataset.tmMentionSoundUrl = normalizedCustomUrl;
+                if (!mentionSoundContext) {
+                    mentionSoundContext = new AudioContextCtor();
                 }
 
-                mentionSoundElement.pause();
-                mentionSoundElement.currentTime = 0;
-                mentionSoundElement.volume = 1;
-                await mentionSoundElement.play();
+                if (mentionSoundContext.state === 'suspended') {
+                    await mentionSoundContext.resume();
+                }
+
+                let audioBufferPromise = mentionSoundBufferCache.get(normalizedCustomUrl);
+                if (!audioBufferPromise) {
+                    // Le fichier est récupéré par Tampermonkey puis décodé en
+                    // mémoire. Aucun élément <audio> ne charge l'URL depuis la
+                    // page : la CSP media-src de Tr4ker ne peut donc pas le bloquer.
+                    audioBufferPromise = requestExternalArrayBuffer(normalizedCustomUrl)
+                        .then((audioData) => mentionSoundContext.decodeAudioData(audioData.slice(0)))
+                        .catch((error) => {
+                            mentionSoundBufferCache.delete(normalizedCustomUrl);
+                            throw error;
+                        });
+                    mentionSoundBufferCache.set(normalizedCustomUrl, audioBufferPromise);
+                }
+
+                const audioBuffer = await audioBufferPromise;
+                const source = mentionSoundContext.createBufferSource();
+                const gainNode = mentionSoundContext.createGain();
+                source.buffer = audioBuffer;
+                gainNode.gain.value = 1;
+                source.connect(gainNode);
+                gainNode.connect(mentionSoundContext.destination);
+                source.start();
                 return true;
             } catch (e) {
                 return false;
