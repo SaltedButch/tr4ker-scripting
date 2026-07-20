@@ -20,8 +20,8 @@ Cible principale : `https://tr4ker.net/communication?conv=1`
 | Blacklist / masquage de pseudos | ✅ | Le masquage agit sur les lignes Tr4ker, conserve les compteurs de session et l’Alt+clic sur `msgSender` ajoute/retire un pseudo. |
 | Stats des messages masqués | ✅ | Le panneau existant réutilise la nouvelle racine du chat. |
 | Mise en avant de pseudos | ✅ | Compatible avec les lignes groupées Tr4ker via le message précédent. |
-| Détection des mentions | ✅ | Les mentions natives, le texte des bulles et l’auteur des réponses citées sont inspectés ; les anciens réglages sans durée reprennent un clignotement de 6 secondes. |
-| Son de mention | 🟡 | Code adapté ; nécessite une validation navigateur après interaction utilisateur pour l’audio. |
+| Détection des mentions | ✅ | Les mentions natives, le texte des bulles et l’auteur des réponses citées sont inspectés ; les anciens réglages sans durée reprennent un clignotement de 6 secondes. Les conversations privées sont exclues. |
+| Son de mention | 🟡 | Code adapté ; nécessite une validation navigateur après interaction utilisateur pour l’audio. Les conversations privées sont exclues. |
 | Réponses natives | ✅ | Le bouton `[data-msg-actions]` / titre `Répondre` est reconnu. |
 | Contexte des citations | ✅ | Les blocs `quote`, `quoteAuthor` et `quoteBody` sont reconnus. |
 | Réponses rapides enregistrées | ✅ | Injection dans le textarea Tr4ker et déclenchement de l’événement `input`. |
@@ -46,7 +46,7 @@ Les clés actives utilisent désormais le préfixe `tm_t4_` (ou `tm_hidden_shout
 
 ## Requêtes externes et CSP
 
-Les appels Klipy, ImgBB et YouTube passent par `GM_xmlhttpRequest`, car la CSP de Tr4ker bloque les `fetch` cross-origin exécutés dans le contexte de la page. Le player YouTube utilise `GM_addElement` pour injecter son iframe malgré la règle `frame-src/default-src`. Une réinstallation du userscript est nécessaire pour que Tampermonkey prenne en compte les nouveaux `@grant`.
+Les appels Klipy, ImgBB et YouTube passent par `GM_xmlhttpRequest`, car la CSP de Tr4ker bloque les `fetch` cross-origin exécutés dans le contexte de la page. Le player YouTube et les URLs audio personnalisées utilisent `GM_addElement` pour injecter leurs éléments médias malgré les règles `frame-src/default-src` et `media-src`. Une réinstallation du userscript est nécessaire pour que Tampermonkey prenne en compte les nouveaux `@grant`.
 
 ## Vérifications restantes
 

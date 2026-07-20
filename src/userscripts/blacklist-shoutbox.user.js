@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker Chat - Shoutbox 3.0
 // @namespace    http://tampermonkey.net/
-// @version      3.0.20
+// @version      3.0.24
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -356,7 +356,7 @@
     const NATIVE_CHAT_INPUT_POPOVER_LIFTED_ATTR = 'data-tm-native-chat-input-popovers-lifted';
     const URL_CANDIDATE_RE = /(?:https?:\/\/|www\.)[^\s<>"']+/i;
     const URL_MATCH_RE = /(?:https?:\/\/|www\.)[^\s<>"']+/gi;
-    const YOUTUBE_FRAGMENT_RE = /(?:^|[\s([{"'/])((?:watch\?v=|shorts\/|embed\/|live\/)([a-zA-Z0-9_-]{6,})(?:&[a-zA-Z0-9_.~-]+=[a-zA-Z0-9_.~%+-]*)*)(?=$|[\s)\]}>,.!?;:'"])/gi;
+    const YOUTUBE_FRAGMENT_RE = /(?:^|[\s([{"'/])((?:watch\?v=|shorts\/|embed\/|live\/)([a-zA-Z0-9_-]{11})(?:&[a-zA-Z0-9_.~-]+=[a-zA-Z0-9_.~%+-]*)*)(?=$|[\s)\]}>,.!?;:'"])/gi;
     const DIRECT_IMAGE_PATH_RE = /\.(?:avif|bmp|gif|jpe?g|png|svg|webp)$/i;
     const MESSAGE_ACTIONS_LEFT_VERTICAL_OFFSET_PX = 10;
     const AFK_AUTO_REPLY_GLOBAL_COOLDOWN_MS = 60 * 1000;
@@ -4641,10 +4641,18 @@
         if (!isChatPage()) return null;
 
         if (isTr4kerPage()) {
+            const title = getChatPageHeaderTitle();
+            if (isTr4kerPrivateConversation()) {
+                return {
+                    type: 'private',
+                    name: title || 'Conversation privée'
+                };
+            }
+
             const conversationId = new URLSearchParams(location.search).get('conv');
             return {
                 type: 'channel',
-                name: conversationId ? `conversation-${conversationId}` : 'conversation'
+                name: title || (conversationId ? `conversation-${conversationId}` : 'conversation')
             };
         }
 
@@ -4676,11 +4684,36 @@
         return `${context.type}:${normalizeChatContextLabel(context.name)}`;
     }
 
+    function isTr4kerPrivateConversation() {
+        if (!isChatPage() || !isTr4kerPage()) return false;
+
+        const activeNavigationItem = document.querySelector('[class*="navItem"][class*="active"]');
+        const activeSection = activeNavigationItem?.closest('section');
+        const activeSectionLabel = normalizeChatContextLabel(
+            activeSection?.querySelector('[class*="sectionLabelText"]')?.textContent || ''
+        );
+        if (activeSectionLabel === 'messages prives') return true;
+        if (activeSectionLabel === 'canaux') return false;
+
+        const header = getChatPageHeaderElement();
+        if (!(header instanceof HTMLElement)) return false;
+
+        const description = normalizeChatContextLabel(
+            header.querySelector('[class*="convDescription"]')?.textContent || ''
+        );
+        if (/\bcanal\b/.test(description)) return false;
+
+        const icon = normalizeChatContextLabel(
+            header.querySelector('[class*="convIcon"]')?.textContent || ''
+        );
+        return /^(person|person_2|alternate_email|account_circle)$/.test(icon);
+    }
+
     function isMentionAndHighlightContextAllowed() {
         if (isHomePage()) return true;
         if (!isChatPage()) return false;
 
-        if (isTr4kerPage()) return true;
+        if (isTr4kerPage()) return !isTr4kerPrivateConversation();
 
         const context = getCurrentChatContext();
         if (!context) return true;
@@ -6749,14 +6782,31 @@
             if (!normalizedCustomUrl) return false;
 
             try {
-                if (!mentionSoundElement) {
-                    mentionSoundElement = new Audio();
+                const currentAudioUrl = mentionSoundElement?.dataset.tmMentionSoundUrl || '';
+                if (!mentionSoundElement || currentAudioUrl !== normalizedCustomUrl) {
+                    mentionSoundElement?.pause();
+                    mentionSoundElement?.remove();
+
+                    // Tampermonkey injecte l'élément média hors de la CSP de
+                    // Tr4ker : les URLs audio personnalisées restent donc
+                    // utilisables sans autoriser leur domaine dans media-src.
+                    const injectedAudio = typeof GM_addElement === 'function'
+                        ? GM_addElement('audio', {
+                            src: normalizedCustomUrl,
+                            preload: 'auto',
+                            style: 'display:none;'
+                        })
+                        : null;
+
+                    mentionSoundElement = injectedAudio instanceof HTMLAudioElement
+                        ? injectedAudio
+                        : new Audio(normalizedCustomUrl);
                     mentionSoundElement.preload = 'auto';
+                    mentionSoundElement.dataset.tmMentionSoundUrl = normalizedCustomUrl;
                 }
 
                 mentionSoundElement.pause();
                 mentionSoundElement.currentTime = 0;
-                mentionSoundElement.src = normalizedCustomUrl;
                 mentionSoundElement.volume = 1;
                 await mentionSoundElement.play();
                 return true;
@@ -16958,7 +17008,10 @@
             }
         }
 
-        if (!/^[a-zA-Z0-9_-]{6,}$/.test(videoId)) return null;
+        // Un identifiant de vidéo YouTube fait exactement 11 caractères.
+        // Cette contrainte évite qu'un texte adjacent (par exemple « play »)
+        // soit absorbé dans l'identifiant lors d'un nouveau rendu du message.
+        if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) return null;
 
         const startSeconds = Math.max(
             parseYouTubeTimeToSeconds(parsedUrl.searchParams.get('t')),
@@ -17001,6 +17054,30 @@
 
             seenVideoIds.add(descriptor.videoId);
             descriptors.push(descriptor);
+        }
+
+        return descriptors;
+    }
+
+    function getYouTubeVideoDescriptorsFromTextBlock(textBlock) {
+        if (!(textBlock instanceof HTMLElement)) return [];
+
+        const descriptors = [];
+        const seenVideoIds = new Set();
+        const walker = document.createTreeWalker(textBlock, NodeFilter.SHOW_TEXT);
+        let textNode;
+
+        while ((textNode = walker.nextNode())) {
+            const parent = textNode.parentElement;
+            // Les liens et les boutons sont déjà traités séparément. Ne pas
+            // relire le libellé « play » injecté par le userscript.
+            if (parent?.closest('a, button[data-tm-youtube-play-link="1"]')) continue;
+
+            getYouTubeVideoDescriptorsFromText(textNode.nodeValue || '').forEach((descriptor) => {
+                if (seenVideoIds.has(descriptor.videoId)) return;
+                seenVideoIds.add(descriptor.videoId);
+                descriptors.push(descriptor);
+            });
         }
 
         return descriptors;
@@ -17169,7 +17246,7 @@
 
         // Tr4ker bloque les URLs dans les messages. Les utilisateurs peuvent
         // donc envoyer uniquement le suffixe YouTube, par exemple watch?v=ID.
-        const textVideoDescriptors = getYouTubeVideoDescriptorsFromText(textBlock.textContent || '');
+        const textVideoDescriptors = getYouTubeVideoDescriptorsFromTextBlock(textBlock);
         textVideoDescriptors.forEach((videoDescriptor) => {
             if (linkedVideoIds.has(videoDescriptor.videoId)) return;
 
@@ -17204,6 +17281,16 @@
     }
 
     function updateMessageTextBlockUrls(messageEl) {
+        // Les bulles de Tr4ker sont gérées directement par React. Remplacer un
+        // nœud texte ici désynchronise l'arbre DOM de React et peut faire
+        // échouer le démontage d'une conversation (NotFoundError/removeChild).
+        // Tr4ker rend déjà les URL sous forme de liens natifs : ne modifions
+        // donc jamais son texte, mais gardons le bouton du mini-player YouTube.
+        if (isTr4kerPage()) {
+            syncYouTubePlayButtons(messageEl);
+            return;
+        }
+
         if (linkifyUrlsEnabled) {
             linkifyMessageTextBlock(messageEl);
             syncEmbeddedImagePreviews(messageEl);
@@ -17906,6 +17993,18 @@
         }
     }
 
+    function prepareForTr4kerRouteTransition() {
+        if (!isTr4kerPage()) return;
+
+        // Ne pas laisser l'observateur traiter une bulle pendant que React la
+        // démonte. Les contrôles YouTube seront recréés après le rendu du
+        // nouveau canal par refreshForRoute().
+        stopObserver();
+        document.querySelectorAll('button[data-tm-youtube-play-link="1"]').forEach((button) => {
+            button.remove();
+        });
+    }
+
     function refreshForRoute() {
         const currentChatContextKey = getCurrentChatContextKey();
 
@@ -18108,18 +18207,21 @@
         const originalReplaceState = history.replaceState;
 
         history.pushState = function () {
+            prepareForTr4kerRouteTransition();
             const result = originalPushState.apply(this, arguments);
             setTimeout(refreshForRoute, 50);
             return result;
         };
 
         history.replaceState = function () {
+            prepareForTr4kerRouteTransition();
             const result = originalReplaceState.apply(this, arguments);
             setTimeout(refreshForRoute, 50);
             return result;
         };
 
         window.addEventListener('popstate', () => {
+            prepareForTr4kerRouteTransition();
             setTimeout(refreshForRoute, 50);
         });
 
