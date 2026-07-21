@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    http://tampermonkey.net/
-// @version      3.0.45
+// @version      3.0.50
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -3749,6 +3749,16 @@
                 transform: translateY(-1px) !important;
             }
 
+            /* Keep the native Tr4ker image URL popover in its usual position,
+               but above the docked custom rail. */
+            [${CHAT_INPUT_TOOLBAR_SPACE_ATTR}="1"] [class*="imgTriggerWrap"] {
+                z-index: 4 !important;
+            }
+
+            [${CHAT_INPUT_TOOLBAR_SPACE_ATTR}="1"] [class*="imgPopover"] {
+                z-index: 5 !important;
+            }
+
             #${EMOJI_QUICK_ACCESS_WRAPPER_ID} button {
                 width: 24px !important;
                 padding: 0 !important;
@@ -5620,7 +5630,7 @@
 
         if (isMiniMode) {
             return `
-                <div data-tm-stats-drag-handle="1" style="display:flex;align-items:center;gap:10px;white-space:nowrap;cursor:move;user-select:none;">
+                <div data-tm-stats-drag-handle="1" style="display:flex;align-items:center;gap:10px;white-space:nowrap;cursor:move;user-select:none;touch-action:none;">
                     <div style="font-size:12px;color:#cfcfcf;">
                         Total : <span style="color:#fff;font-weight:700;">${total}</span>
                     </div>
@@ -5633,7 +5643,7 @@
         }
 
         let html = `
-            <div data-tm-stats-drag-handle="1" style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;cursor:move;user-select:none;">
+            <div data-tm-stats-drag-handle="1" style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;cursor:move;user-select:none;touch-action:none;">
                 <div style="font-weight:700;font-size:13px;color:#fff;">
                     Messages bloqués
                 </div>
@@ -7013,6 +7023,7 @@
         resizeHandle.style.background = 'linear-gradient(135deg, transparent 0 44%, rgba(255,255,255,0.14) 44% 56%, transparent 56% 100%)';
         resizeHandle.style.opacity = '0.9';
         resizeHandle.style.zIndex = '2';
+        resizeHandle.style.touchAction = 'none';
 
         statsBox.appendChild(resizeHandle);
         return resizeHandle;
@@ -7133,15 +7144,20 @@
 
         let dragState = null;
         let resizeState = null;
+        let activePointerId = null;
 
         function stopPointerInteractions() {
             dragState = null;
             resizeState = null;
-            document.removeEventListener('mousemove', handlePointerMove, true);
-            document.removeEventListener('mouseup', finishPointerInteraction, true);
+            activePointerId = null;
+            document.removeEventListener('pointermove', handlePointerMove, true);
+            document.removeEventListener('pointerup', finishPointerInteraction, true);
+            document.removeEventListener('pointercancel', finishPointerInteraction, true);
         }
 
-        function finishPointerInteraction() {
+        function finishPointerInteraction(event) {
+            if (activePointerId !== null && event instanceof PointerEvent && event.pointerId !== activePointerId) return;
+
             if (resizeState) {
                 saveStatsBoxSize({
                     widthPx: Math.round(statsBox.offsetWidth || DEFAULT_STATS_BOX_WIDTH_PX),
@@ -7160,6 +7176,8 @@
         }
 
         function handlePointerMove(event) {
+            if (activePointerId !== null && event.pointerId !== activePointerId) return;
+
             if (resizeState) {
                 const nextWidth = clamp(
                     resizeState.startWidth + (event.clientX - resizeState.startX),
@@ -7188,8 +7206,8 @@
             statsBox.style.bottom = 'auto';
         }
 
-        statsBox.addEventListener('mousedown', (event) => {
-            if (event.button !== 0) return;
+        statsBox.addEventListener('pointerdown', (event) => {
+            if (!event.isPrimary || event.button !== 0) return;
 
             const target = event.target instanceof Element ? event.target : null;
             if (!target) return;
@@ -7204,8 +7222,11 @@
                     startHeight: rect.height
                 };
 
-                document.addEventListener('mousemove', handlePointerMove, true);
-                document.addEventListener('mouseup', finishPointerInteraction, true);
+                activePointerId = event.pointerId;
+                statsBox.setPointerCapture?.(event.pointerId);
+                document.addEventListener('pointermove', handlePointerMove, true);
+                document.addEventListener('pointerup', finishPointerInteraction, true);
+                document.addEventListener('pointercancel', finishPointerInteraction, true);
                 event.preventDefault();
                 return;
             }
@@ -7222,8 +7243,11 @@
                 startTop: rect.top
             };
 
-            document.addEventListener('mousemove', handlePointerMove, true);
-            document.addEventListener('mouseup', finishPointerInteraction, true);
+            activePointerId = event.pointerId;
+            statsBox.setPointerCapture?.(event.pointerId);
+            document.addEventListener('pointermove', handlePointerMove, true);
+            document.addEventListener('pointerup', finishPointerInteraction, true);
+            document.addEventListener('pointercancel', finishPointerInteraction, true);
             event.preventDefault();
         });
 
@@ -13347,6 +13371,7 @@
         const mountParent = context?.mountParent;
         const controlsRow = context?.controlsRow;
         const input = context?.input;
+        const railHost = getChatInputToolbarRailHost(context);
 
         if (isTr4kerPage()) {
             ensureChatInputToolbarStyle();
@@ -13385,16 +13410,35 @@
             mountParent.style.overflow = 'visible';
         }
 
-        if (mountParent?.parentElement instanceof HTMLElement) {
-            const computed = window.getComputedStyle(mountParent.parentElement);
+        // On Tr4ker, the native image/emoji controls live in the input row but
+        // outside the text field wrapper.  The docked rail must therefore use
+        // that row as its positioning and spacing context, otherwise those
+        // controls can end up under the custom toolbar.
+        if (railHost instanceof HTMLElement) {
+            if (window.getComputedStyle(railHost).position === 'static') {
+                railHost.style.position = 'relative';
+            }
+            railHost.style.overflow = 'visible';
+        }
+
+        const overflowParent = railHost?.parentElement || mountParent?.parentElement;
+        if (overflowParent instanceof HTMLElement) {
+            const computed = window.getComputedStyle(overflowParent);
             if (computed.overflow === 'hidden' || computed.overflowY === 'hidden') {
-                mountParent.parentElement.style.overflow = 'visible';
+                overflowParent.style.overflow = 'visible';
             }
         }
     }
 
     function getChatInputToolbarRailHost(context) {
         if (chatInputToolbarInline && context?.controlsRow instanceof HTMLElement) {
+            return context.controlsRow;
+        }
+
+        // The non-inline Tr4ker rail sits above the entire input row.  Keeping
+        // it on the text wrapper would reserve space only for the textarea and
+        // leave the site-native image button behind it.
+        if (isTr4kerPage() && context?.controlsRow instanceof HTMLElement) {
             return context.controlsRow;
         }
 
@@ -13470,7 +13514,9 @@
 
         const railHost = getChatInputToolbarRailHost(context);
         if (!(railHost instanceof HTMLElement)) return;
-        const railStackZIndex = isChatPage() ? '260' : '50';
+        // The Tr4ker mobile conversation drawer must remain above the custom
+        // rail. A local stacking level is sufficient for the input toolbar.
+        const railStackZIndex = isTr4kerPage() ? '1' : (isChatPage() ? '260' : '50');
 
         rail.style.display = 'flex';
         rail.style.alignItems = 'center';
@@ -13579,9 +13625,14 @@
         const rail = getExistingChatInputToolbarRail(context);
         if (hasVisibleChatInputToolbar(rail)) {
             positionChatInputToolbarRail(context, rail);
-            if (!chatInputToolbarInline && context.mountParent instanceof HTMLElement) {
-                context.mountParent.style.paddingTop = `${getChatInputToolbarReservedHeightPx()}px`;
-                context.mountParent.setAttribute(CHAT_INPUT_TOOLBAR_SPACE_ATTR, '1');
+            if (!chatInputToolbarInline && railHost instanceof HTMLElement) {
+                railHost.style.paddingTop = `${getChatInputToolbarReservedHeightPx()}px`;
+                railHost.setAttribute(CHAT_INPUT_TOOLBAR_SPACE_ATTR, '1');
+
+                if (context.mountParent instanceof HTMLElement && context.mountParent !== railHost) {
+                    context.mountParent.style.removeProperty('padding-top');
+                    context.mountParent.removeAttribute(CHAT_INPUT_TOOLBAR_SPACE_ATTR);
+                }
                 return;
             }
 

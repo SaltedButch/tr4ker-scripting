@@ -22,6 +22,10 @@ Ce fichier suit l'état fonctionnel du userscript à partir de la version actuel
 - La modale principale de paramètres peut désormais être déplacée en faisant glisser son en-tête.
 - Correction du placement des actions sur les messages groupés : le rail complet flotte désormais après la dernière ligne du texte, à gauche quand l’option est active, sans créer d’espace vertical supplémentaire.
 - Le rail des actions de message devient transparent quand son positionnement à gauche est activé.
+- Correction du rail d’outils placé au-dessus du champ : sur Tr4ker, la ligne complète de saisie est désormais décalée, ce qui garde le bouton natif d’insertion d’image aligné avec l’input.
+- Sur mobile, le rail d’outils reste désormais sous le panneau latéral des conversations et messages privés.
+- Le formulaire natif d’insertion d’image conserve sa position habituelle tout en s’affichant visuellement au-dessus du rail.
+- La bulle de statistiques peut maintenant être déplacée au tactile, y compris via l’émulation mobile des outils de développement.
 
 ### TODO reprise refactor
 
