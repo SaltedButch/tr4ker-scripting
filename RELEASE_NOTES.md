@@ -15,6 +15,9 @@ Ce fichier suit l'état fonctionnel du userscript à partir de la version actuel
 - Ajout de couleurs de pseudos réglables par grade Tr4ker, avec une liste de grades fixe et centralisée dans le code pour les futures évolutions.
 - Les badges texte affichés après les pseudos suivent désormais leur couleur de grade ; chaque grade peut aussi recevoir un effet optionnel (pulses, néon, reflets, arc-en-ciel, glitch, machine à écrire, soulignement, scintillement, ondulation ou impulsion), désactivé par défaut et compatible avec la préférence navigateur de réduction des animations.
 - Correction du rechargement de la feuille de styles des effets de grade afin que les nouveaux effets restent disponibles après une mise à jour du userscript sans rechargement complet de la page.
+- Passage de la couleur par défaut du grade Team vers un rouge plus soutenu, et ajout de tuiles repliables pour Accessibilité, Emojis rapides et `Pimp My Grade`.
+- L’ouverture de l’historique des emojis place maintenant le focus sur son panneau et le centre visuellement.
+- Correction du soulignement animé des grades, désormais rendu par un pseudo-élément afin de fonctionner autant sur les pseudos boutons que sur les badges texte.
 
 ### TODO reprise refactor
 

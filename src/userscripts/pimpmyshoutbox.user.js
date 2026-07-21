@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    http://tampermonkey.net/
-// @version      3.0.37
+// @version      3.0.39
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -336,7 +336,7 @@
         { id: 'membre', label: 'Membre', badgeLabels: ['membre'], nativeColors: ['#f472b6'], defaultColor: '#f472b6' },
         { id: 'uploader-en-herbe', label: 'Uploader en herbe', badgeLabels: ['uploader en herbe'], nativeColors: ['#7dd3fc'], defaultColor: '#7dd3fc' },
         { id: 'uploader', label: 'Uploader', badgeLabels: ['uploader'], nativeColors: ['#2563eb'], defaultColor: '#2563eb' },
-        { id: 'team', label: 'Team', badgeLabels: ['team'], nativeColors: ['#f87171'], defaultColor: '#f87171' },
+        { id: 'team', label: 'Team', badgeLabels: ['team'], nativeColors: ['#f87171'], defaultColor: '#dc2626' },
         { id: 'contributeur', label: 'Contributeur', badgeLabels: ['contributeur'], nativeColors: ['#f4f4f5'], defaultColor: '#f4f4f5' },
         { id: 'staff', label: 'Staff', badgeLabels: ['staff'], nativeColors: ['#16a34a'], defaultColor: '#16a34a' }
     ]);
@@ -358,7 +358,7 @@
         { id: 'arrival', label: 'Impulsion à l’arrivée' }
     ]);
     const GRADE_PSEUDONYM_EFFECT_STYLE_ID = 'tm-t4-grade-pseudonym-effect-style';
-    const GRADE_PSEUDONYM_EFFECT_STYLE_VERSION = '2';
+    const GRADE_PSEUDONYM_EFFECT_STYLE_VERSION = '3';
     const DEFAULT_MENTION_OPACITY = 18;
     const DEFAULT_MENTION_BLINK_SECONDS = 6;
     const DEFAULT_MENTION_KEEP_HIGHLIGHT = true;
@@ -4152,8 +4152,8 @@
                 to { clip-path: inset(0 0 0 0); }
             }
             @keyframes tm-grade-pseudonym-underline {
-                0%, 22% { background-size: 0 2px; }
-                58%, 100% { background-size: 100% 2px; }
+                0%, 22% { transform: scaleX(0); }
+                58%, 100% { transform: scaleX(1); }
             }
             @keyframes tm-grade-pseudonym-sparkle {
                 0%, 100% { text-shadow: 0 0 0 transparent; filter: brightness(1); }
@@ -4217,9 +4217,21 @@
                 animation: tm-grade-pseudonym-typewriter 850ms steps(18, end) both;
             }
             [data-tm-grade-pseudonym-effect="underline"] {
-                background-image: linear-gradient(var(--tm-grade-pseudonym-color), var(--tm-grade-pseudonym-color));
-                background-repeat: no-repeat;
-                background-position: 0 calc(100% + 2px);
+                position: relative;
+                display: inline-block;
+            }
+            [data-tm-grade-pseudonym-effect="underline"]::after {
+                content: '';
+                position: absolute;
+                left: 0;
+                right: 0;
+                bottom: -3px;
+                height: 2px;
+                border-radius: 999px;
+                background: var(--tm-grade-pseudonym-color);
+                box-shadow: 0 0 5px var(--tm-grade-pseudonym-color);
+                transform: scaleX(0);
+                transform-origin: left center;
                 animation: tm-grade-pseudonym-underline 3.8s ease-out infinite;
             }
             [data-tm-grade-pseudonym-effect="sparkle"] {
@@ -4253,6 +4265,10 @@
                 [data-tm-grade-pseudonym-effect="wave"],
                 [data-tm-grade-pseudonym-effect="chrome"],
                 [data-tm-grade-pseudonym-effect="arrival"] { animation: none; }
+                [data-tm-grade-pseudonym-effect="underline"]::after {
+                    animation: none;
+                    transform: scaleX(1);
+                }
             }
         `;
     }
@@ -9262,6 +9278,10 @@
         controls.refreshEmojiUsageList();
         controls.refreshReactionUsageList();
         elements.emojiUsageHistoryPanel.style.display = 'block';
+        window.requestAnimationFrame(() => {
+            elements.emojiUsageHistoryPanel.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+            elements.emojiUsageHistoryPanel.focus({ preventScroll: true });
+        });
     }
 
     function closeSettingsEmojiUsageHistory(elements) {
@@ -9679,8 +9699,8 @@
 
     function renderSettingsAccessibilityCard(currentPageLabel, isChatView, styles) {
         return `
-            <div style="${styles.settingsCardStyle}">
-                <div style="font-size:13px;font-weight:700;margin-bottom:10px;">Accessibilité</div>
+            <details open style="${styles.settingsCardStyle}">
+                <summary style="font-size:13px;font-weight:700;margin-bottom:10px;cursor:pointer;user-select:none;">Accessibilité</summary>
 
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
                     <div style="font-size:12px;color:#c4c4c8;">
@@ -9805,7 +9825,7 @@
                     Affiche un aperçu flottant uniquement pour les URLs qui pointent directement vers un fichier image.
                 </div>
 
-            </div>
+            </details>
         `;
     }
 
@@ -10072,8 +10092,8 @@
 
     function renderSettingsEmojiQuickAccessCard(settingsCardStyle) {
         return `
-            <div style="${settingsCardStyle}">
-                <div style="font-size:13px;font-weight:700;margin-bottom:10px;">Emojis rapides</div>
+            <details open style="${settingsCardStyle}">
+                <summary style="font-size:13px;font-weight:700;margin-bottom:10px;cursor:pointer;user-select:none;">Emojis rapides</summary>
 
                 <div style="font-size:12px;color:#a1a1aa;line-height:1.5;">
                     Affiche des favoris automatiques selon l’usage, ou une liste choisie manuellement.
@@ -10187,13 +10207,13 @@
                     ">Historique</button>
                 </div>
 
-            </div>
+            </details>
         `;
     }
 
     function renderSettingsEmojiUsageHistoryPanel() {
         return `
-            <div id="tm-emoji-usage-history-panel" style="
+            <div id="tm-emoji-usage-history-panel" tabindex="-1" style="
                 display:none;
                 position:fixed;
                 top:50%;
@@ -10439,9 +10459,9 @@
         }).join('');
 
         return `
-            <div style="${settingsCardStyle}">
+            <details open style="${settingsCardStyle}">
+                <summary style="font-size:13px;font-weight:700;margin-bottom:8px;cursor:pointer;user-select:none;">Pimp My Grade</summary>
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;">
-                    <div style="font-size:13px;font-weight:700;">Couleurs des pseudos par grade</div>
                     <button id="tm-grade-pseudonym-colors-reset" type="button" style="border:none;background:#27272a;color:#e4e4e7;border-radius:8px;padding:6px 8px;cursor:pointer;font-size:11px;font-weight:700;">Réinitialiser</button>
                 </div>
                 <div style="font-size:11px;color:#a1a1aa;line-height:1.45;margin-bottom:6px;">
@@ -10450,7 +10470,7 @@
                 <div style="display:grid;">
                     ${gradeRows}
                 </div>
-            </div>
+            </details>
         `;
     }
 
