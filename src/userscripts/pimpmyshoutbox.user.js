@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    http://tampermonkey.net/
-// @version      3.0.59
+// @version      3.0.64
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -48,6 +48,9 @@
     const STORAGE_KEY_CUSTOM_BACKGROUND_COLOR = 'tm_t4_custom_background_color';
     const STORAGE_KEY_MESSAGE_ACTIONS_LEFT_ENABLED = 'tm_t4_message_actions_left_enabled';
     const STORAGE_KEY_TOPBAR_STATS_ENABLED = 'tm_t4_topbar_stats_enabled';
+    const STORAGE_KEY_TOPBAR_STATS_SHOW_CREDITS = 'tm_t4_topbar_stats_show_credits';
+    const STORAGE_KEY_TOPBAR_STATS_SHOW_BUFFER = 'tm_t4_topbar_stats_show_buffer';
+    const STORAGE_KEY_TOPBAR_BURGER_ENABLED = 'tm_t4_topbar_burger_enabled';
     const STORAGE_KEY_LINKIFY_URLS = 'tm_t4_linkify_urls';
     const STORAGE_KEY_EMBED_URL_IMAGES = 'tm_t4_embed_url_images';
     const STORAGE_KEY_SAVED_PHRASES = 'tm_t4_saved_phrases';
@@ -97,6 +100,9 @@
         STORAGE_KEY_CUSTOM_BACKGROUND_COLOR,
         STORAGE_KEY_MESSAGE_ACTIONS_LEFT_ENABLED,
         STORAGE_KEY_TOPBAR_STATS_ENABLED,
+        STORAGE_KEY_TOPBAR_STATS_SHOW_CREDITS,
+        STORAGE_KEY_TOPBAR_STATS_SHOW_BUFFER,
+        STORAGE_KEY_TOPBAR_BURGER_ENABLED,
         STORAGE_KEY_LINKIFY_URLS,
         STORAGE_KEY_EMBED_URL_IMAGES,
         STORAGE_KEY_SAVED_PHRASES,
@@ -297,6 +303,9 @@
         STORAGE_KEY_CUSTOM_BACKGROUND_COLOR,
         STORAGE_KEY_MESSAGE_ACTIONS_LEFT_ENABLED,
         STORAGE_KEY_TOPBAR_STATS_ENABLED,
+        STORAGE_KEY_TOPBAR_STATS_SHOW_CREDITS,
+        STORAGE_KEY_TOPBAR_STATS_SHOW_BUFFER,
+        STORAGE_KEY_TOPBAR_BURGER_ENABLED,
         STORAGE_KEY_LINKIFY_URLS,
         STORAGE_KEY_EMBED_URL_IMAGES,
         STORAGE_KEY_SAVED_PHRASES,
@@ -444,12 +453,16 @@
     const TR4KER_TOPBAR_STATS_BUTTON_ID = 'tm-t4-topbar-stats-button';
     const TR4KER_TOPBAR_STATS_POPOVER_ID = 'tm-t4-topbar-stats-popover';
     const TR4KER_TOPBAR_STATS_CACHE_MS = 5 * 60 * 1000;
+    const TR4KER_MINIMUM_RATIO = 0.5;
     const TR4KER_TOPBAR_STATS_PERIOD_CYCLE_MS = 4000;
     const TR4KER_TOPBAR_STATS_PERIODS = [
         { suffix: '24h', label: '24 h' },
         { suffix: '7d', label: '7 j' },
         { suffix: '30d', label: '30 j' }
     ];
+    const TR4KER_TOPBAR_BURGER_STYLE_ID = 'tm-t4-topbar-burger-style';
+    const TR4KER_TOPBAR_BURGER_ID = 'tm-t4-topbar-burger';
+    const TR4KER_TOPBAR_BURGER_MENU_ID = 'tm-t4-topbar-burger-menu';
     const CHAT_INPUT_TOOLBAR_STYLE_ID = 'tm-t4-chat-input-toolbar-style';
     const CHAT_INPUT_TOOLBAR_RAIL_ATTR = 'data-tm-chat-input-toolbar-rail';
     const CHAT_INPUT_TOOLBAR_INLINE_ATTR = 'data-tm-chat-input-toolbar-inline';
@@ -506,6 +519,9 @@
     let tr4kerTopbarStatsData = null;
     let tr4kerTopbarStatsFetchedAt = 0;
     let tr4kerTopbarStatsRequest = null;
+    let tr4kerTopbarUserData = null;
+    let tr4kerTopbarUserFetchedAt = 0;
+    let tr4kerTopbarUserRequest = null;
     let tr4kerTopbarStatsViewportHandlerInstalled = false;
     let tr4kerTopbarStatsPeriodIndex = 0;
     let tr4kerTopbarStatsPeriodCycleTimer = null;
@@ -517,6 +533,9 @@
     let customBackgroundColor = loadCustomBackgroundColor();
     let messageActionsLeftEnabled = loadMessageActionsLeftEnabled();
     let tr4kerTopbarStatsEnabled = loadTr4kerTopbarStatsEnabled();
+    let tr4kerTopbarStatsShowCredits = loadTr4kerTopbarStatsShowCredits();
+    let tr4kerTopbarStatsShowBuffer = loadTr4kerTopbarStatsShowBuffer();
+    let tr4kerTopbarBurgerEnabled = loadTr4kerTopbarBurgerEnabled();
     let linkifyUrlsEnabled = loadLinkifyUrlsEnabled();
     let embedUrlImagesEnabled = loadEmbedUrlImagesEnabled();
     let savedPhrasesEnabled = loadSavedPhrasesEnabled();
@@ -2994,6 +3013,9 @@
         customBackgroundColor = loadCustomBackgroundColor();
         messageActionsLeftEnabled = loadMessageActionsLeftEnabled();
         tr4kerTopbarStatsEnabled = loadTr4kerTopbarStatsEnabled();
+        tr4kerTopbarStatsShowCredits = loadTr4kerTopbarStatsShowCredits();
+        tr4kerTopbarStatsShowBuffer = loadTr4kerTopbarStatsShowBuffer();
+        tr4kerTopbarBurgerEnabled = loadTr4kerTopbarBurgerEnabled();
         linkifyUrlsEnabled = loadLinkifyUrlsEnabled();
         embedUrlImagesEnabled = loadEmbedUrlImagesEnabled();
         savedPhrasesEnabled = loadSavedPhrasesEnabled();
@@ -3505,6 +3527,33 @@
     function saveTr4kerTopbarStatsEnabled(value) {
         tr4kerTopbarStatsEnabled = !!value;
         writeStorageBoolean(STORAGE_KEY_TOPBAR_STATS_ENABLED, tr4kerTopbarStatsEnabled);
+    }
+
+    function loadTr4kerTopbarStatsShowCredits() {
+        return readStorageBoolean(STORAGE_KEY_TOPBAR_STATS_SHOW_CREDITS, false);
+    }
+
+    function saveTr4kerTopbarStatsShowCredits(value) {
+        tr4kerTopbarStatsShowCredits = !!value;
+        writeStorageBoolean(STORAGE_KEY_TOPBAR_STATS_SHOW_CREDITS, tr4kerTopbarStatsShowCredits);
+    }
+
+    function loadTr4kerTopbarStatsShowBuffer() {
+        return readStorageBoolean(STORAGE_KEY_TOPBAR_STATS_SHOW_BUFFER, false);
+    }
+
+    function saveTr4kerTopbarStatsShowBuffer(value) {
+        tr4kerTopbarStatsShowBuffer = !!value;
+        writeStorageBoolean(STORAGE_KEY_TOPBAR_STATS_SHOW_BUFFER, tr4kerTopbarStatsShowBuffer);
+    }
+
+    function loadTr4kerTopbarBurgerEnabled() {
+        return readStorageBoolean(STORAGE_KEY_TOPBAR_BURGER_ENABLED, false);
+    }
+
+    function saveTr4kerTopbarBurgerEnabled(value) {
+        tr4kerTopbarBurgerEnabled = !!value;
+        writeStorageBoolean(STORAGE_KEY_TOPBAR_BURGER_ENABLED, tr4kerTopbarBurgerEnabled);
     }
 
     function loadLinkifyUrlsEnabled() {
@@ -4020,6 +4069,173 @@
         }) || null;
     }
 
+    const TR4KER_TOPBAR_BURGER_LINKS = [
+        { icon: 'forum', label: 'Chat', href: '/communication' },
+        { icon: 'menu_book', label: 'Wiki', href: '/wiki' },
+        { icon: 'person', label: 'Mon compte', href: '/mon-compte' },
+        { icon: 'upload', label: 'Mes uploads', href: '/my-uploads' },
+        { icon: 'emoji_events', label: 'Succès', href: '/achievements' },
+        { icon: 'settings', label: 'Paramètres', href: '/settings' },
+        { icon: 'groups', label: 'Teams', href: '/communaute/teams' },
+        { icon: 'redeem', label: 'Demandes', href: '/communaute/demandes' },
+        { icon: 'storefront', label: 'Boutique', href: '/communaute/boutique' },
+        { icon: 'forum', label: 'Forum', href: '/communaute/forum' },
+        { icon: 'swap_horiz', label: 'Migrations', href: '/migrations' }
+    ];
+
+    function ensureTr4kerTopbarBurgerStyle() {
+        if (document.getElementById(TR4KER_TOPBAR_BURGER_STYLE_ID) || !document.head) return;
+
+        const style = document.createElement('style');
+        style.id = TR4KER_TOPBAR_BURGER_STYLE_ID;
+        style.textContent = `
+            #${TR4KER_TOPBAR_BURGER_ID} {
+                width: 34px;
+                height: 34px;
+                padding: 0;
+                border: 1px solid rgba(74, 222, 128, 0.24);
+                border-radius: 8px;
+                background: rgba(6, 30, 17, 0.76);
+                color: #bbf7d0;
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                flex: 0 0 auto;
+                transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+            }
+
+            #${TR4KER_TOPBAR_BURGER_ID}:hover,
+            #${TR4KER_TOPBAR_BURGER_ID}[aria-expanded="true"] {
+                border-color: rgba(74, 222, 128, 0.55);
+                background: rgba(22, 101, 52, 0.42);
+                transform: translateY(-1px);
+            }
+
+            #${TR4KER_TOPBAR_BURGER_ID} .material-symbols-outlined {
+                font-size: 20px;
+                line-height: 1;
+            }
+
+            #${TR4KER_TOPBAR_BURGER_MENU_ID} {
+                position: fixed;
+                z-index: 2000;
+                width: min(242px, calc(100vw - 16px));
+                padding: 7px;
+                border: 1px solid rgba(74, 222, 128, 0.28);
+                border-radius: 12px;
+                background: rgba(12, 20, 15, 0.98);
+                box-shadow: 0 16px 38px rgba(0, 0, 0, 0.48);
+                backdrop-filter: blur(14px);
+            }
+
+            #${TR4KER_TOPBAR_BURGER_MENU_ID} [data-tm-topbar-burger-title="1"] {
+                display: block;
+                padding: 5px 7px 7px;
+                color: #86efac;
+                font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+                font-size: 9px;
+                font-weight: 800;
+                letter-spacing: 0.09em;
+                text-transform: uppercase;
+            }
+
+            #${TR4KER_TOPBAR_BURGER_MENU_ID} a {
+                display: flex;
+                align-items: center;
+                gap: 9px;
+                padding: 8px 9px;
+                border-radius: 7px;
+                color: #e4e4e7;
+                font-size: 12px;
+                font-weight: 600;
+                text-decoration: none;
+                transition: background 100ms ease, color 100ms ease;
+            }
+
+            #${TR4KER_TOPBAR_BURGER_MENU_ID} a:hover {
+                background: rgba(74, 222, 128, 0.13);
+                color: #dcfce7;
+            }
+
+            #${TR4KER_TOPBAR_BURGER_MENU_ID} a .material-symbols-outlined {
+                color: #4ade80;
+                font-size: 17px;
+                line-height: 1;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    function closeTr4kerTopbarBurgerMenu() {
+        document.getElementById(TR4KER_TOPBAR_BURGER_MENU_ID)?.remove();
+        const button = document.getElementById(TR4KER_TOPBAR_BURGER_ID);
+        if (button instanceof HTMLButtonElement) button.setAttribute('aria-expanded', 'false');
+    }
+
+    function openTr4kerTopbarBurgerMenu() {
+        const button = document.getElementById(TR4KER_TOPBAR_BURGER_ID);
+        if (!(button instanceof HTMLButtonElement) || !document.body) return;
+
+        closeTr4kerTopbarBurgerMenu();
+        const menu = document.createElement('nav');
+        menu.id = TR4KER_TOPBAR_BURGER_MENU_ID;
+        menu.setAttribute('aria-label', 'Navigation Tr4ker');
+        menu.innerHTML = `
+            <span data-tm-topbar-burger-title="1">Navigation Tr4ker</span>
+            ${TR4KER_TOPBAR_BURGER_LINKS.map((link) => `<a href="${link.href}"><span class="material-symbols-outlined">${link.icon}</span><span>${link.label}</span></a>`).join('')}
+        `;
+        document.body.appendChild(menu);
+        button.setAttribute('aria-expanded', 'true');
+
+        const buttonRect = button.getBoundingClientRect();
+        const menuRect = menu.getBoundingClientRect();
+        const margin = 8;
+        menu.style.left = `${Math.round(clamp(buttonRect.left, margin, Math.max(margin, window.innerWidth - menuRect.width - margin)))}px`;
+        menu.style.top = `${Math.round(clamp(buttonRect.bottom + 8, margin, Math.max(margin, window.innerHeight - menuRect.height - margin)))}px`;
+    }
+
+    function syncTr4kerTopbarBurgerMenu() {
+        if (!isTr4kerPage() || !tr4kerTopbarBurgerEnabled) {
+            closeTr4kerTopbarBurgerMenu();
+            document.getElementById(TR4KER_TOPBAR_BURGER_ID)?.remove();
+            return;
+        }
+
+        const notificationButton = getTr4kerTopbarStatsNotificationButton();
+        if (!(notificationButton instanceof HTMLButtonElement)) return;
+
+        ensureTr4kerTopbarBurgerStyle();
+        installTr4kerTopbarStatsGlobalHandlers();
+        let button = document.getElementById(TR4KER_TOPBAR_BURGER_ID);
+        if (!(button instanceof HTMLButtonElement)) {
+            button = document.createElement('button');
+            button.id = TR4KER_TOPBAR_BURGER_ID;
+            button.type = 'button';
+            button.setAttribute('aria-label', 'Ouvrir la navigation Tr4ker');
+            button.setAttribute('aria-expanded', 'false');
+            button.setAttribute('title', 'Navigation Tr4ker');
+            button.innerHTML = '<span class="material-symbols-outlined">menu</span>';
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (document.getElementById(TR4KER_TOPBAR_BURGER_MENU_ID)) {
+                    closeTr4kerTopbarBurgerMenu();
+                } else {
+                    openTr4kerTopbarBurgerMenu();
+                }
+            });
+        }
+
+        const statsWidget = document.getElementById(TR4KER_TOPBAR_STATS_WIDGET_ID);
+        const insertionTarget = statsWidget?.parentElement === notificationButton.parentElement
+            ? statsWidget
+            : notificationButton;
+        if (button.parentElement !== notificationButton.parentElement || button.nextElementSibling !== insertionTarget) {
+            insertionTarget.insertAdjacentElement('beforebegin', button);
+        }
+    }
+
     function ensureTr4kerTopbarStatsStyle() {
         if (document.getElementById(TR4KER_TOPBAR_STATS_STYLE_ID)) return;
         if (!document.head) return;
@@ -4278,6 +4494,43 @@
                 pointer-events: none;
             }
 
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-extra-count] {
+                height: 64px;
+            }
+
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-extra-count] [data-tm-topbar-stats-metric] {
+                justify-content: flex-start;
+                padding-top: 4px;
+            }
+
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID} [data-tm-topbar-stats-extras="1"] {
+                position: absolute;
+                z-index: 2;
+                right: 7px;
+                bottom: 4px;
+                left: 7px;
+                display: flex;
+                gap: 5px;
+            }
+
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID} [data-tm-topbar-stats-extra="1"] {
+                min-width: 0;
+                flex: 1 1 0;
+                overflow: hidden;
+                padding: 3px 5px;
+                border: 1px solid rgba(74, 222, 128, 0.2);
+                border-radius: 4px;
+                background: rgba(4, 20, 11, 0.72);
+                color: #bbf7d0;
+                font-size: 8px;
+                font-weight: 700;
+                line-height: 1.1;
+                text-align: center;
+                text-overflow: ellipsis;
+                text-transform: uppercase;
+                white-space: nowrap;
+            }
+
             @keyframes tm-t4-topbar-matrix-drift {
                 from { transform: translateY(-7px); }
                 to { transform: translateY(0); }
@@ -4310,6 +4563,16 @@
                 #${TR4KER_TOPBAR_STATS_WIDGET_ID} svg {
                     width: 84px;
                     height: 14px;
+                }
+
+                #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-extra-count] {
+                    height: 58px;
+                }
+
+                #${TR4KER_TOPBAR_STATS_WIDGET_ID} [data-tm-topbar-stats-extras="1"] {
+                    right: 5px;
+                    bottom: 3px;
+                    left: 5px;
                 }
             }
         `;
@@ -4460,6 +4723,47 @@
         return tr4kerTopbarStatsRequest;
     }
 
+    function formatTr4kerTopbarStatsCredits(value) {
+        const rawCredits = Number(value);
+        if (!Number.isFinite(rawCredits)) return '—';
+        const credits = Math.max(0, rawCredits);
+        return Math.round(credits).toLocaleString('fr-FR');
+    }
+
+    function formatTr4kerTopbarMinimumRatioBuffer(value) {
+        const amount = Number(value) || 0;
+        if (amount > 0) return `+${formatTr4kerTopbarStatsBytes(amount)} DL`;
+        if (amount < 0) return `Manque ${formatTr4kerTopbarStatsBytes(Math.abs(amount))}`;
+        return 'Seuil atteint';
+    }
+
+    async function fetchTr4kerTopbarUser() {
+        if (
+            tr4kerTopbarUserFetchedAt > 0
+            && Date.now() - tr4kerTopbarUserFetchedAt < TR4KER_TOPBAR_STATS_CACHE_MS
+        ) {
+            return tr4kerTopbarUserData;
+        }
+
+        if (tr4kerTopbarUserRequest) return tr4kerTopbarUserRequest;
+
+        tr4kerTopbarUserRequest = fetch('/api/me', { credentials: 'include' })
+            .then((response) => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.json();
+            })
+            .then((payload) => {
+                tr4kerTopbarUserData = payload && typeof payload === 'object' ? payload : null;
+                tr4kerTopbarUserFetchedAt = Date.now();
+                return tr4kerTopbarUserData;
+            })
+            .finally(() => {
+                tr4kerTopbarUserRequest = null;
+            });
+
+        return tr4kerTopbarUserRequest;
+    }
+
     function buildTr4kerTopbarStatsMatrixGraph(snapshots) {
         const points = (Array.isArray(snapshots) ? snapshots : [])
             .map((snapshot) => ({
@@ -4544,12 +4848,31 @@
         const ratio = getTr4kerTopbarStatsRatio(uploaded, downloaded);
         const totalSeedTime = Math.max(0, Number(statistics.total_seedtime_seconds) || 0);
         const torrentsSeeding = Math.max(0, Number(statistics.torrents_seeding) || 0);
+        const totalUploaded = (Number(summary.uploaded) || 0) + (Number(summary.bonus_upload) || 0);
+        const totalDownloaded = (Number(summary.downloaded) || 0) + (Number(summary.bonus_download) || 0);
         const globalRatio = getTr4kerTopbarStatsRatio(
-            (Number(summary.uploaded) || 0) + (Number(summary.bonus_upload) || 0),
-            (Number(summary.downloaded) || 0) + (Number(summary.bonus_download) || 0)
+            totalUploaded,
+            totalDownloaded
         );
+        const extras = [];
+        if (tr4kerTopbarStatsShowCredits) {
+            const creditLabel = String(tr4kerTopbarUserData?.token_currency_name || 'Crédits').trim();
+            extras.push(`<span data-tm-topbar-stats-extra="1" title="${escapeHtml(creditLabel)} disponibles">${escapeHtml(creditLabel)} · ${formatTr4kerTopbarStatsCredits(tr4kerTopbarUserData?.money)}</span>`);
+        }
+        if (tr4kerTopbarStatsShowBuffer) {
+            const downloadAllowance = (totalUploaded / TR4KER_MINIMUM_RATIO) - totalDownloaded;
+            const bufferTitle = downloadAllowance >= 0
+                ? `Encore ${formatTr4kerTopbarStatsBytes(downloadAllowance)} téléchargeables avant de passer sous le ratio 0,50.`
+                : `Il manque ${formatTr4kerTopbarStatsBytes(Math.abs(downloadAllowance))} d’upload pour revenir au ratio minimum de 0,50.`;
+            extras.push(`<span data-tm-topbar-stats-extra="1" title="${bufferTitle}">Buffer · ${formatTr4kerTopbarMinimumRatioBuffer(downloadAllowance)}</span>`);
+        }
 
         widget.setAttribute('aria-busy', 'false');
+        if (extras.length > 0) {
+            widget.setAttribute('data-tm-topbar-stats-extra-count', String(extras.length));
+        } else {
+            widget.removeAttribute('data-tm-topbar-stats-extra-count');
+        }
         widget.setAttribute(
             'title',
             `${activePeriod.label} · ↑ ${formatTr4kerTopbarStatsBytes(uploaded)} · ↓ ${formatTr4kerTopbarStatsBytes(downloaded)} · ratio ${formatTr4kerTopbarStatsRatio(ratio)} · seed cumulé ${formatTr4kerTopbarSeedTime(totalSeedTime)} · ${torrentsSeeding} torrent${torrentsSeeding > 1 ? 's' : ''} en seed · ratio global ${formatTr4kerTopbarStatsRatio(globalRatio)}`
@@ -4572,6 +4895,7 @@
                 <strong style="color:#c4b5fd">${formatTr4kerTopbarSeedTime(totalSeedTime)}</strong>
                 <span>${torrentsSeeding} en seed</span>
             </div>
+            ${extras.length > 0 ? `<div data-tm-topbar-stats-extras="1">${extras.join('')}</div>` : ''}
             ${buildTr4kerTopbarStatsMatrixGraph(payload?.snapshots)}
         `;
         widget.dataset.tmTopbarStatsRenderedAt = String(tr4kerTopbarStatsFetchedAt);
@@ -4619,6 +4943,18 @@
             closeTr4kerTopbarStatsPopover();
         }, true);
 
+        document.addEventListener('click', (event) => {
+            const menu = document.getElementById(TR4KER_TOPBAR_BURGER_MENU_ID);
+            const button = document.getElementById(TR4KER_TOPBAR_BURGER_ID);
+            if (!(menu instanceof HTMLElement)) return;
+            if (event.target instanceof Node && (menu.contains(event.target) || button?.contains(event.target))) return;
+            closeTr4kerTopbarBurgerMenu();
+        }, true);
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') closeTr4kerTopbarBurgerMenu();
+        }, true);
+
         window.addEventListener('resize', positionTr4kerTopbarStatsPopover);
         window.addEventListener('scroll', positionTr4kerTopbarStatsPopover, true);
     }
@@ -4653,6 +4989,20 @@
 
         if (widget.parentElement !== notificationButton.parentElement || notificationButton.previousElementSibling !== widget) {
             notificationButton.insertAdjacentElement('beforebegin', widget);
+        }
+
+        const userCacheIsFresh = (
+            tr4kerTopbarUserFetchedAt > 0
+            && Date.now() - tr4kerTopbarUserFetchedAt < TR4KER_TOPBAR_STATS_CACHE_MS
+        );
+        if (tr4kerTopbarStatsShowCredits && !userCacheIsFresh && !tr4kerTopbarUserRequest) {
+            void fetchTr4kerTopbarUser()
+                .then(() => {
+                    if (tr4kerTopbarStatsData) renderTr4kerTopbarStatsWidget(tr4kerTopbarStatsData);
+                })
+                .catch(() => {
+                    if (tr4kerTopbarStatsData) renderTr4kerTopbarStatsWidget(tr4kerTopbarStatsData);
+                });
         }
 
         const cacheIsFresh = (
@@ -8956,6 +9306,9 @@
             resetStatsLayoutBtn: modal.querySelector('#tm-reset-stats-layout'),
             hideStatsToggle: modal.querySelector('#tm-hide-stats-toggle'),
             topbarStatsToggle: modal.querySelector('#tm-topbar-stats-toggle'),
+            topbarStatsShowCreditsToggle: modal.querySelector('#tm-topbar-stats-show-credits-toggle'),
+            topbarStatsShowBufferToggle: modal.querySelector('#tm-topbar-stats-show-buffer-toggle'),
+            topbarBurgerToggle: modal.querySelector('#tm-topbar-burger-toggle'),
             debugToggle: modal.querySelector('#tm-debug-toggle'),
             homeCollapseToggle: modal.querySelector('#tm-home-collapse-toggle-setting'),
             feedback: modal.querySelector('#tm-feedback')
@@ -10408,6 +10761,37 @@
             );
         });
 
+        elements.topbarStatsShowCreditsToggle?.addEventListener('change', () => {
+            saveTr4kerTopbarStatsShowCredits(elements.topbarStatsShowCreditsToggle.checked);
+            syncTr4kerTopbarStatsButton();
+            if (tr4kerTopbarStatsData) renderTr4kerTopbarStatsWidget(tr4kerTopbarStatsData);
+            controls.setFeedback(
+                tr4kerTopbarStatsShowCredits
+                    ? 'Crédits disponibles ajoutés au bandeau Matrix.'
+                    : 'Crédits retirés du bandeau Matrix.'
+            );
+        });
+
+        elements.topbarStatsShowBufferToggle?.addEventListener('change', () => {
+            saveTr4kerTopbarStatsShowBuffer(elements.topbarStatsShowBufferToggle.checked);
+            if (tr4kerTopbarStatsData) renderTr4kerTopbarStatsWidget(tr4kerTopbarStatsData);
+            controls.setFeedback(
+                tr4kerTopbarStatsShowBuffer
+                    ? 'Marge avant ratio 0,50 ajoutée au bandeau Matrix.'
+                    : 'Marge avant ratio 0,50 retirée du bandeau Matrix.'
+            );
+        });
+
+        elements.topbarBurgerToggle?.addEventListener('change', () => {
+            saveTr4kerTopbarBurgerEnabled(elements.topbarBurgerToggle.checked);
+            syncTr4kerTopbarBurgerMenu();
+            controls.setFeedback(
+                tr4kerTopbarBurgerEnabled
+                    ? 'Menu burger de navigation activé dans la top bar.'
+                    : 'Menu burger de navigation retiré de la top bar.'
+            );
+        });
+
         elements.resetStatsLayoutBtn?.addEventListener('click', () => {
             resetPosition();
             resetStatsBoxSize();
@@ -10703,8 +11087,23 @@
                     <span>Afficher le bandeau de statistiques Matrix dans la top bar</span>
                 </label>
 
+                <label style="${settingsCheckboxLabelWithMarginStyle}">
+                    <input id="tm-topbar-burger-toggle" type="checkbox" ${tr4kerTopbarBurgerEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#38bdf8')}">
+                    <span>Afficher le menu burger de navigation</span>
+                </label>
+
+                <label style="${settingsCheckboxLabelWithMarginStyle}">
+                    <input id="tm-topbar-stats-show-credits-toggle" type="checkbox" ${tr4kerTopbarStatsShowCredits ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#fbbf24')}">
+                    <span>Afficher les crédits disponibles</span>
+                </label>
+
+                <label style="${settingsCheckboxLabelWithMarginStyle}">
+                    <input id="tm-topbar-stats-show-buffer-toggle" type="checkbox" ${tr4kerTopbarStatsShowBuffer ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#a78bfa')}">
+                    <span>Afficher la marge avant ratio 0,50</span>
+                </label>
+
                 <div style="margin-top:8px;font-size:11px;color:#71717a;line-height:1.45;">
-                    Affiche après les notifications ratio, upload et download en rotation sur 24 h, 7 j et 30 j, avec le ratio global en permanence.
+                    Le burger donne accès en permanence aux liens de l’accueil : chat, wiki, compte, uploads, succès, paramètres, teams, demandes, boutique, forum et migrations. Les options de statistiques ajoutent une ligne compacte sous les métriques principales. Les crédits sont récupérés depuis ton compte Tr4ker. La marge avant ratio 0,50 est calculée précisément ainsi : (upload total ÷ 0,50) − download total, bonus inclus ; chaque Go d’upload autorise donc jusqu’à 2 Go de download au seuil minimal.
                 </div>
 
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
@@ -19926,7 +20325,11 @@
         const currentChatContextKey = getCurrentChatContextKey();
 
         tr4kerTopbarStatsEnabled = loadTr4kerTopbarStatsEnabled();
+        tr4kerTopbarStatsShowCredits = loadTr4kerTopbarStatsShowCredits();
+        tr4kerTopbarStatsShowBuffer = loadTr4kerTopbarStatsShowBuffer();
+        tr4kerTopbarBurgerEnabled = loadTr4kerTopbarBurgerEnabled();
         syncTr4kerTopbarStatsButton();
+        syncTr4kerTopbarBurgerMenu();
         applyCustomBackgroundColor();
 
         if (!isChatPage()) {
@@ -20014,6 +20417,7 @@
             const currentPageType = getCurrentPageType();
 
             syncTr4kerTopbarStatsButton();
+            syncTr4kerTopbarBurgerMenu();
 
             if (isChatPage()) {
                 applyChatPageScrollbarState();

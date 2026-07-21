@@ -36,6 +36,10 @@ Ce fichier suit l'état fonctionnel du userscript à partir de la version actuel
 - Le bandeau Matrix affiche maintenant directement ratio, upload et download sur 30 jours, seed cumulé et nombre de torrents en seed ; le graphe devient une tendance secondaire.
 - Ajout dans Accessibilité d’une couleur de fond principale personnalisable, activable et réinitialisable sans altérer les panneaux ni le chat.
 - Le bandeau de statistiques Matrix fait désormais défiler les valeurs 24 h, 7 j et 30 j ; le ratio global reste visible en permanence.
+- Deux options du bandeau Matrix permettent maintenant d’afficher les crédits disponibles et la marge de téléchargement avant le ratio minimum de `0,50`, bonus inclus.
+- L’aide de la marge explicite désormais son calcul exact : `(upload ÷ 0,50) − download`, soit 2 Go téléchargeables par Go d’upload au seuil minimal.
+- Le libellé compact de cette marge dans le bandeau est simplifié en `Buffer`.
+- Ajout optionnel d’un menu burger permanent dans la top bar, reprenant les liens de navigation de la page d’accueil Tr4ker.
 
 ### TODO reprise refactor
 
