@@ -12,6 +12,16 @@ Ce fichier suit l'état fonctionnel du userscript à partir de la version actuel
 
 - Renommage du userscript en `PimpMyShoutbox` ; le fichier publié devient `pimpmyshoutbox.user.js`.
 - Ajout d’un mode manuel pour choisir soi-même les emojis et réactions depuis les pickers natifs, avec réordonnancement dans les paramètres, en alternative au classement automatique par compteur.
+- Ajout de couleurs de pseudos réglables par grade Tr4ker, avec une liste de grades fixe et centralisée dans le code pour les futures évolutions.
+- Les badges texte affichés après les pseudos suivent désormais leur couleur de grade ; chaque grade peut aussi recevoir un effet optionnel (pulses, néon, reflets, arc-en-ciel, glitch, machine à écrire, soulignement, scintillement, ondulation ou impulsion), désactivé par défaut et compatible avec la préférence navigateur de réduction des animations.
+- Correction du rechargement de la feuille de styles des effets de grade afin que les nouveaux effets restent disponibles après une mise à jour du userscript sans rechargement complet de la page.
+- Passage de la couleur par défaut du grade Team vers un rouge plus soutenu, et ajout de tuiles repliables pour Accessibilité, Emojis rapides et `Pimp My Grade`.
+- L’ouverture de l’historique des emojis place maintenant le focus sur son panneau et le centre visuellement.
+- Correction du soulignement animé des grades, désormais rendu par un pseudo-élément afin de fonctionner autant sur les pseudos boutons que sur les badges texte.
+- Optimisation du sélecteur de couleur `Pimp My Grade` : la prévisualisation du code couleur reste immédiate, tandis que la sauvegarde et le rafraîchissement du chat attendent la validation de la couleur.
+- La modale principale de paramètres peut désormais être déplacée en faisant glisser son en-tête.
+- Correction du placement des actions sur les messages groupés : le rail complet flotte désormais après la dernière ligne du texte, à gauche quand l’option est active, sans créer d’espace vertical supplémentaire.
+- Le rail des actions de message devient transparent quand son positionnement à gauche est activé.
 
 ### TODO reprise refactor
 

@@ -1,6 +1,6 @@
 # Suivi de migration vers Tr4ker
 
-Dernière mise à jour : 2026-07-19  
+Dernière mise à jour : 2026-07-21
 Cible principale : `https://tr4ker.net/communication?conv=1`
 
 ## Légende
@@ -20,6 +20,7 @@ Cible principale : `https://tr4ker.net/communication?conv=1`
 | Blacklist / masquage de pseudos | ✅ | Le masquage agit sur les lignes Tr4ker, conserve les compteurs de session et l’Alt+clic sur `msgSender` ajoute/retire un pseudo. |
 | Stats des messages masqués | ✅ | Le panneau existant réutilise la nouvelle racine du chat. |
 | Mise en avant de pseudos | ✅ | Compatible avec les lignes groupées Tr4ker via le message précédent. |
+| Pimp My Grade | ✅ | Les six grades connus sont réglables individuellement ; le pseudo et le badge texte `msgTitle` placé après lui suivent le même style. Plusieurs effets visuels optionnels sont proposés, sans animation si la préférence navigateur demande leur réduction. La tuile est repliable et la liste des grades reste fixe côté code dans `PSEUDONYM_GRADE_DEFINITIONS`, pour faciliter les futures mises à jour sans donner d’édition de grade aux utilisateurs. |
 | Détection des mentions | ✅ | Les mentions natives, le texte des bulles et l’auteur des réponses citées sont inspectés ; les anciens réglages sans durée reprennent un clignotement de 6 secondes. Les conversations privées sont exclues. |
 | Son de mention | 🟡 | Code adapté ; nécessite une validation navigateur après interaction utilisateur pour l’audio. Les conversations privées sont exclues. |
 | Réponses natives | ✅ | Le bouton `[data-msg-actions]` / titre `Répondre` est reconnu. |
@@ -33,7 +34,7 @@ Cible principale : `https://tr4ker.net/communication?conv=1`
 | Aperçu des images liées | 🟡 | Le ciblage est adapté ; valider sur une URL d’image réellement postée. |
 | Player YouTube | 🟡 | Reconnaît une URL complète ou le suffixe autorisé `watch?v=ID`, puis ouvre le mini-lecteur déplaçable. L’iframe est injectée via `GM_addElement` pour contourner la CSP Tr4ker ; à valider après mise à jour de Tampermonkey. |
 | Barre d’accès rapide aux emojis | 🟡 | Le textarea et les contrôles natifs sont reconnus ; le rail userscript au-dessus de l’input est compact, harmonisé et défile horizontalement sur mobile. |
-| Historique/favoris d’emojis | 🟡 | Le tracker est lié au clic sur le bouton emoji natif de l’input ; les menus GIF/images/phrases et les accès rapides du script sont exclus, même si les popovers sont déplacés sous `body`. |
+| Historique/favoris d’emojis | 🟡 | Le tracker est lié au clic sur le bouton emoji natif de l’input ; les menus GIF/images/phrases et les accès rapides du script sont exclus, même si les popovers sont déplacés sous `body`. Le panneau d’historique prend le focus et se centre à son ouverture. |
 | Réactions / favoris rapides | 🟡 | Le tracker est lié au clic sur le bouton `Réagir` du message concerné, y compris quand React déplace le popover sous `body`. Les contrôles GIF/images du script sont exclus, et les faux positifs historiques sont purgés. Le picker conserve son positionnement natif pour ne pas créer d’overflow horizontal. |
 | Taille du texte | ✅ | Application directe à `msgSender`, `msgMeta` et `msgBubble`. |
 | Scrollbar personnalisée | ✅ | La nouvelle racine `messageList` est ciblée. |
