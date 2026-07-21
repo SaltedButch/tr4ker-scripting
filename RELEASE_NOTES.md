@@ -18,6 +18,8 @@ Ce fichier suit l'état fonctionnel du userscript à partir de la version actuel
 - Passage de la couleur par défaut du grade Team vers un rouge plus soutenu, et ajout de tuiles repliables pour Accessibilité, Emojis rapides et `Pimp My Grade`.
 - L’ouverture de l’historique des emojis place maintenant le focus sur son panneau et le centre visuellement.
 - Correction du soulignement animé des grades, désormais rendu par un pseudo-élément afin de fonctionner autant sur les pseudos boutons que sur les badges texte.
+- Optimisation du sélecteur de couleur `Pimp My Grade` : la prévisualisation du code couleur reste immédiate, tandis que la sauvegarde et le rafraîchissement du chat attendent la validation de la couleur.
+- La modale principale de paramètres peut désormais être déplacée en faisant glisser son en-tête.
 
 ### TODO reprise refactor
 

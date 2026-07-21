@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    http://tampermonkey.net/
-// @version      3.0.39
+// @version      3.0.41
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -9085,6 +9085,15 @@
 
             input.addEventListener('input', () => {
                 const grade = getPseudonymGradeDefinition(input.getAttribute('data-tm-grade-pseudonym-color'));
+                if (!grade) return;
+
+                const previewColor = normalizeHexColor(input.value, grade.defaultColor);
+                const valueLabel = input.parentElement?.querySelector('[data-tm-grade-pseudonym-color-value]');
+                if (valueLabel instanceof HTMLElement) valueLabel.textContent = previewColor.toUpperCase();
+            });
+
+            input.addEventListener('change', () => {
+                const grade = getPseudonymGradeDefinition(input.getAttribute('data-tm-grade-pseudonym-color'));
                 if (!grade || !saveGradePseudonymColor(grade.id, input.value)) return;
 
                 controls.syncGradePseudonymColorInputs();
@@ -9547,7 +9556,7 @@
 
     function renderSettingsModalHeader(currentPageLabel) {
         return `
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;">
+            <div data-tm-settings-drag-handle="1" style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;cursor:grab;user-select:none;touch-action:none;">
                 <div>
                     <div style="font-size:16px;font-weight:700;">Paramètres chat</div>
                     <div style="font-size:12px;color:#a1a1aa;margin-top:4px;">Vue actuelle : ${currentPageLabel}</div>
@@ -9565,6 +9574,60 @@
                 ">×</button>
             </div>
         `;
+    }
+
+    function bindSettingsModalDragging(modal) {
+        if (!(modal instanceof HTMLElement)) return;
+
+        const handle = modal.querySelector('[data-tm-settings-drag-handle="1"]');
+        if (!(handle instanceof HTMLElement)) return;
+
+        let dragState = null;
+        const stopDragging = (event) => {
+            if (!dragState || (event && event.pointerId !== dragState.pointerId)) return;
+            if (handle.hasPointerCapture(dragState.pointerId)) {
+                handle.releasePointerCapture(dragState.pointerId);
+            }
+            dragState = null;
+            handle.style.cursor = 'grab';
+        };
+
+        handle.addEventListener('pointerdown', (event) => {
+            if (event.pointerType === 'mouse' && event.button !== 0) return;
+            if (event.target instanceof Element && event.target.closest('button, input, select, textarea, a')) return;
+
+            const rect = modal.getBoundingClientRect();
+            modal.style.left = `${rect.left}px`;
+            modal.style.top = `${rect.top}px`;
+            modal.style.transform = 'none';
+            dragState = {
+                pointerId: event.pointerId,
+                startX: event.clientX,
+                startY: event.clientY,
+                startLeft: rect.left,
+                startTop: rect.top
+            };
+            handle.setPointerCapture(event.pointerId);
+            handle.style.cursor = 'grabbing';
+            event.preventDefault();
+        });
+
+        handle.addEventListener('pointermove', (event) => {
+            if (!dragState || event.pointerId !== dragState.pointerId) return;
+
+            const rect = modal.getBoundingClientRect();
+            const margin = 12;
+            const maxLeft = Math.max(margin, window.innerWidth - rect.width - margin);
+            const maxTop = Math.max(margin, window.innerHeight - rect.height - margin);
+            const nextLeft = clamp(dragState.startLeft + event.clientX - dragState.startX, margin, maxLeft);
+            const nextTop = clamp(dragState.startTop + event.clientY - dragState.startY, margin, maxTop);
+
+            modal.style.left = `${nextLeft}px`;
+            modal.style.top = `${nextTop}px`;
+        });
+
+        handle.addEventListener('pointerup', stopDragging);
+        handle.addEventListener('pointercancel', stopDragging);
     }
 
     function renderSettingsTipsCard(isChatView, settingsFullWidthCardStyle) {
@@ -12854,6 +12917,7 @@
 
         document.body.appendChild(overlay);
         document.body.appendChild(modal);
+        bindSettingsModalDragging(modal);
         const elements = getSettingsModalElements(modal);
         const controls = createSettingsModalController(elements);
         bindSettingsModalEvents(modal, overlay, elements, controls, currentPageLabel);
