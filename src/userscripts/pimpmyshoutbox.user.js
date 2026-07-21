@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    http://tampermonkey.net/
-// @version      3.0.50
+// @version      3.0.59
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -20,6 +20,11 @@
 
     const STORAGE_KEY_USERS = 'tm_hidden_shout_users_t4';
     const TR4KER_HOSTNAME = 'tr4ker.net';
+    const IS_MAC_PLATFORM = /mac|iphone|ipad|ipod/i.test([
+        navigator.userAgentData?.platform,
+        navigator.platform,
+        navigator.userAgent
+    ].filter(Boolean).join(' '));
     const TR4KER_CHAT_INPUT_SELECTOR = 'textarea[placeholder^="Message dans"]';
     const TR4KER_MESSAGE_SELECTOR = '[data-msg-id]';
     const TR4KER_MESSAGE_ROOT_SELECTOR = '[class*="messageList"]';
@@ -39,7 +44,10 @@
     const STORAGE_KEY_RECENT_MENTION_SOUND_NOTIFICATIONS = 'tm_t4_recent_mention_sound_notifications';
     const STORAGE_KEY_CHAT_FONT_SCALE = 'tm_t4_chat_font_scale';
     const STORAGE_KEY_CHAT_SCROLLBAR_ENABLED = 'tm_t4_chat_scrollbar_enabled';
+    const STORAGE_KEY_CUSTOM_BACKGROUND_ENABLED = 'tm_t4_custom_background_enabled';
+    const STORAGE_KEY_CUSTOM_BACKGROUND_COLOR = 'tm_t4_custom_background_color';
     const STORAGE_KEY_MESSAGE_ACTIONS_LEFT_ENABLED = 'tm_t4_message_actions_left_enabled';
+    const STORAGE_KEY_TOPBAR_STATS_ENABLED = 'tm_t4_topbar_stats_enabled';
     const STORAGE_KEY_LINKIFY_URLS = 'tm_t4_linkify_urls';
     const STORAGE_KEY_EMBED_URL_IMAGES = 'tm_t4_embed_url_images';
     const STORAGE_KEY_SAVED_PHRASES = 'tm_t4_saved_phrases';
@@ -85,7 +93,10 @@
         STORAGE_KEY_RECENT_MENTION_SOUND_NOTIFICATIONS,
         STORAGE_KEY_CHAT_FONT_SCALE,
         STORAGE_KEY_CHAT_SCROLLBAR_ENABLED,
+        STORAGE_KEY_CUSTOM_BACKGROUND_ENABLED,
+        STORAGE_KEY_CUSTOM_BACKGROUND_COLOR,
         STORAGE_KEY_MESSAGE_ACTIONS_LEFT_ENABLED,
+        STORAGE_KEY_TOPBAR_STATS_ENABLED,
         STORAGE_KEY_LINKIFY_URLS,
         STORAGE_KEY_EMBED_URL_IMAGES,
         STORAGE_KEY_SAVED_PHRASES,
@@ -282,7 +293,10 @@
         STORAGE_KEY_MENTION_SETTINGS,
         STORAGE_KEY_CHAT_FONT_SCALE,
         STORAGE_KEY_CHAT_SCROLLBAR_ENABLED,
+        STORAGE_KEY_CUSTOM_BACKGROUND_ENABLED,
+        STORAGE_KEY_CUSTOM_BACKGROUND_COLOR,
         STORAGE_KEY_MESSAGE_ACTIONS_LEFT_ENABLED,
+        STORAGE_KEY_TOPBAR_STATS_ENABLED,
         STORAGE_KEY_LINKIFY_URLS,
         STORAGE_KEY_EMBED_URL_IMAGES,
         STORAGE_KEY_SAVED_PHRASES,
@@ -425,6 +439,17 @@
     const MESSAGE_ACTIONS_POSITION_STYLE_ID = 'tm-torr9-message-actions-position-style';
     const HOME_CHAT_POPOVER_STYLE_ID = 'tm-torr9-home-chat-popover-style';
     const NATIVE_CHAT_INPUT_POPOVER_STYLE_ID = 'tm-torr9-native-chat-input-popover-style';
+    const TR4KER_TOPBAR_STATS_STYLE_ID = 'tm-t4-topbar-stats-style';
+    const TR4KER_TOPBAR_STATS_WIDGET_ID = 'tm-t4-topbar-stats-widget';
+    const TR4KER_TOPBAR_STATS_BUTTON_ID = 'tm-t4-topbar-stats-button';
+    const TR4KER_TOPBAR_STATS_POPOVER_ID = 'tm-t4-topbar-stats-popover';
+    const TR4KER_TOPBAR_STATS_CACHE_MS = 5 * 60 * 1000;
+    const TR4KER_TOPBAR_STATS_PERIOD_CYCLE_MS = 4000;
+    const TR4KER_TOPBAR_STATS_PERIODS = [
+        { suffix: '24h', label: '24 h' },
+        { suffix: '7d', label: '7 j' },
+        { suffix: '30d', label: '30 j' }
+    ];
     const CHAT_INPUT_TOOLBAR_STYLE_ID = 'tm-t4-chat-input-toolbar-style';
     const CHAT_INPUT_TOOLBAR_RAIL_ATTR = 'data-tm-chat-input-toolbar-rail';
     const CHAT_INPUT_TOOLBAR_INLINE_ATTR = 'data-tm-chat-input-toolbar-inline';
@@ -478,11 +503,20 @@
     let statsDisplayMode = loadStatsDisplayMode();
     let statsHidden = loadStatsHidden();
     let statsUpdateFrame = null;
+    let tr4kerTopbarStatsData = null;
+    let tr4kerTopbarStatsFetchedAt = 0;
+    let tr4kerTopbarStatsRequest = null;
+    let tr4kerTopbarStatsViewportHandlerInstalled = false;
+    let tr4kerTopbarStatsPeriodIndex = 0;
+    let tr4kerTopbarStatsPeriodCycleTimer = null;
     let toastHideTimer = null;
     let mentionSettings = loadMentionSettings();
     let chatFontScale = loadChatFontScale();
     let chatScrollbarEnabled = loadChatScrollbarEnabled();
+    let customBackgroundEnabled = loadCustomBackgroundEnabled();
+    let customBackgroundColor = loadCustomBackgroundColor();
     let messageActionsLeftEnabled = loadMessageActionsLeftEnabled();
+    let tr4kerTopbarStatsEnabled = loadTr4kerTopbarStatsEnabled();
     let linkifyUrlsEnabled = loadLinkifyUrlsEnabled();
     let embedUrlImagesEnabled = loadEmbedUrlImagesEnabled();
     let savedPhrasesEnabled = loadSavedPhrasesEnabled();
@@ -514,6 +548,8 @@
     let nativeReactionPickerContext = null;
     let lastTrackedReactionUsageKey = '';
     let lastTrackedReactionUsageAt = 0;
+    let reactionQuickAccessRefreshFrame = null;
+    let reactionQuickAccessRefreshRoot = null;
     let savedPhrasesToolbarEventsInstalled = false;
     let klipyGifToolbarEventsInstalled = false;
     let imageUploadToolbarEventsInstalled = false;
@@ -1281,7 +1317,7 @@
     }
 
     function isManualQuickAccessPickerToggleEvent(event) {
-        return quickAccessMode === QUICK_ACCESS_MODE_MANUAL && (event.altKey || event.shiftKey);
+        return quickAccessMode === QUICK_ACCESS_MODE_MANUAL && (hasPlatformShortcutModifier(event) || event.shiftKey);
     }
 
     function splitManualFavoriteInput(value) {
@@ -1772,6 +1808,7 @@
     }
 
     function recordReactionUsageRecord(record) {
+        const previousQuickAccessSignature = buildReactionQuickAccessSignature(getQuickAccessReactionRecords());
         const baseRecord = normalizeReactionUsageRecord({
             ...record,
             count: 1,
@@ -1795,7 +1832,13 @@
         };
         saveReactionUsageCounts();
         refreshOpenSettingsUsageLists();
-        refreshReactionQuickAccessButtons();
+
+        const nextQuickAccessSignature = buildReactionQuickAccessSignature(getQuickAccessReactionRecords());
+        if (previousQuickAccessSignature !== nextQuickAccessSignature) {
+            scheduleReactionQuickAccessButtonsRefresh();
+        } else {
+            refreshReactionQuickAccessButtonUsageMetadata(nextRecord);
+        }
 
         logEmojiDebug('reaction record: stored', {
             key: baseRecord.key,
@@ -2947,7 +2990,10 @@
         mentionSettings = loadMentionSettings();
         chatFontScale = loadChatFontScale();
         chatScrollbarEnabled = loadChatScrollbarEnabled();
+        customBackgroundEnabled = loadCustomBackgroundEnabled();
+        customBackgroundColor = loadCustomBackgroundColor();
         messageActionsLeftEnabled = loadMessageActionsLeftEnabled();
+        tr4kerTopbarStatsEnabled = loadTr4kerTopbarStatsEnabled();
         linkifyUrlsEnabled = loadLinkifyUrlsEnabled();
         embedUrlImagesEnabled = loadEmbedUrlImagesEnabled();
         savedPhrasesEnabled = loadSavedPhrasesEnabled();
@@ -2988,6 +3034,7 @@
     }
 
     function applyReloadedScriptConfiguration() {
+        applyCustomBackgroundColor();
         syncHomepageCollapseUi(true);
         applyStatsBoxDisplayModeState();
         applyBoxPosition(loadPosition());
@@ -3403,6 +3450,45 @@
         writeStorageBoolean(STORAGE_KEY_CHAT_SCROLLBAR_ENABLED, chatScrollbarEnabled);
     }
 
+    function loadCustomBackgroundEnabled() {
+        return readStorageBoolean(STORAGE_KEY_CUSTOM_BACKGROUND_ENABLED, false);
+    }
+
+    function loadCustomBackgroundColor() {
+        return normalizeHexColor(readStorageItem(STORAGE_KEY_CUSTOM_BACKGROUND_COLOR), '#131313');
+    }
+
+    function saveCustomBackgroundEnabled(value) {
+        customBackgroundEnabled = !!value;
+        writeStorageBoolean(STORAGE_KEY_CUSTOM_BACKGROUND_ENABLED, customBackgroundEnabled);
+    }
+
+    function saveCustomBackgroundColor(value) {
+        customBackgroundColor = normalizeHexColor(value, '#131313');
+        writeStorageItem(STORAGE_KEY_CUSTOM_BACKGROUND_COLOR, customBackgroundColor);
+    }
+
+    function applyCustomBackgroundColor(color = customBackgroundColor, enabled = customBackgroundEnabled) {
+        if (!isTr4kerPage()) return;
+
+        const root = document.documentElement;
+        if (!(root instanceof HTMLElement)) return;
+
+        if (!enabled) {
+            root.style.removeProperty('--surface');
+            root.style.removeProperty('--surface-dim');
+            root.style.removeProperty('background-color');
+            root.removeAttribute('data-tm-custom-background');
+            return;
+        }
+
+        const normalizedColor = normalizeHexColor(color, '#131313');
+        root.style.setProperty('--surface', normalizedColor);
+        root.style.setProperty('--surface-dim', normalizedColor);
+        root.style.setProperty('background-color', normalizedColor);
+        root.setAttribute('data-tm-custom-background', '1');
+    }
+
     function loadMessageActionsLeftEnabled() {
         return readStorageBoolean(STORAGE_KEY_MESSAGE_ACTIONS_LEFT_ENABLED, false);
     }
@@ -3410,6 +3496,15 @@
     function saveMessageActionsLeftEnabled(value) {
         messageActionsLeftEnabled = !!value;
         writeStorageBoolean(STORAGE_KEY_MESSAGE_ACTIONS_LEFT_ENABLED, messageActionsLeftEnabled);
+    }
+
+    function loadTr4kerTopbarStatsEnabled() {
+        return readStorageBoolean(STORAGE_KEY_TOPBAR_STATS_ENABLED, true);
+    }
+
+    function saveTr4kerTopbarStatsEnabled(value) {
+        tr4kerTopbarStatsEnabled = !!value;
+        writeStorageBoolean(STORAGE_KEY_TOPBAR_STATS_ENABLED, tr4kerTopbarStatsEnabled);
     }
 
     function loadLinkifyUrlsEnabled() {
@@ -3876,6 +3971,716 @@
         }
 
         document.documentElement.removeAttribute(NATIVE_CHAT_INPUT_POPOVER_LIFTED_ATTR);
+    }
+
+    function formatTr4kerTopbarStatsBytes(value) {
+        const bytes = Math.max(0, Number(value) || 0);
+        const units = ['o', 'Ko', 'Mo', 'Go', 'To', 'Po'];
+        let unitIndex = 0;
+        let amount = bytes;
+
+        while (amount >= 1024 && unitIndex < units.length - 1) {
+            amount /= 1024;
+            unitIndex += 1;
+        }
+
+        if (unitIndex === 0) return `${Math.round(amount)} ${units[unitIndex]}`;
+        return `${amount < 10 ? amount.toFixed(1) : amount.toFixed(0)} ${units[unitIndex]}`;
+    }
+
+    function formatTr4kerTopbarSeedTime(value) {
+        let seconds = Math.max(0, Math.floor(Number(value) || 0));
+        const days = Math.floor(seconds / 86400);
+        seconds -= days * 86400;
+        const hours = Math.floor(seconds / 3600);
+
+        if (days > 0) return `${days} j ${hours} h`;
+        if (hours > 0) return `${hours} h`;
+        return `${Math.floor(seconds / 60)} min`;
+    }
+
+    function getTr4kerTopbarStatsRatio(uploaded, downloaded) {
+        const up = Math.max(0, Number(uploaded) || 0);
+        const down = Math.max(0, Number(downloaded) || 0);
+        if (down === 0) return up > 0 ? Infinity : null;
+        return up / down;
+    }
+
+    function formatTr4kerTopbarStatsRatio(value) {
+        if (value === null || Number.isNaN(value)) return '—';
+        if (value === Infinity) return '∞';
+        return Number(value).toFixed(2);
+    }
+
+    function getTr4kerTopbarStatsNotificationButton() {
+        return Array.from(document.querySelectorAll('header[role="banner"] button[aria-label]')).find((button) => {
+            if (!(button instanceof HTMLButtonElement)) return false;
+            const label = normalizeMentionComparableText(button.getAttribute('aria-label') || '');
+            return label.startsWith('notifications');
+        }) || null;
+    }
+
+    function ensureTr4kerTopbarStatsStyle() {
+        if (document.getElementById(TR4KER_TOPBAR_STATS_STYLE_ID)) return;
+        if (!document.head) return;
+
+        const style = document.createElement('style');
+        style.id = TR4KER_TOPBAR_STATS_STYLE_ID;
+        style.textContent = `
+            #${TR4KER_TOPBAR_STATS_BUTTON_ID} {
+                box-sizing: border-box;
+                width: 32px;
+                height: 32px;
+                padding: 0;
+                border: 1px solid transparent;
+                border-radius: 8px;
+                background: transparent;
+                color: var(--on-surface-variant, #a1a1aa);
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                flex: 0 0 auto;
+                touch-action: manipulation;
+                transition: color 120ms ease, background 120ms ease, border-color 120ms ease, transform 120ms ease;
+            }
+
+            #${TR4KER_TOPBAR_STATS_BUTTON_ID}:hover,
+            #${TR4KER_TOPBAR_STATS_BUTTON_ID}[aria-expanded="true"] {
+                color: #fbbf24;
+                border-color: rgba(251, 191, 36, 0.24);
+                background: rgba(251, 191, 36, 0.1);
+            }
+
+            #${TR4KER_TOPBAR_STATS_BUTTON_ID}:hover {
+                transform: translateY(-1px);
+            }
+
+            #${TR4KER_TOPBAR_STATS_BUTTON_ID} .material-symbols-outlined {
+                font-size: 19px;
+                line-height: 1;
+            }
+
+            #${TR4KER_TOPBAR_STATS_POPOVER_ID} {
+                box-sizing: border-box;
+                position: fixed;
+                z-index: 1500;
+                width: min(360px, calc(100vw - 16px));
+                padding: 12px;
+                border: 1px solid rgba(255, 255, 255, 0.13);
+                border-radius: 14px;
+                background: rgba(24, 24, 27, 0.98);
+                color: #f4f4f5;
+                font-family: Geist Variable, Inter, Arial, sans-serif;
+                box-shadow: 0 16px 42px rgba(0, 0, 0, 0.48);
+                backdrop-filter: blur(14px);
+            }
+
+            #${TR4KER_TOPBAR_STATS_POPOVER_ID} [data-tm-topbar-stats-title="1"] {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+                margin-bottom: 10px;
+            }
+
+            #${TR4KER_TOPBAR_STATS_POPOVER_ID} [data-tm-topbar-stats-title="1"] strong {
+                font-size: 13px;
+                letter-spacing: 0.01em;
+            }
+
+            #${TR4KER_TOPBAR_STATS_POPOVER_ID} [data-tm-topbar-stats-title="1"] span {
+                color: #a1a1aa;
+                font-size: 10px;
+            }
+
+            #${TR4KER_TOPBAR_STATS_POPOVER_ID} [data-tm-topbar-stats-grid="1"] {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 7px;
+            }
+
+            #${TR4KER_TOPBAR_STATS_POPOVER_ID} [data-tm-topbar-stats-card="1"] {
+                min-width: 0;
+                padding: 8px 9px;
+                border: 1px solid rgba(255, 255, 255, 0.07);
+                border-radius: 9px;
+                background: rgba(255, 255, 255, 0.035);
+            }
+
+            #${TR4KER_TOPBAR_STATS_POPOVER_ID} [data-tm-topbar-stats-card="1"] span,
+            #${TR4KER_TOPBAR_STATS_POPOVER_ID} [data-tm-topbar-stats-graph-label="1"] {
+                display: block;
+                color: #a1a1aa;
+                font-size: 10px;
+                line-height: 1.25;
+            }
+
+            #${TR4KER_TOPBAR_STATS_POPOVER_ID} [data-tm-topbar-stats-card="1"] strong {
+                display: block;
+                overflow: hidden;
+                margin-top: 3px;
+                color: #fafafa;
+                font-size: 14px;
+                line-height: 1.2;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            #${TR4KER_TOPBAR_STATS_POPOVER_ID} [data-tm-topbar-stats-chart="1"] {
+                margin-top: 11px;
+                padding-top: 10px;
+                border-top: 1px solid rgba(255, 255, 255, 0.08);
+            }
+
+            #${TR4KER_TOPBAR_STATS_POPOVER_ID} [data-tm-topbar-stats-chart-head="1"] {
+                display: flex;
+                align-items: baseline;
+                justify-content: space-between;
+                gap: 8px;
+                margin-bottom: 6px;
+            }
+
+            #${TR4KER_TOPBAR_STATS_POPOVER_ID} [data-tm-topbar-stats-chart-head="1"] strong {
+                font-size: 11px;
+            }
+
+            #${TR4KER_TOPBAR_STATS_POPOVER_ID} [data-tm-topbar-stats-chart-head="1"] span {
+                color: #71717a;
+                font-size: 9px;
+            }
+
+            #${TR4KER_TOPBAR_STATS_POPOVER_ID} svg {
+                display: block;
+                width: 100%;
+                height: 92px;
+                overflow: visible;
+            }
+
+            #${TR4KER_TOPBAR_STATS_POPOVER_ID} [data-tm-topbar-stats-legend="1"] {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-top: 4px;
+                color: #a1a1aa;
+                font-size: 9px;
+            }
+
+            #${TR4KER_TOPBAR_STATS_POPOVER_ID} [data-tm-topbar-stats-legend="1"] i {
+                display: inline-block;
+                width: 7px;
+                height: 7px;
+                margin-right: 3px;
+                border-radius: 99px;
+                vertical-align: -1px;
+            }
+
+            #${TR4KER_TOPBAR_STATS_POPOVER_ID} [data-tm-topbar-stats-state="1"] {
+                padding: 18px 6px;
+                color: #a1a1aa;
+                text-align: center;
+                font-size: 12px;
+            }
+
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID} {
+                box-sizing: border-box;
+                position: relative;
+                isolation: isolate;
+                width: 356px;
+                height: 48px;
+                padding: 4px 7px;
+                border: 1px solid rgba(74, 222, 128, 0.28);
+                border-radius: 8px;
+                background: linear-gradient(135deg, rgba(6, 30, 17, 0.96), rgba(10, 20, 14, 0.98));
+                color: #86efac;
+                display: grid;
+                grid-template-columns: 76px repeat(3, minmax(0, 1fr));
+                align-items: stretch;
+                overflow: hidden;
+                flex: 0 0 auto;
+                font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+                text-shadow: 0 0 7px rgba(74, 222, 128, 0.72);
+                box-shadow: inset 0 0 13px rgba(34, 197, 94, 0.12), 0 0 10px rgba(22, 163, 74, 0.08);
+            }
+
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID}::before {
+                content: '101101 010011 110010 001101';
+                position: absolute;
+                z-index: -1;
+                inset: 0;
+                overflow: hidden;
+                color: rgba(74, 222, 128, 0.17);
+                font-size: 7px;
+                letter-spacing: 1px;
+                line-height: 9px;
+                white-space: normal;
+                animation: tm-t4-topbar-matrix-drift 9s linear infinite;
+            }
+
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID}[aria-busy="true"] {
+                opacity: 0.6;
+            }
+
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID} [data-tm-topbar-stats-metric] {
+                position: relative;
+                z-index: 1;
+                min-width: 0;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                gap: 2px;
+                padding: 0 8px;
+                border-left: 1px solid rgba(74, 222, 128, 0.16);
+            }
+
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID} [data-tm-topbar-stats-metric="ratio"] {
+                padding-left: 2px;
+                border-left: 0;
+            }
+
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID} [data-tm-topbar-stats-metric] strong {
+                overflow: hidden;
+                color: #dcfce7;
+                font-size: 12px;
+                font-weight: 800;
+                line-height: 1.05;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID} [data-tm-topbar-stats-metric="ratio"] strong {
+                color: #dcfce7;
+                font-size: 17px;
+                font-weight: 800;
+            }
+
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID} [data-tm-topbar-stats-metric] span {
+                position: relative;
+                z-index: 1;
+                color: #4ade80;
+                font-size: 7px;
+                font-weight: 700;
+                line-height: 1.1;
+                letter-spacing: 0.03em;
+                text-transform: uppercase;
+            }
+
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID} svg {
+                position: absolute;
+                z-index: 0;
+                right: 4px;
+                bottom: 2px;
+                display: block;
+                width: 138px;
+                height: 18px;
+                opacity: 0.34;
+                filter: drop-shadow(0 0 3px rgba(74, 222, 128, 0.7));
+                pointer-events: none;
+            }
+
+            @keyframes tm-t4-topbar-matrix-drift {
+                from { transform: translateY(-7px); }
+                to { transform: translateY(0); }
+            }
+
+            @media (max-width: 640px) {
+                #${TR4KER_TOPBAR_STATS_WIDGET_ID} {
+                    width: 220px;
+                    height: 42px;
+                    grid-template-columns: 62px repeat(2, minmax(0, 1fr));
+                    padding-inline: 5px;
+                }
+
+                #${TR4KER_TOPBAR_STATS_WIDGET_ID} [data-tm-topbar-stats-metric="seed"] {
+                    display: none;
+                }
+
+                #${TR4KER_TOPBAR_STATS_WIDGET_ID} [data-tm-topbar-stats-metric] {
+                    padding-inline: 6px;
+                }
+
+                #${TR4KER_TOPBAR_STATS_WIDGET_ID} [data-tm-topbar-stats-metric] strong {
+                    font-size: 11px;
+                }
+
+                #${TR4KER_TOPBAR_STATS_WIDGET_ID} [data-tm-topbar-stats-metric="ratio"] strong {
+                    font-size: 15px;
+                }
+
+                #${TR4KER_TOPBAR_STATS_WIDGET_ID} svg {
+                    width: 84px;
+                    height: 14px;
+                }
+            }
+        `;
+
+        document.head.appendChild(style);
+    }
+
+    function closeTr4kerTopbarStatsPopover() {
+        const popover = document.getElementById(TR4KER_TOPBAR_STATS_POPOVER_ID);
+        if (popover) popover.remove();
+
+        const button = document.getElementById(TR4KER_TOPBAR_STATS_BUTTON_ID);
+        if (button instanceof HTMLButtonElement) {
+            button.setAttribute('aria-expanded', 'false');
+        }
+    }
+
+    function positionTr4kerTopbarStatsPopover() {
+        const popover = document.getElementById(TR4KER_TOPBAR_STATS_POPOVER_ID);
+        const button = document.getElementById(TR4KER_TOPBAR_STATS_BUTTON_ID);
+        if (!(popover instanceof HTMLElement) || !(button instanceof HTMLElement)) return;
+
+        const buttonRect = button.getBoundingClientRect();
+        const popoverRect = popover.getBoundingClientRect();
+        const margin = 8;
+        const left = clamp(buttonRect.right - popoverRect.width, margin, Math.max(margin, window.innerWidth - popoverRect.width - margin));
+        const top = clamp(buttonRect.bottom + 8, margin, Math.max(margin, window.innerHeight - popoverRect.height - margin));
+
+        popover.style.left = `${Math.round(left)}px`;
+        popover.style.top = `${Math.round(top)}px`;
+    }
+
+    function buildTr4kerTopbarStatsChart(snapshots) {
+        const normalized = (Array.isArray(snapshots) ? snapshots : [])
+            .map((snapshot) => ({
+                date: String(snapshot?.date || ''),
+                uploaded: Math.max(0, Number(snapshot?.uploaded_bytes) || 0),
+                downloaded: Math.max(0, Number(snapshot?.downloaded_bytes) || 0)
+            }))
+            .filter((snapshot) => snapshot.date)
+            .sort((a, b) => a.date.localeCompare(b.date))
+            .slice(-30);
+
+        if (normalized.length < 2) {
+            return '<div data-tm-topbar-stats-state="1">Historique journalier indisponible pour le moment.</div>';
+        }
+
+        const daily = normalized.map((snapshot, index) => {
+            const previous = normalized[index - 1];
+            return {
+                ...snapshot,
+                uploaded: previous ? Math.max(0, snapshot.uploaded - previous.uploaded) : 0,
+                downloaded: previous ? Math.max(0, snapshot.downloaded - previous.downloaded) : 0
+            };
+        }).slice(1);
+        const maxValue = Math.max(1, ...daily.flatMap((entry) => [entry.uploaded, entry.downloaded]));
+        const chartWidth = 320;
+        const chartHeight = 82;
+        const gap = 3;
+        const groupWidth = chartWidth / daily.length;
+        const barWidth = Math.max(1.5, Math.min(7, (groupWidth - gap) / 2));
+        const bars = daily.map((entry, index) => {
+            const x = index * groupWidth + Math.max(0, (groupWidth - barWidth * 2 - 2) / 2);
+            const uploadHeight = Math.max(entry.uploaded > 0 ? 1 : 0, (entry.uploaded / maxValue) * chartHeight);
+            const downloadHeight = Math.max(entry.downloaded > 0 ? 1 : 0, (entry.downloaded / maxValue) * chartHeight);
+            const label = new Date(`${entry.date}T12:00:00`).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+            return `
+                <g>
+                    <title>${label} · ↑ ${formatTr4kerTopbarStatsBytes(entry.uploaded)} · ↓ ${formatTr4kerTopbarStatsBytes(entry.downloaded)}</title>
+                    <rect x="${x.toFixed(2)}" y="${(chartHeight - uploadHeight).toFixed(2)}" width="${barWidth.toFixed(2)}" height="${uploadHeight.toFixed(2)}" rx="1.5" fill="#38bdf8"></rect>
+                    <rect x="${(x + barWidth + 2).toFixed(2)}" y="${(chartHeight - downloadHeight).toFixed(2)}" width="${barWidth.toFixed(2)}" height="${downloadHeight.toFixed(2)}" rx="1.5" fill="#fb7185"></rect>
+                </g>
+            `;
+        }).join('');
+
+        return `
+            <div data-tm-topbar-stats-chart="1">
+                <div data-tm-topbar-stats-chart-head="1">
+                    <strong>Activité journalière</strong>
+                    <span>${daily.length} jours fournis par Tr4ker</span>
+                </div>
+                <svg viewBox="0 0 ${chartWidth} ${chartHeight}" role="img" aria-label="Upload et download journaliers">
+                    <line x1="0" y1="${chartHeight - 0.5}" x2="${chartWidth}" y2="${chartHeight - 0.5}" stroke="rgba(255,255,255,0.14)" stroke-width="1"></line>
+                    ${bars}
+                </svg>
+                <div data-tm-topbar-stats-legend="1"><span><i style="background:#38bdf8"></i>Upload</span><span><i style="background:#fb7185"></i>Download</span></div>
+            </div>
+        `;
+    }
+
+    function renderTr4kerTopbarStatsPopover(payload) {
+        const popover = document.getElementById(TR4KER_TOPBAR_STATS_POPOVER_ID);
+        if (!(popover instanceof HTMLElement)) return;
+
+        const summary = payload?.summary && typeof payload.summary === 'object' ? payload.summary : {};
+        const statistics = payload?.statistics && typeof payload.statistics === 'object' ? payload.statistics : {};
+        const uploaded30Days = Math.max(0, Number(statistics.uploaded_last_30d) || 0);
+        const downloaded30Days = Math.max(0, Number(statistics.downloaded_last_30d) || 0);
+        const ratio30Days = getTr4kerTopbarStatsRatio(uploaded30Days, downloaded30Days);
+        const totalSeedTime = Math.max(0, Number(statistics.total_seedtime_seconds) || 0);
+        const updatedAt = statistics.updated_at ? new Date(statistics.updated_at) : null;
+        const totalRatio = getTr4kerTopbarStatsRatio(
+            (Number(summary.uploaded) || 0) + (Number(summary.bonus_upload) || 0),
+            (Number(summary.downloaded) || 0) + (Number(summary.bonus_download) || 0)
+        );
+
+        popover.innerHTML = `
+            <div data-tm-topbar-stats-title="1">
+                <strong>Mes stats Tr4ker</strong>
+                <span>${updatedAt && !Number.isNaN(updatedAt.getTime()) ? `MAJ ${updatedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : '30 derniers jours'}</span>
+            </div>
+            <div data-tm-topbar-stats-grid="1">
+                <div data-tm-topbar-stats-card="1"><span>Upload · 30 j</span><strong style="color:#7dd3fc">${formatTr4kerTopbarStatsBytes(uploaded30Days)}</strong></div>
+                <div data-tm-topbar-stats-card="1"><span>Download · 30 j</span><strong style="color:#fda4af">${formatTr4kerTopbarStatsBytes(downloaded30Days)}</strong></div>
+                <div data-tm-topbar-stats-card="1"><span>Ratio · 30 j</span><strong style="color:${ratio30Days === null ? '#fafafa' : ratio30Days >= 1 ? '#86efac' : '#fcd34d'}">${formatTr4kerTopbarStatsRatio(ratio30Days)}</strong></div>
+                <div data-tm-topbar-stats-card="1"><span>Seed cumulé</span><strong style="color:#c4b5fd">${formatTr4kerTopbarSeedTime(totalSeedTime)}</strong></div>
+            </div>
+            ${buildTr4kerTopbarStatsChart(payload?.snapshots)}
+            <div data-tm-topbar-stats-graph-label="1" style="margin-top:9px">Ratio global : ${formatTr4kerTopbarStatsRatio(totalRatio)}</div>
+        `;
+        positionTr4kerTopbarStatsPopover();
+    }
+
+    async function fetchTr4kerTopbarStats() {
+        if (
+            tr4kerTopbarStatsFetchedAt > 0 &&
+            Date.now() - tr4kerTopbarStatsFetchedAt < TR4KER_TOPBAR_STATS_CACHE_MS
+        ) {
+            return tr4kerTopbarStatsData;
+        }
+
+        if (tr4kerTopbarStatsRequest) return tr4kerTopbarStatsRequest;
+
+        tr4kerTopbarStatsRequest = fetch('/api/me/stats', { credentials: 'include' })
+            .then((response) => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.json();
+            })
+            .then((payload) => {
+                tr4kerTopbarStatsData = payload && typeof payload === 'object' ? payload : null;
+                tr4kerTopbarStatsFetchedAt = Date.now();
+                return tr4kerTopbarStatsData;
+            })
+            .finally(() => {
+                tr4kerTopbarStatsRequest = null;
+            });
+
+        return tr4kerTopbarStatsRequest;
+    }
+
+    function buildTr4kerTopbarStatsMatrixGraph(snapshots) {
+        const points = (Array.isArray(snapshots) ? snapshots : [])
+            .map((snapshot) => ({
+                date: String(snapshot?.date || ''),
+                uploaded: Math.max(0, Number(snapshot?.uploaded_bytes) || 0),
+                downloaded: Math.max(0, Number(snapshot?.downloaded_bytes) || 0)
+            }))
+            .filter((snapshot) => snapshot.date)
+            .sort((a, b) => a.date.localeCompare(b.date))
+            .slice(-14)
+            .map((snapshot, index, list) => {
+                const previous = list[index - 1];
+                const uploaded = previous ? Math.max(0, snapshot.uploaded - previous.uploaded) : 0;
+                const downloaded = previous ? Math.max(0, snapshot.downloaded - previous.downloaded) : 0;
+                return { ...snapshot, uploaded, downloaded };
+            });
+
+        if (points.length < 2) {
+            return '<svg viewBox="0 0 132 32" aria-hidden="true"><path d="M1 25h130" stroke="rgba(74,222,128,0.35)" stroke-width="1" stroke-dasharray="3 3"></path></svg>';
+        }
+
+        const maxValue = Math.max(1, ...points.flatMap((point) => [point.uploaded, point.downloaded]));
+        const chartWidth = 132;
+        const chartHeight = 32;
+        const unitWidth = chartWidth / points.length;
+        const bars = points.map((point, index) => {
+            const height = Math.max(1, (Math.max(point.uploaded, point.downloaded) / maxValue) * 27);
+            const x = index * unitWidth + 1;
+            const opacity = point.uploaded >= point.downloaded ? 0.95 : 0.52;
+            return `<rect x="${x.toFixed(2)}" y="${(chartHeight - height - 1).toFixed(2)}" width="${Math.max(2, unitWidth - 2).toFixed(2)}" height="${height.toFixed(2)}" rx="1" fill="rgba(74,222,128,${opacity})"></rect>`;
+        }).join('');
+        const ratioPoints = points.map((point, index) => {
+            const ratio = getTr4kerTopbarStatsRatio(point.uploaded, point.downloaded);
+            const normalized = ratio === Infinity ? 1 : clamp((ratio || 0) / 2, 0, 1);
+            return `${(index * unitWidth + unitWidth / 2).toFixed(2)},${(29 - normalized * 24).toFixed(2)}`;
+        }).join(' ');
+
+        return `<svg viewBox="0 0 ${chartWidth} ${chartHeight}" aria-hidden="true"><path d="M0 31H${chartWidth}" stroke="rgba(74,222,128,0.3)" stroke-width="1"></path>${bars}<polyline points="${ratioPoints}" fill="none" stroke="#d9f99d" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>`;
+    }
+
+    function getTr4kerTopbarStatsActivePeriod() {
+        return TR4KER_TOPBAR_STATS_PERIODS[
+            clamp(tr4kerTopbarStatsPeriodIndex, 0, TR4KER_TOPBAR_STATS_PERIODS.length - 1)
+        ] || TR4KER_TOPBAR_STATS_PERIODS[0];
+    }
+
+    function stopTr4kerTopbarStatsPeriodCycle() {
+        if (tr4kerTopbarStatsPeriodCycleTimer === null) return;
+        clearInterval(tr4kerTopbarStatsPeriodCycleTimer);
+        tr4kerTopbarStatsPeriodCycleTimer = null;
+    }
+
+    function startTr4kerTopbarStatsPeriodCycle() {
+        if (tr4kerTopbarStatsPeriodCycleTimer !== null || !tr4kerTopbarStatsData) return;
+
+        tr4kerTopbarStatsPeriodCycleTimer = window.setInterval(() => {
+            if (
+                !isTr4kerPage()
+                || !tr4kerTopbarStatsEnabled
+                || !(document.getElementById(TR4KER_TOPBAR_STATS_WIDGET_ID) instanceof HTMLElement)
+            ) {
+                stopTr4kerTopbarStatsPeriodCycle();
+                return;
+            }
+
+            tr4kerTopbarStatsPeriodIndex = (
+                tr4kerTopbarStatsPeriodIndex + 1
+            ) % TR4KER_TOPBAR_STATS_PERIODS.length;
+            renderTr4kerTopbarStatsWidget(tr4kerTopbarStatsData);
+        }, TR4KER_TOPBAR_STATS_PERIOD_CYCLE_MS);
+    }
+
+    function renderTr4kerTopbarStatsWidget(payload) {
+        const widget = document.getElementById(TR4KER_TOPBAR_STATS_WIDGET_ID);
+        if (!(widget instanceof HTMLElement)) return;
+
+        const summary = payload?.summary && typeof payload.summary === 'object' ? payload.summary : {};
+        const statistics = payload?.statistics && typeof payload.statistics === 'object' ? payload.statistics : {};
+        const activePeriod = getTr4kerTopbarStatsActivePeriod();
+        const uploaded = Math.max(0, Number(statistics[`uploaded_last_${activePeriod.suffix}`]) || 0);
+        const downloaded = Math.max(0, Number(statistics[`downloaded_last_${activePeriod.suffix}`]) || 0);
+        const ratio = getTr4kerTopbarStatsRatio(uploaded, downloaded);
+        const totalSeedTime = Math.max(0, Number(statistics.total_seedtime_seconds) || 0);
+        const torrentsSeeding = Math.max(0, Number(statistics.torrents_seeding) || 0);
+        const globalRatio = getTr4kerTopbarStatsRatio(
+            (Number(summary.uploaded) || 0) + (Number(summary.bonus_upload) || 0),
+            (Number(summary.downloaded) || 0) + (Number(summary.bonus_download) || 0)
+        );
+
+        widget.setAttribute('aria-busy', 'false');
+        widget.setAttribute(
+            'title',
+            `${activePeriod.label} · ↑ ${formatTr4kerTopbarStatsBytes(uploaded)} · ↓ ${formatTr4kerTopbarStatsBytes(downloaded)} · ratio ${formatTr4kerTopbarStatsRatio(ratio)} · seed cumulé ${formatTr4kerTopbarSeedTime(totalSeedTime)} · ${torrentsSeeding} torrent${torrentsSeeding > 1 ? 's' : ''} en seed · ratio global ${formatTr4kerTopbarStatsRatio(globalRatio)}`
+        );
+        widget.setAttribute('aria-label', `Statistiques sur ${activePeriod.label} : ratio ${formatTr4kerTopbarStatsRatio(ratio)}, upload ${formatTr4kerTopbarStatsBytes(uploaded)}, download ${formatTr4kerTopbarStatsBytes(downloaded)}, ratio global ${formatTr4kerTopbarStatsRatio(globalRatio)}, seed cumulé ${formatTr4kerTopbarSeedTime(totalSeedTime)}, ${torrentsSeeding} torrent${torrentsSeeding > 1 ? 's' : ''} en seed`);
+        widget.innerHTML = `
+            <div data-tm-topbar-stats-metric="ratio">
+                <strong style="color:${ratio === null ? '#fafafa' : ratio >= 1 ? '#86efac' : '#fcd34d'}">${formatTr4kerTopbarStatsRatio(ratio)}</strong>
+                <span>${activePeriod.label} · G ${formatTr4kerTopbarStatsRatio(globalRatio)}</span>
+            </div>
+            <div data-tm-topbar-stats-metric="1">
+                <strong style="color:#7dd3fc">↑ ${formatTr4kerTopbarStatsBytes(uploaded)}</strong>
+                <span>Upload · ${activePeriod.label}</span>
+            </div>
+            <div data-tm-topbar-stats-metric="1">
+                <strong style="color:#fda4af">↓ ${formatTr4kerTopbarStatsBytes(downloaded)}</strong>
+                <span>Download · ${activePeriod.label}</span>
+            </div>
+            <div data-tm-topbar-stats-metric="seed">
+                <strong style="color:#c4b5fd">${formatTr4kerTopbarSeedTime(totalSeedTime)}</strong>
+                <span>${torrentsSeeding} en seed</span>
+            </div>
+            ${buildTr4kerTopbarStatsMatrixGraph(payload?.snapshots)}
+        `;
+        widget.dataset.tmTopbarStatsRenderedAt = String(tr4kerTopbarStatsFetchedAt);
+        startTr4kerTopbarStatsPeriodCycle();
+    }
+
+    function openTr4kerTopbarStatsPopover() {
+        closeTr4kerTopbarStatsPopover();
+
+        const button = document.getElementById(TR4KER_TOPBAR_STATS_BUTTON_ID);
+        if (!(button instanceof HTMLButtonElement) || !document.body) return;
+
+        const popover = document.createElement('div');
+        popover.id = TR4KER_TOPBAR_STATS_POPOVER_ID;
+        popover.setAttribute('role', 'dialog');
+        popover.setAttribute('aria-label', 'Statistiques Tr4ker');
+        popover.innerHTML = '<div data-tm-topbar-stats-state="1">Chargement des statistiques…</div>';
+        document.body.appendChild(popover);
+        button.setAttribute('aria-expanded', 'true');
+        positionTr4kerTopbarStatsPopover();
+
+        fetchTr4kerTopbarStats()
+            .then((payload) => {
+                if (!payload) throw new Error('Réponse vide');
+                renderTr4kerTopbarStatsPopover(payload);
+            })
+            .catch(() => {
+                const currentPopover = document.getElementById(TR4KER_TOPBAR_STATS_POPOVER_ID);
+                if (currentPopover instanceof HTMLElement) {
+                    currentPopover.innerHTML = '<div data-tm-topbar-stats-state="1">Impossible de charger les statistiques.</div>';
+                    positionTr4kerTopbarStatsPopover();
+                }
+            });
+    }
+
+    function installTr4kerTopbarStatsGlobalHandlers() {
+        if (tr4kerTopbarStatsViewportHandlerInstalled) return;
+        tr4kerTopbarStatsViewportHandlerInstalled = true;
+
+        document.addEventListener('click', (event) => {
+            const popover = document.getElementById(TR4KER_TOPBAR_STATS_POPOVER_ID);
+            const button = document.getElementById(TR4KER_TOPBAR_STATS_BUTTON_ID);
+            if (!(popover instanceof HTMLElement)) return;
+            if (event.target instanceof Node && (popover.contains(event.target) || button?.contains(event.target))) return;
+            closeTr4kerTopbarStatsPopover();
+        }, true);
+
+        window.addEventListener('resize', positionTr4kerTopbarStatsPopover);
+        window.addEventListener('scroll', positionTr4kerTopbarStatsPopover, true);
+    }
+
+    function syncTr4kerTopbarStatsButton() {
+        if (!isTr4kerPage() || !tr4kerTopbarStatsEnabled) {
+            stopTr4kerTopbarStatsPeriodCycle();
+            closeTr4kerTopbarStatsPopover();
+            document.getElementById(TR4KER_TOPBAR_STATS_BUTTON_ID)?.remove();
+            document.getElementById(TR4KER_TOPBAR_STATS_WIDGET_ID)?.remove();
+            return;
+        }
+
+        const notificationButton = getTr4kerTopbarStatsNotificationButton();
+        if (!(notificationButton instanceof HTMLButtonElement)) return;
+
+        ensureTr4kerTopbarStatsStyle();
+        // Retire le bouton de la version précédente si le userscript a été
+        // rechargé sans rafraîchir complètement la page.
+        closeTr4kerTopbarStatsPopover();
+        document.getElementById(TR4KER_TOPBAR_STATS_BUTTON_ID)?.remove();
+
+        let widget = document.getElementById(TR4KER_TOPBAR_STATS_WIDGET_ID);
+        if (!(widget instanceof HTMLElement)) {
+            widget = document.createElement('div');
+            widget.id = TR4KER_TOPBAR_STATS_WIDGET_ID;
+            widget.setAttribute('role', 'group');
+            widget.setAttribute('aria-busy', 'true');
+            widget.setAttribute('title', 'Chargement des statistiques Tr4ker…');
+            widget.innerHTML = '<div data-tm-topbar-stats-metric="ratio"><strong>··</strong><span>24 h · G —</span></div><div data-tm-topbar-stats-metric="1"><strong>—</strong><span>Upload · 24 h</span></div><div data-tm-topbar-stats-metric="1"><strong>—</strong><span>Download · 24 h</span></div><div data-tm-topbar-stats-metric="seed"><strong>—</strong><span>Seed</span></div><svg viewBox="0 0 132 32" aria-hidden="true"><path d="M1 25h130" stroke="rgba(74,222,128,0.35)" stroke-width="1" stroke-dasharray="3 3"></path></svg>';
+        }
+
+        if (widget.parentElement !== notificationButton.parentElement || notificationButton.previousElementSibling !== widget) {
+            notificationButton.insertAdjacentElement('beforebegin', widget);
+        }
+
+        const cacheIsFresh = (
+            tr4kerTopbarStatsData
+            && tr4kerTopbarStatsFetchedAt > 0
+            && Date.now() - tr4kerTopbarStatsFetchedAt < TR4KER_TOPBAR_STATS_CACHE_MS
+        );
+        if (cacheIsFresh) {
+            if (widget.dataset.tmTopbarStatsRenderedAt !== String(tr4kerTopbarStatsFetchedAt)) {
+                renderTr4kerTopbarStatsWidget(tr4kerTopbarStatsData);
+            }
+            return;
+        }
+
+        fetchTr4kerTopbarStats()
+            .then((payload) => {
+                if (payload) {
+                    renderTr4kerTopbarStatsWidget(payload);
+                    return;
+                }
+                widget?.setAttribute('aria-busy', 'false');
+                widget?.setAttribute('title', 'Statistiques Tr4ker indisponibles pour le moment.');
+            })
+            .catch(() => {
+                tr4kerTopbarStatsFetchedAt = Date.now();
+                widget?.setAttribute('aria-busy', 'false');
+                widget?.setAttribute('title', 'Impossible de charger les statistiques Tr4ker.');
+            });
     }
 
     function ensureChatScrollbarStyle() {
@@ -5689,7 +6494,7 @@
 
         html += `
             <div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08);font-size:11px;color:#9ca3af;line-height:1.45;">
-                <p>Ctrl+Alt+C ou Ctrl+Cmd+C : paramètres · ${formatAfkShortcutLabel()} : mode AFK · Alt+clic pseudo : blacklist</p>
+                <p>${formatGlobalShortcutLabel('C')} : paramètres · ${formatAfkShortcutLabel()} : mode AFK · ${formatBlacklistShortcutLabel()} : blacklist</p>
                 <p>${debugMode ? 'Mode debug activé' : ''}</p>
             </div>
         `;
@@ -5771,8 +6576,36 @@
         }, 2200);
     }
 
+    function getPlatformShortcutModifierLabel() {
+        return IS_MAC_PLATFORM ? '⌘' : 'Alt';
+    }
+
+    function formatGlobalShortcutLabel(key) {
+        return `Ctrl+${getPlatformShortcutModifierLabel()}+${String(key || '').toUpperCase()}`;
+    }
+
+    function formatBlacklistShortcutLabel() {
+        return `${getPlatformShortcutModifierLabel()}+clic pseudo`;
+    }
+
+    function formatPasteShortcutLabel() {
+        return IS_MAC_PLATFORM ? '⌘+V' : 'Ctrl+V';
+    }
+
+    function hasPlatformShortcutModifier(event) {
+        return IS_MAC_PLATFORM
+            ? event.metaKey && !event.altKey
+            : event.altKey && !event.metaKey;
+    }
+
+    function matchesGlobalShortcut(event, key) {
+        return event.ctrlKey
+            && hasPlatformShortcutModifier(event)
+            && String(event.key || '').toLowerCase() === String(key || '').toLowerCase();
+    }
+
     function formatAfkShortcutLabel() {
-        return 'Ctrl+Alt+A ou Ctrl+Cmd+A';
+        return formatGlobalShortcutLabel('A');
     }
 
     function getAfkWatchedUsername() {
@@ -8111,6 +8944,9 @@
             fontSizeIncreaseBtn: modal.querySelector('#tm-font-size-increase'),
             fontSizeSaveBtn: modal.querySelector('#tm-font-size-save'),
             fontSizeResetBtn: modal.querySelector('#tm-font-size-reset'),
+            customBackgroundEnabledToggle: modal.querySelector('#tm-custom-background-enabled-toggle'),
+            customBackgroundColorInput: modal.querySelector('#tm-custom-background-color-input'),
+            customBackgroundResetBtn: modal.querySelector('#tm-custom-background-reset'),
             linkifyUrlsToggle: modal.querySelector('#tm-linkify-urls-toggle'),
             chatScrollbarToggle: modal.querySelector('#tm-chat-scrollbar-toggle'),
             messageActionsLeftToggle: modal.querySelector('#tm-message-actions-left-toggle'),
@@ -8119,6 +8955,7 @@
             embedUrlImagesToggle: modal.querySelector('#tm-embed-url-images-toggle'),
             resetStatsLayoutBtn: modal.querySelector('#tm-reset-stats-layout'),
             hideStatsToggle: modal.querySelector('#tm-hide-stats-toggle'),
+            topbarStatsToggle: modal.querySelector('#tm-topbar-stats-toggle'),
             debugToggle: modal.querySelector('#tm-debug-toggle'),
             homeCollapseToggle: modal.querySelector('#tm-home-collapse-toggle-setting'),
             feedback: modal.querySelector('#tm-feedback')
@@ -9145,6 +9982,44 @@
             controls.setPreviewFontScale(chatFontScale);
             controls.setFeedback('Taille de police réinitialisée.');
         });
+
+        elements.customBackgroundEnabledToggle?.addEventListener('change', () => {
+            saveCustomBackgroundEnabled(elements.customBackgroundEnabledToggle.checked);
+            applyCustomBackgroundColor();
+            controls.setFeedback(
+                customBackgroundEnabled
+                    ? 'Couleur de fond personnalisée activée.'
+                    : 'Couleur de fond Tr4ker rétablie.'
+            );
+        });
+        elements.customBackgroundColorInput?.addEventListener('input', () => {
+            if (customBackgroundEnabled) {
+                applyCustomBackgroundColor(elements.customBackgroundColorInput.value, true);
+            }
+        });
+        elements.customBackgroundColorInput?.addEventListener('change', () => {
+            saveCustomBackgroundColor(elements.customBackgroundColorInput.value);
+            if (!customBackgroundEnabled) {
+                saveCustomBackgroundEnabled(true);
+                if (elements.customBackgroundEnabledToggle) {
+                    elements.customBackgroundEnabledToggle.checked = true;
+                }
+            }
+            applyCustomBackgroundColor();
+            controls.setFeedback('Couleur de fond enregistrée.');
+        });
+        elements.customBackgroundResetBtn?.addEventListener('click', () => {
+            saveCustomBackgroundColor('#131313');
+            saveCustomBackgroundEnabled(false);
+            if (elements.customBackgroundColorInput) {
+                elements.customBackgroundColorInput.value = customBackgroundColor;
+            }
+            if (elements.customBackgroundEnabledToggle) {
+                elements.customBackgroundEnabledToggle.checked = false;
+            }
+            applyCustomBackgroundColor();
+            controls.setFeedback('Couleur de fond Tr4ker rétablie.');
+        });
     }
 
     function bindSettingsModalGradePseudonymColorEvents(elements, controls) {
@@ -9523,6 +10398,16 @@
             );
         });
 
+        elements.topbarStatsToggle?.addEventListener('change', () => {
+            saveTr4kerTopbarStatsEnabled(elements.topbarStatsToggle.checked);
+            syncTr4kerTopbarStatsButton();
+            controls.setFeedback(
+                tr4kerTopbarStatsEnabled
+                    ? 'Bandeau de statistiques Matrix activé dans la top bar.'
+                    : 'Bandeau de statistiques Matrix retiré de la top bar.'
+            );
+        });
+
         elements.resetStatsLayoutBtn?.addEventListener('click', () => {
             resetPosition();
             resetStatsBoxSize();
@@ -9705,7 +10590,7 @@
 
                 <div style="display:grid;gap:10px;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));">
                     <div style="padding:10px 12px;border-radius:12px;background:rgba(37,99,235,0.12);border:1px solid rgba(37,99,235,0.24);">
-                        <div style="font-size:12px;font-weight:700;color:#dbeafe;">Ctrl+Alt+C ou Ctrl+Cmd+C</div>
+                        <div style="font-size:12px;font-weight:700;color:#dbeafe;">${formatGlobalShortcutLabel('C')}</div>
                         <div style="margin-top:4px;font-size:11px;color:#93c5fd;line-height:1.45;">
                             Ouvre directement cette page de paramètres.
                         </div>
@@ -9719,14 +10604,14 @@
                     </div>
 
                     <div style="padding:10px 12px;border-radius:12px;background:rgba(124,58,237,0.14);border:1px solid rgba(139,92,246,0.26);">
-                        <div style="font-size:12px;font-weight:700;color:#ddd6fe;">Ctrl+Alt+R ou Ctrl+Cmd+R</div>
+                        <div style="font-size:12px;font-weight:700;color:#ddd6fe;">${formatGlobalShortcutLabel('R')}</div>
                         <div style="margin-top:4px;font-size:11px;color:#c4b5fd;line-height:1.45;">
                             Ouvre directement les réponses rapides. Utilise ensuite les flèches, Home, End et Entrée pour naviguer sans souris.
                         </div>
                     </div>
 
                     <div style="padding:10px 12px;border-radius:12px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.24);">
-                        <div style="font-size:12px;font-weight:700;color:#fde68a;">Alt+clic sur un pseudo</div>
+                        <div style="font-size:12px;font-weight:700;color:#fde68a;">${formatBlacklistShortcutLabel()}</div>
                         <div style="margin-top:4px;font-size:11px;color:#fcd34d;line-height:1.45;">
                             Ajoute ou retire rapidement un utilisateur de la blacklist.
                         </div>
@@ -9813,6 +10698,15 @@
                     <span>Masquer complètement la stats box</span>
                 </label>
 
+                <label style="${settingsCheckboxLabelWithMarginStyle}">
+                    <input id="tm-topbar-stats-toggle" type="checkbox" ${tr4kerTopbarStatsEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#4ade80')}">
+                    <span>Afficher le bandeau de statistiques Matrix dans la top bar</span>
+                </label>
+
+                <div style="margin-top:8px;font-size:11px;color:#71717a;line-height:1.45;">
+                    Affiche après les notifications ratio, upload et download en rotation sur 24 h, 7 j et 30 j, avec le ratio global en permanence.
+                </div>
+
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
                     <button id="tm-reset-stats-layout" style="
                         border:none;
@@ -9830,7 +10724,7 @@
 
     function renderSettingsAccessibilityCard(currentPageLabel, isChatView, styles) {
         return `
-            <details open style="${styles.settingsCardStyle}">
+            <details style="${styles.settingsCardStyle}">
                 <summary style="font-size:13px;font-weight:700;margin-bottom:10px;cursor:pointer;user-select:none;">Accessibilité</summary>
 
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
@@ -9898,6 +10792,22 @@
 
                 <div style="margin-top:8px;font-size:11px;color:#71717a;line-height:1.45;">
                     Agrandit ou réduit les pseudos et les messages dans la shoutbox.
+                </div>
+
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.07);">
+                    <label style="${styles.settingsCheckboxLabelStyle}">
+                        <input id="tm-custom-background-enabled-toggle" type="checkbox" ${customBackgroundEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle(styles.accessibilityCheckboxAccentColor)}">
+                        <span>Couleur de fond personnalisée</span>
+                    </label>
+
+                    <div style="display:flex;align-items:center;gap:7px;">
+                        <input id="tm-custom-background-color-input" type="color" value="${customBackgroundColor}" aria-label="Couleur de fond personnalisée" style="width:36px;height:30px;padding:2px;background:#18181b;border:1px solid rgba(255,255,255,0.14);border-radius:7px;cursor:pointer;">
+                        <button id="tm-custom-background-reset" type="button" style="border:none;background:#3f3f46;color:#fff;border-radius:8px;padding:7px 9px;cursor:pointer;font-size:11px;font-weight:600;">Réinitialiser</button>
+                    </div>
+                </div>
+
+                <div style="margin-top:8px;font-size:11px;color:#71717a;line-height:1.45;">
+                    Change le fond principal de Tr4ker sans modifier les panneaux, messages ou couleurs de grade.
                 </div>
 
                 <label style="${styles.settingsCheckboxLabelWithMarginStyle}">
@@ -10223,7 +11133,7 @@
 
     function renderSettingsEmojiQuickAccessCard(settingsCardStyle) {
         return `
-            <details open style="${settingsCardStyle}">
+            <details style="${settingsCardStyle}">
                 <summary style="font-size:13px;font-weight:700;margin-bottom:10px;cursor:pointer;user-select:none;">Emojis rapides</summary>
 
                 <div style="font-size:12px;color:#a1a1aa;line-height:1.5;">
@@ -10281,7 +11191,7 @@
 
                 <div style="display:grid;gap:8px;margin-top:12px;">
                     <div style="font-size:11px;color:#a1a1aa;line-height:1.45;">
-                        En mode manuel, Maj+clic dans le picker natif ajoute ou retire un favori. Alt+clic marche aussi si ton système ne l’intercepte pas.
+                        En mode manuel, Maj+clic dans le picker natif ajoute ou retire un favori. ${getPlatformShortcutModifierLabel()}+clic marche aussi si ton système ne l’intercepte pas.
                         Maintiens puis glisse un favori ci-dessous pour changer son ordre.
                     </div>
 
@@ -10459,7 +11369,7 @@
                 "></div>
 
                 <div style="margin-top:8px;font-size:11px;color:#71717a;line-height:1.4;">
-                    Clique sur un pseudo pour le charger dans le champ. Alt+clic directement sur un pseudo du chat permet de le blacklister.
+                    Clique sur un pseudo pour le charger dans le champ. ${formatBlacklistShortcutLabel()} permet de le blacklister directement dans le chat.
                 </div>
             </div>
         `;
@@ -10590,7 +11500,7 @@
         }).join('');
 
         return `
-            <details open style="${settingsCardStyle}">
+            <details style="${settingsCardStyle}">
                 <summary style="font-size:13px;font-weight:700;margin-bottom:8px;cursor:pointer;user-select:none;">Pimp My Grade</summary>
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;">
                     <button id="tm-grade-pseudonym-colors-reset" type="button" style="border:none;background:#27272a;color:#e4e4e7;border-radius:8px;padding:6px 8px;cursor:pointer;font-size:11px;font-weight:700;">Réinitialiser</button>
@@ -14607,6 +15517,7 @@
         const button = document.createElement('button');
         button.type = 'button';
         button.setAttribute(MESSAGE_REACTION_QUICK_ACCESS_BUTTON_ATTR, '1');
+        button.dataset.tmReactionQuickAccessKey = String(record?.key || '');
         button.title = record?.isManual && clickCount <= 0
             ? `${record.title || record.alt || record.label || 'Réaction'} · favori manuel`
             : `${record.title || record.alt || record.label || 'Réaction'} · ${clickCount} clic${clickCount > 1 ? 's' : ''}`;
@@ -14764,13 +15675,40 @@
                     key,
                     String(record?.emojiValue || '').trim(),
                     String(record?.label || record?.title || record?.alt || '').trim(),
-                    String(record?.src || '').trim(),
-                    Math.max(0, Number(record?.count) || 0),
-                    Math.max(0, Number(record?.lastUsedAt) || 0)
+                    String(record?.src || '').trim()
                 ].join(':');
             })
             .filter(Boolean)
             .join('|');
+    }
+
+    function refreshReactionQuickAccessButtonUsageMetadata(record) {
+        const normalizedRecord = normalizeReactionUsageRecord(record);
+        if (!normalizedRecord) return;
+
+        const key = CSS.escape(normalizedRecord.key);
+        const clickCount = Math.max(0, Number(normalizedRecord.count) || 0);
+        const title = normalizedRecord.isManual && clickCount <= 0
+            ? `${normalizedRecord.title || normalizedRecord.alt || normalizedRecord.label || 'Réaction'} · favori manuel`
+            : `${normalizedRecord.title || normalizedRecord.alt || normalizedRecord.label || 'Réaction'} · ${clickCount} clic${clickCount > 1 ? 's' : ''}`;
+
+        document.querySelectorAll(`[${MESSAGE_REACTION_QUICK_ACCESS_BUTTON_ATTR}="1"][data-tm-reaction-quick-access-key="${key}"]`).forEach((button) => {
+            if (button instanceof HTMLButtonElement) button.title = title;
+        });
+    }
+
+    function scheduleReactionQuickAccessButtonsRefresh(root = null) {
+        if (root instanceof HTMLElement) {
+            reactionQuickAccessRefreshRoot = root;
+        }
+        if (reactionQuickAccessRefreshFrame !== null) return;
+
+        reactionQuickAccessRefreshFrame = window.requestAnimationFrame(() => {
+            const refreshRoot = reactionQuickAccessRefreshRoot;
+            reactionQuickAccessRefreshFrame = null;
+            reactionQuickAccessRefreshRoot = null;
+            refreshReactionQuickAccessButtons(refreshRoot);
+        });
     }
 
     function ensureMessageReactionQuickAccessWrapper(actionButtonsContainer) {
@@ -14794,7 +15732,7 @@
         return wrapper;
     }
 
-    function syncMessageReactionQuickAccessButtons(messageEl) {
+    function syncMessageReactionQuickAccessButtons(messageEl, quickAccessRecords = null, quickAccessSignature = null) {
         if (!(messageEl instanceof HTMLElement) || !isChatPage()) return;
 
         const actionButtonsContainer = getMessageActionButtonsContainer(messageEl);
@@ -14803,10 +15741,13 @@
             return;
         }
 
-        const quickAccessRecords = getQuickAccessReactionRecords();
-        if (reactionQuickAccessLimit <= 0 || quickAccessRecords.length === 0) {
+        const records = Array.isArray(quickAccessRecords)
+            ? quickAccessRecords
+            : getQuickAccessReactionRecords();
+        if (reactionQuickAccessLimit <= 0 || records.length === 0) {
+            const hasQuickAccessButtons = !!messageEl.querySelector(`[${MESSAGE_REACTION_QUICK_ACCESS_GROUP_ATTR}="1"]`);
             removeMessageReactionQuickAccessButtons(messageEl);
-            syncMessageActionsAnchorVars(messageEl);
+            if (hasQuickAccessButtons) syncMessageActionsAnchorVars(messageEl);
             return;
         }
 
@@ -14817,14 +15758,16 @@
         const nextSiblingAfterReaction = reactionButton instanceof HTMLButtonElement
             ? reactionButton.nextSibling
             : actionButtonsContainer.firstChild;
-        const signature = buildReactionQuickAccessSignature(quickAccessRecords);
+        const signature = quickAccessSignature || buildReactionQuickAccessSignature(records);
+        let actionsLayoutChanged = false;
 
         if (wrapper.dataset.tmReactionQuickAccessSignature !== signature) {
             wrapper.replaceChildren();
-            quickAccessRecords.forEach((record) => {
+            records.forEach((record) => {
                 wrapper.appendChild(createMessageReactionQuickAccessButton(record, messageEl));
             });
             wrapper.dataset.tmReactionQuickAccessSignature = signature;
+            actionsLayoutChanged = true;
         }
 
         if (
@@ -14833,15 +15776,17 @@
         ) {
             if (wrapper.parentElement !== actionButtonsContainer || wrapper.previousSibling !== reactionButton) {
                 actionButtonsContainer.insertBefore(wrapper, nextSiblingAfterReaction);
+                actionsLayoutChanged = true;
             }
-            syncMessageActionsAnchorVars(messageEl);
+            if (actionsLayoutChanged) syncMessageActionsAnchorVars(messageEl);
             return;
         }
 
         if (wrapper.parentElement !== actionButtonsContainer || wrapper !== actionButtonsContainer.firstChild) {
             actionButtonsContainer.insertBefore(wrapper, actionButtonsContainer.firstChild);
+            actionsLayoutChanged = true;
         }
-        syncMessageActionsAnchorVars(messageEl);
+        if (actionsLayoutChanged) syncMessageActionsAnchorVars(messageEl);
     }
 
     function refreshReactionQuickAccessButtons(root = null) {
@@ -14853,14 +15798,23 @@
         const searchRoot = root instanceof HTMLElement ? root : getActiveChatRoot();
         if (!(searchRoot instanceof HTMLElement)) return;
 
-        if (reactionQuickAccessLimit <= 0 || getQuickAccessReactionRecords(1).length === 0) {
+        const quickAccessRecords = getQuickAccessReactionRecords();
+        if (reactionQuickAccessLimit <= 0 || quickAccessRecords.length === 0) {
             removeMessageReactionQuickAccessButtons(searchRoot);
             return;
         }
 
-        searchRoot.querySelectorAll('div').forEach((element) => {
-            if (isChatMessage(element)) {
-                syncMessageReactionQuickAccessButtons(element);
+        const quickAccessSignature = buildReactionQuickAccessSignature(quickAccessRecords);
+        const messages = isTr4kerPage()
+            ? [
+                ...(searchRoot.matches?.(TR4KER_MESSAGE_SELECTOR) ? [searchRoot] : []),
+                ...searchRoot.querySelectorAll(TR4KER_MESSAGE_SELECTOR)
+            ]
+            : Array.from(searchRoot.querySelectorAll('div')).filter(isChatMessage);
+
+        messages.forEach((messageEl) => {
+            if (isChatMessage(messageEl)) {
+                syncMessageReactionQuickAccessButtons(messageEl, quickAccessRecords, quickAccessSignature);
             }
         });
     }
@@ -16799,7 +17753,7 @@
 
             <div data-tm-upimg-dropzone="1" tabindex="0" style="padding:12px;border-radius:14px;border:1px dashed rgba(56,189,248,0.46);background:rgba(14,165,233,0.08);color:#e0f2fe;outline:none;">
                 <div style="font-size:12px;font-weight:700;">Coller ou glisser une image</div>
-                <div style="font-size:10px;color:#93c5fd;line-height:1.45;margin-top:4px;">Ctrl+V depuis l’input du chat ouvre aussi ce panneau.</div>
+                <div style="font-size:10px;color:#93c5fd;line-height:1.45;margin-top:4px;">${formatPasteShortcutLabel()} depuis l’input du chat ouvre aussi ce panneau.</div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:9px;">
                     <button data-tm-upimg-pick="1" type="button" style="border:none;background:#0284c7;color:#fff;border-radius:10px;padding:8px 10px;cursor:pointer;font-size:11px;font-weight:700;">Choisir image</button>
                     <label style="display:flex;align-items:center;gap:7px;font-size:11px;color:#cbd5e1;cursor:pointer;">
@@ -18566,7 +19520,7 @@
 
     function installQuickToggleHandler() {
         document.addEventListener('click', (event) => {
-            if (!event.altKey || event.button !== 0 || modalOpen || !isSupportedPage()) return;
+            if (!hasPlatformShortcutModifier(event) || event.button !== 0 || modalOpen || !isSupportedPage()) return;
 
             const target = event.target;
             if (!(target instanceof Element)) return;
@@ -18971,6 +19925,10 @@
     function refreshForRoute() {
         const currentChatContextKey = getCurrentChatContextKey();
 
+        tr4kerTopbarStatsEnabled = loadTr4kerTopbarStatsEnabled();
+        syncTr4kerTopbarStatsButton();
+        applyCustomBackgroundColor();
+
         if (!isChatPage()) {
             clearSavedPhrasesReplyContext();
         } else if (savedPhrasesReplyContext && savedPhrasesReplyContext.contextKey !== currentChatContextKey) {
@@ -19055,6 +20013,8 @@
         routeWatcher = setInterval(() => {
             const currentPageType = getCurrentPageType();
 
+            syncTr4kerTopbarStatsButton();
+
             if (isChatPage()) {
                 applyChatPageScrollbarState();
             }
@@ -19079,7 +20039,6 @@
                     clearAfkReplayProtection();
                 }
                 processAllMessages();
-                refreshReactionQuickAccessButtons();
                 renderAfkPanel();
             } else if (isTr4kerPage() && isChatPage() && !getChatPageMessagesRoot()) {
                 refreshForRoute();
@@ -19161,7 +20120,6 @@
                     }
                 }
 
-                refreshReactionQuickAccessButtons();
                 renderAfkPanel();
             }
         }, 500);
@@ -19234,15 +20192,11 @@
     }
 
     document.addEventListener('keydown', function (e) {
-        const key = String(e.key || '').toLowerCase();
-        const isClassicShortcut = e.ctrlKey && e.altKey && !e.metaKey && key === 'c';
-        const isMacShortcut = e.ctrlKey && e.metaKey && !e.altKey && key === 'c';
-        const isClassicAfkShortcut = e.ctrlKey && e.altKey && !e.metaKey && key === 'a';
-        const isMacAfkShortcut = e.ctrlKey && e.metaKey && !e.altKey && key === 'a';
-        const isClassicSavedPhrasesShortcut = e.ctrlKey && e.altKey && !e.metaKey && key === 'r';
-        const isMacSavedPhrasesShortcut = e.ctrlKey && e.metaKey && !e.altKey && key === 'r';
+        const isSettingsShortcut = matchesGlobalShortcut(e, 'c');
+        const isAfkShortcut = matchesGlobalShortcut(e, 'a');
+        const isSavedPhrasesShortcut = matchesGlobalShortcut(e, 'r');
 
-        if (isClassicShortcut || isMacShortcut) {
+        if (isSettingsShortcut) {
             if (!isSupportedPage()) return;
             if (imageViewerOpen) return;
             e.preventDefault();
@@ -19250,7 +20204,7 @@
             return;
         }
 
-        if (isClassicSavedPhrasesShortcut || isMacSavedPhrasesShortcut) {
+        if (isSavedPhrasesShortcut) {
             if (!isSupportedPage()) return;
             if (imageViewerOpen || modalOpen) return;
             e.preventDefault();
@@ -19261,7 +20215,7 @@
             return;
         }
 
-        if (isClassicAfkShortcut || isMacAfkShortcut) {
+        if (isAfkShortcut) {
             if (!isSupportedPage()) return;
             if (imageViewerOpen) return;
             e.preventDefault();
@@ -19294,7 +20248,7 @@
         installRouteWatcher();
         document.addEventListener('click', handleStatsBoxActionClick, true);
         refreshForRoute();
-        console.log(`[PimpMyShoutbox] Script actif. Raccourcis : Ctrl+Alt+C / Ctrl+Cmd+C · Ctrl+Alt+R / Ctrl+Cmd+R · ${formatAfkShortcutLabel()}`);
+        console.log(`[PimpMyShoutbox] Script actif. Raccourcis : ${formatGlobalShortcutLabel('C')} · ${formatGlobalShortcutLabel('R')} · ${formatAfkShortcutLabel()}`);
     }
 
     if (document.readyState === 'loading') {

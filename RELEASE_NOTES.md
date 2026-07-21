@@ -26,6 +26,16 @@ Ce fichier suit l'état fonctionnel du userscript à partir de la version actuel
 - Sur mobile, le rail d’outils reste désormais sous le panneau latéral des conversations et messages privés.
 - Le formulaire natif d’insertion d’image conserve sa position habituelle tout en s’affichant visuellement au-dessus du rail.
 - La bulle de statistiques peut maintenant être déplacée au tactile, y compris via l’émulation mobile des outils de développement.
+- Ajout d’une référence des API Tr4ker observées pour faciliter les prochaines idées de fonctionnalités.
+- Ajout dans la top bar Tr4ker d’un mini-graphe Matrix permanent : ratio sur 30 jours, seed time cumulé au survol et activité issue des snapshots journaliers disponibles.
+- Le mini-graphe Matrix de la top bar est désormais activable ou désactivable depuis les paramètres.
+- Les accordéons de la page de configuration sont désormais fermés par défaut.
+- Optimisation des réactions rapides : le chat n’est plus reconstruit à chaque clic et le contrôle périodique coûteux a été retiré, ce qui élimine les ralentissements observés après l’envoi d’un favori.
+- Le graphe Matrix de la top bar est nettement agrandi et placé à gauche du bouton de notifications.
+- Les raccourcis et leurs aides s’adaptent désormais au système : `Alt` sous Windows/Linux, `⌘` sous macOS, y compris pour le clic rapide de blacklist.
+- Le bandeau Matrix affiche maintenant directement ratio, upload et download sur 30 jours, seed cumulé et nombre de torrents en seed ; le graphe devient une tendance secondaire.
+- Ajout dans Accessibilité d’une couleur de fond principale personnalisable, activable et réinitialisable sans altérer les panneaux ni le chat.
+- Le bandeau de statistiques Matrix fait désormais défiler les valeurs 24 h, 7 j et 30 j ; le ratio global reste visible en permanence.
 
 ### TODO reprise refactor
 
