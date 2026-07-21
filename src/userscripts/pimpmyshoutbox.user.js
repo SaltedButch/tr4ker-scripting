@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    http://tampermonkey.net/
-// @version      3.0.41
+// @version      3.0.45
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -3621,20 +3621,17 @@
             [data-tm-message-actions-left="1"] [data-msg-id] [data-msg-actions] {
                 position: absolute !important;
                 left: min(var(--tm-message-actions-inline-left, 2.4rem), calc(100% - 5rem)) !important;
+                right: auto !important;
                 top: var(--tm-message-actions-inline-top, 0px) !important;
                 transform: translateY(-${MESSAGE_ACTIONS_LEFT_VERTICAL_OFFSET_PX}px) !important;
+                width: max-content !important;
+                background: transparent !important;
+                border-color: transparent !important;
+                box-shadow: none !important;
             }
 
-            /* Les envois consécutifs de Tr4ker masquent la ligne auteur/date.
-               Sans ancre, une barre d'actions absolue se superpose au texte. */
-            [data-tm-message-actions-left="1"] [data-msg-id][data-tm-message-actions-stacked="1"] [data-msg-actions] {
-                position: relative !important;
-                left: auto !important;
-                top: auto !important;
+            [data-tm-message-actions-left="1"] [data-msg-id][data-tm-message-actions-text-anchored="1"] [data-msg-actions] {
                 transform: none !important;
-                width: max-content !important;
-                margin-top: 5px !important;
-                margin-left: 0 !important;
             }
         `;
 
@@ -5404,6 +5401,25 @@
             : directChildren[directChildren.length - 1];
     }
 
+    function getTr4kerMessageTextAnchorRect(messageEl) {
+        if (!isTr4kerPage() || !(messageEl instanceof HTMLElement)) return null;
+
+        const textBlock = messageEl.querySelector('[class*="msgBubble"]');
+        if (!(textBlock instanceof HTMLElement)) return null;
+
+        try {
+            const range = document.createRange();
+            range.selectNodeContents(textBlock);
+            const textRects = [...range.getClientRects()].filter((rect) => rect.width > 0 && rect.height > 0);
+            if (textRects.length > 0) return textRects[textRects.length - 1];
+        } catch (error) {
+            // Le rectangle complet reste un repli fiable si le Range n'est pas disponible.
+        }
+
+        const fallbackRect = textBlock.getBoundingClientRect();
+        return fallbackRect.width > 0 && fallbackRect.height > 0 ? fallbackRect : null;
+    }
+
     function syncMessageActionsAnchorVars(messageEl) {
         if (!(messageEl instanceof HTMLElement)) return;
 
@@ -5411,6 +5427,7 @@
             messageEl.style.removeProperty('--tm-message-actions-inline-left');
             messageEl.style.removeProperty('--tm-message-actions-inline-top');
             messageEl.removeAttribute('data-tm-message-actions-stacked');
+            messageEl.removeAttribute('data-tm-message-actions-text-anchored');
             return;
         }
 
@@ -5423,17 +5440,44 @@
             anchorEl.getClientRects().length > 0;
 
         if (!hasVisibleMetaAnchor) {
+            const actionButtonsContainer = isTr4kerPage() && messageActionsLeftEnabled
+                ? getMessageActionButtonsContainer(messageEl)
+                : null;
+            const textAnchorRect = getTr4kerMessageTextAnchorRect(messageEl);
+
+            if (
+                actionButtonsContainer instanceof HTMLElement &&
+                textAnchorRect &&
+                Number.isFinite(textAnchorRect.left) &&
+                Number.isFinite(textAnchorRect.right)
+            ) {
+                const messageRect = messageEl.getBoundingClientRect();
+                const actionRect = actionButtonsContainer.getBoundingClientRect();
+                const maxLeft = Math.max(8, messageRect.width - actionRect.width - 8);
+                const textLeft = Math.max(8, Math.round(textAnchorRect.left - messageRect.left));
+                const preferredLeft = Math.round(textAnchorRect.right - messageRect.left + 8);
+                const inlineLeft = clamp(preferredLeft, textLeft, maxLeft);
+                const inlineTop = Math.max(
+                    0,
+                    Math.round(textAnchorRect.top - messageRect.top + (textAnchorRect.height - actionRect.height) / 2)
+                );
+
+                messageEl.style.setProperty('--tm-message-actions-inline-left', `${inlineLeft}px`);
+                messageEl.style.setProperty('--tm-message-actions-inline-top', `${inlineTop}px`);
+                messageEl.removeAttribute('data-tm-message-actions-stacked');
+                messageEl.setAttribute('data-tm-message-actions-text-anchored', '1');
+                return;
+            }
+
             messageEl.style.removeProperty('--tm-message-actions-inline-left');
             messageEl.style.removeProperty('--tm-message-actions-inline-top');
-            if (isTr4kerPage() && messageActionsLeftEnabled && getMessageActionButtonsContainer(messageEl)) {
-                messageEl.setAttribute('data-tm-message-actions-stacked', '1');
-            } else {
-                messageEl.removeAttribute('data-tm-message-actions-stacked');
-            }
+            messageEl.removeAttribute('data-tm-message-actions-stacked');
+            messageEl.removeAttribute('data-tm-message-actions-text-anchored');
             return;
         }
 
         messageEl.removeAttribute('data-tm-message-actions-stacked');
+        messageEl.removeAttribute('data-tm-message-actions-text-anchored');
 
         const messageRect = messageEl.getBoundingClientRect();
         const metaRowRect = metaRow.getBoundingClientRect();
@@ -14711,6 +14755,7 @@
         const quickAccessRecords = getQuickAccessReactionRecords();
         if (reactionQuickAccessLimit <= 0 || quickAccessRecords.length === 0) {
             removeMessageReactionQuickAccessButtons(messageEl);
+            syncMessageActionsAnchorVars(messageEl);
             return;
         }
 
@@ -14738,12 +14783,14 @@
             if (wrapper.parentElement !== actionButtonsContainer || wrapper.previousSibling !== reactionButton) {
                 actionButtonsContainer.insertBefore(wrapper, nextSiblingAfterReaction);
             }
+            syncMessageActionsAnchorVars(messageEl);
             return;
         }
 
         if (wrapper.parentElement !== actionButtonsContainer || wrapper !== actionButtonsContainer.firstChild) {
             actionButtonsContainer.insertBefore(wrapper, actionButtonsContainer.firstChild);
         }
+        syncMessageActionsAnchorVars(messageEl);
     }
 
     function refreshReactionQuickAccessButtons(root = null) {
