@@ -40,6 +40,7 @@ Ce fichier suit l'état fonctionnel du userscript à partir de la version actuel
 - L’aide de la marge explicite désormais son calcul exact : `(upload ÷ 0,50) − download`, soit 2 Go téléchargeables par Go d’upload au seuil minimal.
 - Le libellé compact de cette marge dans le bandeau est simplifié en `Buffer`.
 - Ajout optionnel d’un menu burger permanent dans la top bar, reprenant les liens de navigation de la page d’accueil Tr4ker.
+- Les sons de notification personnalisés sont désormais limités aux fichiers audio Pixabay, avec un lien direct vers la recherche d’effets de notification ; le joker réseau `@connect *` est retiré.
 
 ### TODO reprise refactor
 

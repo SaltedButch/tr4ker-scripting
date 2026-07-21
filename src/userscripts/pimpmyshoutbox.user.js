@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    http://tampermonkey.net/
-// @version      3.0.64
+// @version      3.0.65
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -12,7 +12,8 @@
 // @connect      ibb.co
 // @connect      www.youtube.com
 // @connect      youtube.com
-// @connect      *
+// @connect      pixabay.com
+// @connect      cdn.pixabay.com
 // ==/UserScript==
 
 (function () {
@@ -20,6 +21,8 @@
 
     const STORAGE_KEY_USERS = 'tm_hidden_shout_users_t4';
     const TR4KER_HOSTNAME = 'tr4ker.net';
+    const PIXABAY_NOTIFICATION_SOUND_LIBRARY_URL = 'https://pixabay.com/fr/sound-effects/search/notification/';
+    const PIXABAY_NOTIFICATION_SOUND_CDN_HOSTNAME = 'cdn.pixabay.com';
     const IS_MAC_PLATFORM = /mac|iphone|ipad|ipod/i.test([
         navigator.userAgentData?.platform,
         navigator.platform,
@@ -5528,8 +5531,16 @@
     function normalizeMentionSoundCustomUrl(value) {
         const raw = String(value || '').trim();
         if (!raw) return DEFAULT_MENTION_SOUND_CUSTOM_URL;
-        if (/^https?:\/\//i.test(raw)) return raw;
-        if (/^data:audio\//i.test(raw)) return raw;
+
+        try {
+            const url = new URL(raw);
+            if (url.protocol === 'https:' && url.hostname.toLowerCase() === PIXABAY_NOTIFICATION_SOUND_CDN_HOSTNAME) {
+                return url.href;
+            }
+        } catch (_) {
+            // Une URL non valide est simplement ignorée par la normalisation.
+        }
+
         return DEFAULT_MENTION_SOUND_CUSTOM_URL;
     }
 
@@ -9089,10 +9100,18 @@
         const soundScope = normalizeMentionSoundScope(soundScopeRaw);
         const soundStyle = normalizeMentionSoundStyle(soundStyleRaw);
         const soundCustomUrl = normalizeMentionSoundCustomUrl(soundCustomUrlRaw);
+        const hasCustomSoundUrl = String(soundCustomUrlRaw || '').trim().length > 0;
         const soundCooldownSeconds = parseMentionSoundCooldownInput(
             soundCooldownSecondsRaw,
             DEFAULT_MENTION_SOUND_COOLDOWN_SECONDS
         );
+
+        if (soundStyle === 'custom' && (!hasCustomSoundUrl || !soundCustomUrl)) {
+            return {
+                ok: false,
+                message: 'Choisis un fichier audio direct sur Pixabay (cdn.pixabay.com).'
+            };
+        }
 
         saveMentionSettings({
             username,
@@ -12031,7 +12050,7 @@
 
                 <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#c4c4c8;flex:1 1 240px;min-width:0;">
                     <span>URL audio</span>
-                    <input id="tm-mention-sound-custom-url-input" type="text" placeholder="https://.../son.mp3" value="${escapeHtml(mentionSettings.soundCustomUrl || '')}"
+                    <input id="tm-mention-sound-custom-url-input" type="text" placeholder="https://cdn.pixabay.com/audio/.../son.mp3" value="${escapeHtml(mentionSettings.soundCustomUrl || '')}"
                         style="
                             flex:1 1 180px;
                             min-width:0;
@@ -12068,6 +12087,9 @@
                     cursor:pointer;
                     font-weight:600;
                 ">Tester le son</button>
+            </div>
+            <div style="margin-top:7px;font-size:11px;color:#71717a;line-height:1.45;">
+                Pour un son personnalisé, choisis un effet sur <a href="${PIXABAY_NOTIFICATION_SOUND_LIBRARY_URL}" target="_blank" rel="noopener noreferrer" style="color:#60a5fa;">Pixabay</a>, puis colle ici l’URL directe du fichier audio. Seuls les fichiers hébergés par Pixabay sont autorisés.
             </div>
         `;
     }
