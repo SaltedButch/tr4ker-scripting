@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    http://tampermonkey.net/
-// @version      3.0.34
+// @version      3.0.37
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -63,6 +63,8 @@
     const STORAGE_KEY_AFK_ACTIVITY = 'tm_t4_afk_activity';
     const STORAGE_KEY_AFK_PANEL_POSITION = 'tm_t4_afk_panel_position';
     const STORAGE_KEY_AFK_PANEL_HIDDEN = 'tm_t4_afk_panel_hidden';
+    const STORAGE_KEY_GRADE_PSEUDONYM_COLORS = 'tm_t4_grade_pseudonym_colors';
+    const STORAGE_KEY_GRADE_PSEUDONYM_EFFECTS = 'tm_t4_grade_pseudonym_effects';
     const SESSION_STORAGE_KEY_AFK_TAB_ID = 'tm_t4_afk_tab_id';
     const STORAGE_KEY_MIGRATION_DONE = 'tm_t4_storage_migration_v1';
     const STORAGE_KEYS_TO_MIGRATE = [
@@ -106,7 +108,9 @@
         STORAGE_KEY_AFK_STATE,
         STORAGE_KEY_AFK_ACTIVITY,
         STORAGE_KEY_AFK_PANEL_POSITION,
-        STORAGE_KEY_AFK_PANEL_HIDDEN
+        STORAGE_KEY_AFK_PANEL_HIDDEN,
+        STORAGE_KEY_GRADE_PSEUDONYM_COLORS,
+        STORAGE_KEY_GRADE_PSEUDONYM_EFFECTS
     ];
 
     /**
@@ -296,7 +300,9 @@
         STORAGE_KEY_CHAT_INPUT_TOOLBAR_ALIGN_RIGHT,
         STORAGE_KEY_IMAGE_HOSTING_ENABLED,
         STORAGE_KEY_IMAGE_HOSTING_EXPIRATION_SECONDS,
-        STORAGE_KEY_AFK_PANEL_POSITION
+        STORAGE_KEY_AFK_PANEL_POSITION,
+        STORAGE_KEY_GRADE_PSEUDONYM_COLORS,
+        STORAGE_KEY_GRADE_PSEUDONYM_EFFECTS
     ];
     const PANEL_ID = 'tm-torr9-chat-stats';
     const MODAL_ID = 'tm-torr9-chat-modal';
@@ -323,6 +329,36 @@
     const DEFAULT_HIGHLIGHT_COLOR = '#f59e0b';
     const DEFAULT_HIGHLIGHT_OPACITY = 14;
     const DEFAULT_MENTION_COLOR = '#22c55e';
+    // Point unique de maintenance des grades Tr4ker : ajoute ou retire une
+    // entrée ici lors d'une évolution du site. Cette liste n'est pas éditable
+    // par les utilisateurs ; seuls leurs choix de couleurs le sont.
+    const PSEUDONYM_GRADE_DEFINITIONS = Object.freeze([
+        { id: 'membre', label: 'Membre', badgeLabels: ['membre'], nativeColors: ['#f472b6'], defaultColor: '#f472b6' },
+        { id: 'uploader-en-herbe', label: 'Uploader en herbe', badgeLabels: ['uploader en herbe'], nativeColors: ['#7dd3fc'], defaultColor: '#7dd3fc' },
+        { id: 'uploader', label: 'Uploader', badgeLabels: ['uploader'], nativeColors: ['#2563eb'], defaultColor: '#2563eb' },
+        { id: 'team', label: 'Team', badgeLabels: ['team'], nativeColors: ['#f87171'], defaultColor: '#f87171' },
+        { id: 'contributeur', label: 'Contributeur', badgeLabels: ['contributeur'], nativeColors: ['#f4f4f5'], defaultColor: '#f4f4f5' },
+        { id: 'staff', label: 'Staff', badgeLabels: ['staff'], nativeColors: ['#16a34a'], defaultColor: '#16a34a' }
+    ]);
+    const PSEUDONYM_GRADE_EFFECT_DEFINITIONS = Object.freeze([
+        { id: 'none', label: 'Aucun effet' },
+        { id: 'pulse-slow', label: 'Pulse lent' },
+        { id: 'pulse-fast', label: 'Pulse rapide' },
+        { id: 'neon', label: 'Néon' },
+        { id: 'gradient', label: 'Dégradé glissant' },
+        { id: 'breathing-glow', label: 'Lueur respirante' },
+        { id: 'shine', label: 'Reflet qui passe' },
+        { id: 'rainbow', label: 'Arc-en-ciel sobre' },
+        { id: 'glitch', label: 'Glitch rare' },
+        { id: 'typewriter', label: 'Machine à écrire' },
+        { id: 'underline', label: 'Soulignement animé' },
+        { id: 'sparkle', label: 'Scintillement' },
+        { id: 'wave', label: 'Ondulation légère' },
+        { id: 'chrome', label: 'Reflet chromé' },
+        { id: 'arrival', label: 'Impulsion à l’arrivée' }
+    ]);
+    const GRADE_PSEUDONYM_EFFECT_STYLE_ID = 'tm-t4-grade-pseudonym-effect-style';
+    const GRADE_PSEUDONYM_EFFECT_STYLE_VERSION = '2';
     const DEFAULT_MENTION_OPACITY = 18;
     const DEFAULT_MENTION_BLINK_SECONDS = 6;
     const DEFAULT_MENTION_KEEP_HIGHLIGHT = true;
@@ -465,6 +501,8 @@
     let imgbbApiKey = loadImgBbApiKey();
     let imageHostingExpirationSeconds = loadImageHostingExpirationSeconds();
     let imageCatalog = loadImageCatalog();
+    let gradePseudonymColors = loadGradePseudonymColors();
+    let gradePseudonymEffects = loadGradePseudonymEffects();
     let mentionSoundContext = null;
     const mentionSoundBufferCache = new Map();
     let lastMentionSoundRecord = loadLastMentionSoundRecord();
@@ -2926,6 +2964,8 @@
         imgbbApiKey = loadImgBbApiKey();
         imageHostingExpirationSeconds = loadImageHostingExpirationSeconds();
         imageCatalog = loadImageCatalog();
+        gradePseudonymColors = loadGradePseudonymColors();
+        gradePseudonymEffects = loadGradePseudonymEffects();
         afkState = loadAfkState();
         afkPanelPosition = loadAfkPanelPosition();
         afkPanelHidden = loadAfkPanelHidden();
@@ -3388,6 +3428,93 @@
     function saveEmbedUrlImagesEnabled(value) {
         embedUrlImagesEnabled = !!value;
         writeStorageBoolean(STORAGE_KEY_EMBED_URL_IMAGES, embedUrlImagesEnabled);
+    }
+
+    function getPseudonymGradeDefinition(gradeId) {
+        const normalizedGradeId = String(gradeId || '').trim();
+        return PSEUDONYM_GRADE_DEFINITIONS.find((grade) => grade.id === normalizedGradeId) || null;
+    }
+
+    function getDefaultGradePseudonymColors() {
+        return Object.fromEntries(
+            PSEUDONYM_GRADE_DEFINITIONS.map((grade) => [grade.id, grade.defaultColor])
+        );
+    }
+
+    function normalizeGradePseudonymColors(value) {
+        const defaults = getDefaultGradePseudonymColors();
+        if (!value || typeof value !== 'object' || Array.isArray(value)) return defaults;
+
+        return Object.fromEntries(
+            PSEUDONYM_GRADE_DEFINITIONS.map((grade) => [
+                grade.id,
+                normalizeHexColor(value[grade.id], defaults[grade.id])
+            ])
+        );
+    }
+
+    function loadGradePseudonymColors() {
+        return normalizeGradePseudonymColors(readStorageJson(STORAGE_KEY_GRADE_PSEUDONYM_COLORS, null));
+    }
+
+    function saveGradePseudonymColors(nextColors) {
+        gradePseudonymColors = normalizeGradePseudonymColors(nextColors);
+        writeStorageJson(STORAGE_KEY_GRADE_PSEUDONYM_COLORS, gradePseudonymColors);
+    }
+
+    function saveGradePseudonymColor(gradeId, color) {
+        const grade = getPseudonymGradeDefinition(gradeId);
+        if (!grade) return false;
+
+        saveGradePseudonymColors({
+            ...gradePseudonymColors,
+            [grade.id]: normalizeHexColor(color, grade.defaultColor)
+        });
+        return true;
+    }
+
+    function getPseudonymGradeEffectDefinition(effectId) {
+        const normalizedEffectId = String(effectId || '').trim();
+        return PSEUDONYM_GRADE_EFFECT_DEFINITIONS.find((effect) => effect.id === normalizedEffectId) || null;
+    }
+
+    function getDefaultGradePseudonymEffects() {
+        return Object.fromEntries(
+            PSEUDONYM_GRADE_DEFINITIONS.map((grade) => [grade.id, 'none'])
+        );
+    }
+
+    function normalizeGradePseudonymEffects(value) {
+        const defaults = getDefaultGradePseudonymEffects();
+        if (!value || typeof value !== 'object' || Array.isArray(value)) return defaults;
+
+        return Object.fromEntries(
+            PSEUDONYM_GRADE_DEFINITIONS.map((grade) => {
+                const effectId = String(value[grade.id] || defaults[grade.id]).trim();
+                return [grade.id, getPseudonymGradeEffectDefinition(effectId)?.id || defaults[grade.id]];
+            })
+        );
+    }
+
+    function loadGradePseudonymEffects() {
+        return normalizeGradePseudonymEffects(readStorageJson(STORAGE_KEY_GRADE_PSEUDONYM_EFFECTS, null));
+    }
+
+    function saveGradePseudonymEffects(nextEffects) {
+        gradePseudonymEffects = normalizeGradePseudonymEffects(nextEffects);
+        writeStorageJson(STORAGE_KEY_GRADE_PSEUDONYM_EFFECTS, gradePseudonymEffects);
+    }
+
+    function saveGradePseudonymEffect(gradeId, effectId) {
+        const grade = getPseudonymGradeDefinition(gradeId);
+        const effect = getPseudonymGradeEffectDefinition(effectId);
+        if (!grade || !effect) return false;
+
+        saveGradePseudonymEffects({
+            ...gradePseudonymEffects,
+            [grade.id]: effect.id
+        });
+        return true;
     }
 
     function formatChatFontScalePercent(value = chatFontScale) {
@@ -3919,6 +4046,256 @@
     function hexToRgba(hex, alpha) {
         const { r, g, b } = hexToRgb(hex);
         return `rgba(${r}, ${g}, ${b}, ${clamp(alpha, 0, 1)})`;
+    }
+
+    function normalizeCssColorToHex(value) {
+        const directHex = normalizeHexColor(value, '');
+        if (directHex) return directHex;
+
+        const match = String(value || '').match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
+        if (!match) return '';
+
+        const channels = match.slice(1, 4).map((channel) => clamp(Number(channel), 0, 255));
+        return `#${channels.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
+    }
+
+    function getTr4kerMessageGradeBadgeLabels(messageEl) {
+        if (!(messageEl instanceof HTMLElement)) return [];
+
+        return [...messageEl.querySelectorAll('[class*="msgBadges"] img[alt], [class*="msgBadges"] img[title]')]
+            .flatMap((badge) => [badge.getAttribute('alt'), badge.getAttribute('title')])
+            .map((label) => normalizeMentionComparableText(label))
+            .filter(Boolean);
+    }
+
+    function getTr4kerPseudonymElementNativeColor(element) {
+        if (!(element instanceof HTMLElement)) return '';
+
+        const storedColor = normalizeHexColor(element.getAttribute('data-tm-grade-pseudonym-native-color'), '');
+        if (storedColor) return storedColor;
+
+        const nativeInlineColor = element.style.getPropertyValue('color');
+        element.setAttribute('data-tm-grade-pseudonym-native-inline-color', nativeInlineColor);
+        element.setAttribute('data-tm-grade-pseudonym-native-inline-priority', element.style.getPropertyPriority('color'));
+
+        const nativeColor = normalizeCssColorToHex(nativeInlineColor || window.getComputedStyle(element).color);
+        if (nativeColor) element.setAttribute('data-tm-grade-pseudonym-native-color', nativeColor);
+        return nativeColor;
+    }
+
+    function findTr4kerMessagePseudonymGrade(messageEl, sender) {
+        const badgeLabels = getTr4kerMessageGradeBadgeLabels(messageEl);
+        const badgeMatch = PSEUDONYM_GRADE_DEFINITIONS.find((grade) =>
+            grade.badgeLabels.some((label) => badgeLabels.includes(normalizeMentionComparableText(label)))
+        );
+        if (badgeMatch) return badgeMatch;
+
+        const nativeColor = getTr4kerPseudonymElementNativeColor(sender);
+        return PSEUDONYM_GRADE_DEFINITIONS.find((grade) =>
+            grade.nativeColors.includes(nativeColor)
+        ) || null;
+    }
+
+    function restoreTr4kerPseudonymElementNativeColor(element) {
+        if (!(element instanceof HTMLElement) || element.dataset.tmGradePseudonymColorApplied !== '1') return;
+
+        const nativeInlineColor = element.getAttribute('data-tm-grade-pseudonym-native-inline-color') || '';
+        const nativeInlinePriority = element.getAttribute('data-tm-grade-pseudonym-native-inline-priority') || '';
+        if (nativeInlineColor) {
+            element.style.setProperty('color', nativeInlineColor, nativeInlinePriority);
+        } else {
+            element.style.removeProperty('color');
+        }
+        element.style.removeProperty('--tm-grade-pseudonym-color');
+        delete element.dataset.tmGradePseudonymColorApplied;
+        delete element.dataset.tmGradePseudonymEffect;
+    }
+
+    function ensureGradePseudonymEffectsStyle() {
+        if (!document.head) return;
+
+        let style = document.getElementById(GRADE_PSEUDONYM_EFFECT_STYLE_ID);
+        if (!(style instanceof HTMLStyleElement)) {
+            style = document.createElement('style');
+            style.id = GRADE_PSEUDONYM_EFFECT_STYLE_ID;
+            document.head.appendChild(style);
+        }
+
+        if (style.dataset.tmGradePseudonymEffectVersion === GRADE_PSEUDONYM_EFFECT_STYLE_VERSION) return;
+
+        style.dataset.tmGradePseudonymEffectVersion = GRADE_PSEUDONYM_EFFECT_STYLE_VERSION;
+        style.textContent = `
+            @keyframes tm-grade-pseudonym-pulse {
+                0%, 100% { opacity: 1; transform: scale(1); }
+                50% { opacity: 0.64; transform: scale(1.018); }
+            }
+            @keyframes tm-grade-pseudonym-gradient {
+                0% { background-position: 0% 50%; }
+                100% { background-position: 200% 50%; }
+            }
+            @keyframes tm-grade-pseudonym-glow {
+                0%, 100% { text-shadow: 0 0 2px var(--tm-grade-pseudonym-color); filter: brightness(1); }
+                50% { text-shadow: 0 0 6px var(--tm-grade-pseudonym-color), 0 0 16px var(--tm-grade-pseudonym-color); filter: brightness(1.22); }
+            }
+            @keyframes tm-grade-pseudonym-rainbow {
+                0% { filter: hue-rotate(0deg) saturate(1.05); }
+                100% { filter: hue-rotate(360deg) saturate(1.18); }
+            }
+            @keyframes tm-grade-pseudonym-glitch {
+                0%, 92%, 100% { transform: translate(0); text-shadow: none; }
+                93% { transform: translate(-1px, 0); text-shadow: 1px 0 #22d3ee, -1px 0 #f43f5e; }
+                95% { transform: translate(1px, 0); text-shadow: -1px 0 #22d3ee, 1px 0 #f43f5e; }
+                97% { transform: translate(0); text-shadow: none; }
+            }
+            @keyframes tm-grade-pseudonym-typewriter {
+                from { clip-path: inset(0 100% 0 0); }
+                to { clip-path: inset(0 0 0 0); }
+            }
+            @keyframes tm-grade-pseudonym-underline {
+                0%, 22% { background-size: 0 2px; }
+                58%, 100% { background-size: 100% 2px; }
+            }
+            @keyframes tm-grade-pseudonym-sparkle {
+                0%, 100% { text-shadow: 0 0 0 transparent; filter: brightness(1); }
+                50% { text-shadow: -4px -3px 0 rgba(255,255,255,0.82), 4px 2px 0 rgba(255,255,255,0.72), 0 0 8px var(--tm-grade-pseudonym-color); filter: brightness(1.18); }
+            }
+            @keyframes tm-grade-pseudonym-wave {
+                0%, 100% { transform: translateY(0); }
+                50% { transform: translateY(-2px); }
+            }
+            @keyframes tm-grade-pseudonym-arrival {
+                0% { opacity: 0.35; transform: scale(0.82); }
+                58% { opacity: 1; transform: scale(1.09); }
+                100% { opacity: 1; transform: scale(1); }
+            }
+            [data-tm-grade-pseudonym-effect="pulse-slow"],
+            [data-tm-grade-pseudonym-effect="pulse-fast"],
+            [data-tm-grade-pseudonym-effect="glitch"],
+            [data-tm-grade-pseudonym-effect="typewriter"],
+            [data-tm-grade-pseudonym-effect="wave"],
+            [data-tm-grade-pseudonym-effect="arrival"] {
+                display: inline-block;
+                transform-origin: center;
+            }
+            [data-tm-grade-pseudonym-effect="pulse-slow"],
+            [data-tm-grade-pseudonym-effect="pulse-fast"] {
+                animation-name: tm-grade-pseudonym-pulse;
+                animation-timing-function: ease-in-out;
+                animation-iteration-count: infinite;
+            }
+            [data-tm-grade-pseudonym-effect="pulse-slow"] { animation-duration: 3.2s; }
+            [data-tm-grade-pseudonym-effect="pulse-fast"] { animation-duration: 1.45s; }
+            [data-tm-grade-pseudonym-effect="neon"] {
+                text-shadow: 0 0 4px var(--tm-grade-pseudonym-color), 0 0 10px var(--tm-grade-pseudonym-color);
+            }
+            [data-tm-grade-pseudonym-effect="gradient"] {
+                background: linear-gradient(105deg, var(--tm-grade-pseudonym-color) 0%, #ffffff 42%, var(--tm-grade-pseudonym-color) 72%, #ffffff 100%);
+                background-size: 220% 100%;
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+                animation: tm-grade-pseudonym-gradient 3.2s linear infinite;
+            }
+            [data-tm-grade-pseudonym-effect="breathing-glow"] {
+                animation: tm-grade-pseudonym-glow 3.4s ease-in-out infinite;
+            }
+            [data-tm-grade-pseudonym-effect="shine"] {
+                background: linear-gradient(105deg, var(--tm-grade-pseudonym-color) 0%, var(--tm-grade-pseudonym-color) 35%, #ffffff 50%, var(--tm-grade-pseudonym-color) 65%, var(--tm-grade-pseudonym-color) 100%);
+                background-size: 260% 100%;
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+                animation: tm-grade-pseudonym-gradient 4.8s ease-in-out infinite;
+            }
+            [data-tm-grade-pseudonym-effect="rainbow"] {
+                animation: tm-grade-pseudonym-rainbow 8s linear infinite;
+            }
+            [data-tm-grade-pseudonym-effect="glitch"] {
+                animation: tm-grade-pseudonym-glitch 7.5s steps(2, end) infinite;
+            }
+            [data-tm-grade-pseudonym-effect="typewriter"] {
+                animation: tm-grade-pseudonym-typewriter 850ms steps(18, end) both;
+            }
+            [data-tm-grade-pseudonym-effect="underline"] {
+                background-image: linear-gradient(var(--tm-grade-pseudonym-color), var(--tm-grade-pseudonym-color));
+                background-repeat: no-repeat;
+                background-position: 0 calc(100% + 2px);
+                animation: tm-grade-pseudonym-underline 3.8s ease-out infinite;
+            }
+            [data-tm-grade-pseudonym-effect="sparkle"] {
+                animation: tm-grade-pseudonym-sparkle 2.8s ease-in-out infinite;
+            }
+            [data-tm-grade-pseudonym-effect="wave"] {
+                animation: tm-grade-pseudonym-wave 1.8s ease-in-out infinite;
+            }
+            [data-tm-grade-pseudonym-effect="chrome"] {
+                background: linear-gradient(115deg, #9ca3af 0%, #ffffff 26%, var(--tm-grade-pseudonym-color) 46%, #ffffff 67%, #9ca3af 100%);
+                background-size: 220% 100%;
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+                animation: tm-grade-pseudonym-gradient 5.4s linear infinite;
+            }
+            [data-tm-grade-pseudonym-effect="arrival"] {
+                animation: tm-grade-pseudonym-arrival 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+            }
+            @media (prefers-reduced-motion: reduce) {
+                [data-tm-grade-pseudonym-effect="pulse-slow"],
+                [data-tm-grade-pseudonym-effect="pulse-fast"],
+                [data-tm-grade-pseudonym-effect="gradient"],
+                [data-tm-grade-pseudonym-effect="breathing-glow"],
+                [data-tm-grade-pseudonym-effect="shine"],
+                [data-tm-grade-pseudonym-effect="rainbow"],
+                [data-tm-grade-pseudonym-effect="glitch"],
+                [data-tm-grade-pseudonym-effect="typewriter"],
+                [data-tm-grade-pseudonym-effect="underline"],
+                [data-tm-grade-pseudonym-effect="sparkle"],
+                [data-tm-grade-pseudonym-effect="wave"],
+                [data-tm-grade-pseudonym-effect="chrome"],
+                [data-tm-grade-pseudonym-effect="arrival"] { animation: none; }
+            }
+        `;
+    }
+
+    function getTr4kerMessagePseudonymColorTargets(messageEl, sender) {
+        const titles = [...messageEl.querySelectorAll('[class*="msgMeta"] [class*="msgTitle"]')]
+            .filter((title) => title instanceof HTMLElement);
+        return [sender, ...titles].filter((element, index, values) =>
+            element instanceof HTMLElement && values.indexOf(element) === index
+        );
+    }
+
+    function applyTr4kerPseudonymColorToElement(element, color, effectId) {
+        if (!(element instanceof HTMLElement)) return;
+
+        getTr4kerPseudonymElementNativeColor(element);
+        element.style.setProperty('color', color, 'important');
+        element.style.setProperty('--tm-grade-pseudonym-color', color);
+        element.dataset.tmGradePseudonymColorApplied = '1';
+        if (effectId === 'none') {
+            delete element.dataset.tmGradePseudonymEffect;
+        } else {
+            ensureGradePseudonymEffectsStyle();
+            element.dataset.tmGradePseudonymEffect = effectId;
+        }
+    }
+
+    function applyTr4kerPseudonymGradeColor(messageEl) {
+        if (!isTr4kerPage() || !(messageEl instanceof HTMLElement)) return;
+
+        const sender = messageEl.querySelector('[class*="msgSender"]');
+        if (!(sender instanceof HTMLElement)) return;
+        const targets = getTr4kerMessagePseudonymColorTargets(messageEl, sender);
+
+        const grade = findTr4kerMessagePseudonymGrade(messageEl, sender);
+        if (!grade) {
+            targets.forEach(restoreTr4kerPseudonymElementNativeColor);
+            return;
+        }
+
+        const color = normalizeHexColor(gradePseudonymColors[grade.id], grade.defaultColor);
+        const effectId = getPseudonymGradeEffectDefinition(gradePseudonymEffects[grade.id])?.id || 'none';
+        targets.forEach((target) => applyTr4kerPseudonymColorToElement(target, color, effectId));
     }
 
     function normalizeName(name) {
@@ -4913,6 +5290,7 @@
                 textBlock.style.fontSize = scalePixels(14, safeScale);
                 textBlock.style.lineHeight = safeScale >= 1.2 ? '1.6' : '1.5';
             }
+            applyTr4kerPseudonymGradeColor(messageEl);
             return;
         }
 
@@ -7622,6 +8000,9 @@
             highlightSaveBtn: modal.querySelector('#tm-highlight-save'),
             highlightRemoveBtn: modal.querySelector('#tm-highlight-remove'),
             highlightUsersList: modal.querySelector('#tm-highlight-users-list'),
+            gradePseudonymColorInputs: Array.from(modal.querySelectorAll('[data-tm-grade-pseudonym-color]')),
+            gradePseudonymEffectSelects: Array.from(modal.querySelectorAll('[data-tm-grade-pseudonym-effect-select]')),
+            gradePseudonymColorsResetBtn: modal.querySelector('#tm-grade-pseudonym-colors-reset'),
             mentionUserInput: modal.querySelector('#tm-mention-user-input'),
             mentionColorInput: modal.querySelector('#tm-mention-color-input'),
             mentionOpacityInput: modal.querySelector('#tm-mention-opacity-input'),
@@ -8432,6 +8813,29 @@
         syncSettingsMentionSoundControls(elements);
     }
 
+    function syncSettingsGradePseudonymColorInputs(elements) {
+        elements.gradePseudonymColorInputs.forEach((input) => {
+            if (!(input instanceof HTMLInputElement)) return;
+
+            const grade = getPseudonymGradeDefinition(input.getAttribute('data-tm-grade-pseudonym-color'));
+            if (!grade) return;
+
+            const color = normalizeHexColor(gradePseudonymColors[grade.id], grade.defaultColor);
+            input.value = color;
+            const valueLabel = input.parentElement?.querySelector('[data-tm-grade-pseudonym-color-value]');
+            if (valueLabel instanceof HTMLElement) valueLabel.textContent = color.toUpperCase();
+        });
+
+        elements.gradePseudonymEffectSelects.forEach((select) => {
+            if (!(select instanceof HTMLSelectElement)) return;
+
+            const grade = getPseudonymGradeDefinition(select.getAttribute('data-tm-grade-pseudonym-effect-select'));
+            if (!grade) return;
+
+            select.value = getPseudonymGradeEffectDefinition(gradePseudonymEffects[grade.id])?.id || 'none';
+        });
+    }
+
     /**
      * Construit l'API interne de la modale de paramètres pour mutualiser feedback et rafraîchissements UI.
      *
@@ -8486,6 +8890,7 @@
             refreshManualQuickAccessLists: () => refreshSettingsManualQuickAccessLists(elements),
             refreshImageCatalogList: () => refreshSettingsImageCatalogList(elements, controller),
             syncImageHostingExpandedState: () => syncSettingsImageHostingExpandedState(elements),
+            syncGradePseudonymColorInputs: () => syncSettingsGradePseudonymColorInputs(elements),
             syncFontSizeValueLabel,
             setPreviewFontScale,
             applyMentionSettingsToInputs: () => applyMentionSettingsToModalInputs(elements)
@@ -8506,6 +8911,7 @@
         controls.syncHighlightOpacityValue();
         controls.syncMentionSoundControlsState();
         controls.syncMentionOpacityPreview();
+        controls.syncGradePseudonymColorInputs();
         controls.syncFontSizeValueLabel();
     }
 
@@ -8654,6 +9060,42 @@
             applyChatFontScale();
             controls.setPreviewFontScale(chatFontScale);
             controls.setFeedback('Taille de police réinitialisée.');
+        });
+    }
+
+    function bindSettingsModalGradePseudonymColorEvents(elements, controls) {
+        elements.gradePseudonymColorInputs.forEach((input) => {
+            if (!(input instanceof HTMLInputElement)) return;
+
+            input.addEventListener('input', () => {
+                const grade = getPseudonymGradeDefinition(input.getAttribute('data-tm-grade-pseudonym-color'));
+                if (!grade || !saveGradePseudonymColor(grade.id, input.value)) return;
+
+                controls.syncGradePseudonymColorInputs();
+                processAllMessages();
+                controls.setFeedback(`Couleur des pseudos « ${grade.label} » mise à jour.`);
+            });
+        });
+
+        elements.gradePseudonymEffectSelects.forEach((select) => {
+            if (!(select instanceof HTMLSelectElement)) return;
+
+            select.addEventListener('change', () => {
+                const grade = getPseudonymGradeDefinition(select.getAttribute('data-tm-grade-pseudonym-effect-select'));
+                if (!grade || !saveGradePseudonymEffect(grade.id, select.value)) return;
+
+                controls.syncGradePseudonymColorInputs();
+                processAllMessages();
+                controls.setFeedback(`Effet des pseudos « ${grade.label} » mis à jour.`);
+            });
+        });
+
+        elements.gradePseudonymColorsResetBtn?.addEventListener('click', () => {
+            saveGradePseudonymColors(getDefaultGradePseudonymColors());
+            saveGradePseudonymEffects(getDefaultGradePseudonymEffects());
+            controls.syncGradePseudonymColorInputs();
+            processAllMessages();
+            controls.setFeedback('Couleurs et effets des pseudos par grade réinitialisés.');
         });
     }
 
@@ -9014,6 +9456,7 @@
         bindSettingsModalBlacklistEvents(elements, controls);
         bindSettingsModalMentionEvents(elements, controls);
         bindSettingsModalAccessibilityEvents(elements, controls);
+        bindSettingsModalGradePseudonymColorEvents(elements, controls);
         bindSettingsModalConfigEvents(elements, controls);
         bindSettingsModalImageHostingEvents(elements, controls);
         bindSettingsModalEmojiQuickAccessEvents(elements, controls);
@@ -9974,6 +10417,43 @@
         `;
     }
 
+    function renderSettingsGradePseudonymColorsCard(settingsCardStyle) {
+        const gradeRows = PSEUDONYM_GRADE_DEFINITIONS.map((grade) => {
+            const color = normalizeHexColor(gradePseudonymColors[grade.id], grade.defaultColor);
+            const effectId = getPseudonymGradeEffectDefinition(gradePseudonymEffects[grade.id])?.id || 'none';
+            const effectOptions = PSEUDONYM_GRADE_EFFECT_DEFINITIONS.map((effect) =>
+                `<option value="${effect.id}" ${effect.id === effectId ? 'selected' : ''}>${effect.label}</option>`
+            ).join('');
+            return `
+                <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px 10px;padding:8px 0;border-top:1px solid rgba(255,255,255,0.05);font-size:12px;color:#d4d4d8;">
+                    <span style="font-weight:600;">${escapeHtml(grade.label)}</span>
+                    <span style="display:flex;align-items:center;gap:8px;">
+                        <span data-tm-grade-pseudonym-color-value="1" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:#a1a1aa;">${color.toUpperCase()}</span>
+                        <input type="color" value="${color}" data-tm-grade-pseudonym-color="${grade.id}" aria-label="Couleur du grade ${escapeHtml(grade.label)}" style="width:34px;height:28px;padding:2px;border:1px solid rgba(255,255,255,0.14);border-radius:8px;background:#18181b;cursor:pointer;">
+                    </span>
+                    <select data-tm-grade-pseudonym-effect-select="${grade.id}" aria-label="Effet du grade ${escapeHtml(grade.label)}" style="grid-column:1 / -1;width:100%;background:#18181b;color:#e4e4e7;border:1px solid rgba(255,255,255,0.10);border-radius:8px;padding:7px 8px;outline:none;font-size:11px;cursor:pointer;">
+                        ${effectOptions}
+                    </select>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div style="${settingsCardStyle}">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;">
+                    <div style="font-size:13px;font-weight:700;">Couleurs des pseudos par grade</div>
+                    <button id="tm-grade-pseudonym-colors-reset" type="button" style="border:none;background:#27272a;color:#e4e4e7;border-radius:8px;padding:6px 8px;cursor:pointer;font-size:11px;font-weight:700;">Réinitialiser</button>
+                </div>
+                <div style="font-size:11px;color:#a1a1aa;line-height:1.45;margin-bottom:6px;">
+                    Personnalise les couleurs et les effets des grades connus de Tr4ker. Le pseudo et le badge texte placé après lui suivent le même réglage. La liste des grades est définie dans le script et ne peut pas être modifiée ici.
+                </div>
+                <div style="display:grid;">
+                    ${gradeRows}
+                </div>
+            </div>
+        `;
+    }
+
     function renderSettingsMentionPreviewSection() {
         return `
             <div style="display:grid;gap:10px;margin-top:12px;">
@@ -10242,6 +10722,7 @@
                 ${renderSettingsEmojiQuickAccessCard(styles.settingsCardStyle)}
                 ${renderSettingsBlacklistCard(styles.settingsCardStyle)}
                 ${renderSettingsHighlightCard(styles.settingsCardStyle)}
+                ${renderSettingsGradePseudonymColorsCard(styles.settingsCardStyle)}
                 ${renderSettingsMentionCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)}
                 ${renderSettingsDebugCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)}
             </div>

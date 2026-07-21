@@ -12,6 +12,9 @@ Ce fichier suit l'état fonctionnel du userscript à partir de la version actuel
 
 - Renommage du userscript en `PimpMyShoutbox` ; le fichier publié devient `pimpmyshoutbox.user.js`.
 - Ajout d’un mode manuel pour choisir soi-même les emojis et réactions depuis les pickers natifs, avec réordonnancement dans les paramètres, en alternative au classement automatique par compteur.
+- Ajout de couleurs de pseudos réglables par grade Tr4ker, avec une liste de grades fixe et centralisée dans le code pour les futures évolutions.
+- Les badges texte affichés après les pseudos suivent désormais leur couleur de grade ; chaque grade peut aussi recevoir un effet optionnel (pulses, néon, reflets, arc-en-ciel, glitch, machine à écrire, soulignement, scintillement, ondulation ou impulsion), désactivé par défaut et compatible avec la préférence navigateur de réduction des animations.
+- Correction du rechargement de la feuille de styles des effets de grade afin que les nouveaux effets restent disponibles après une mise à jour du userscript sans rechargement complet de la page.
 
 ### TODO reprise refactor
 

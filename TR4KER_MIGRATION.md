@@ -1,6 +1,6 @@
 # Suivi de migration vers Tr4ker
 
-Dernière mise à jour : 2026-07-19  
+Dernière mise à jour : 2026-07-21
 Cible principale : `https://tr4ker.net/communication?conv=1`
 
 ## Légende
@@ -20,6 +20,7 @@ Cible principale : `https://tr4ker.net/communication?conv=1`
 | Blacklist / masquage de pseudos | ✅ | Le masquage agit sur les lignes Tr4ker, conserve les compteurs de session et l’Alt+clic sur `msgSender` ajoute/retire un pseudo. |
 | Stats des messages masqués | ✅ | Le panneau existant réutilise la nouvelle racine du chat. |
 | Mise en avant de pseudos | ✅ | Compatible avec les lignes groupées Tr4ker via le message précédent. |
+| Couleurs et effets des pseudos par grade | ✅ | Les six grades connus sont réglables individuellement ; le pseudo et le badge texte `msgTitle` placé après lui suivent le même style. Plusieurs effets visuels optionnels sont proposés, sans animation si la préférence navigateur demande leur réduction. La liste des grades est fixe côté code dans `PSEUDONYM_GRADE_DEFINITIONS`, pour faciliter les futures mises à jour sans donner d’édition de grade aux utilisateurs. |
 | Détection des mentions | ✅ | Les mentions natives, le texte des bulles et l’auteur des réponses citées sont inspectés ; les anciens réglages sans durée reprennent un clignotement de 6 secondes. Les conversations privées sont exclues. |
 | Son de mention | 🟡 | Code adapté ; nécessite une validation navigateur après interaction utilisateur pour l’audio. Les conversations privées sont exclues. |
 | Réponses natives | ✅ | Le bouton `[data-msg-actions]` / titre `Répondre` est reconnu. |
