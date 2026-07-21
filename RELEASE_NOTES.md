@@ -41,6 +41,26 @@ Ce fichier suit l'état fonctionnel du userscript à partir de la version actuel
 - Le libellé compact de cette marge dans le bandeau est simplifié en `Buffer`.
 - Ajout optionnel d’un menu burger permanent dans la top bar, reprenant les liens de navigation de la page d’accueil Tr4ker.
 - Les sons de notification personnalisés sont désormais limités aux fichiers audio Pixabay, avec un lien direct vers la recherche d’effets de notification ; le joker réseau `@connect *` est retiré.
+- Refonte du bandeau de statistiques : réglages dédiés dans un accordéon, mode Matrix agrandi ou mode sobre Tr4ker, choix du ratio global, des fenêtres 24 h / 7 j / 30 j, des crédits, du buffer et du menu burger ; ce dernier suit maintenant le thème sobre lorsque ce mode est choisi.
+- Alignement corrigé en mode Matrix : les valeurs et leurs libellés reposent désormais sur deux lignes communes, y compris lorsque crédits ou buffer sont affichés.
+- Le libellé `Ratio` est simplifié dans le bandeau, et les totaux d’upload et de download peuvent désormais être affichés séparément depuis ses réglages.
+- Le mode sobre utilise désormais uniquement les flèches et les valeurs pour l’upload et le download, comme le modèle visuel de la top bar.
+- Les totaux d’upload et de download deviennent des métriques permanentes, homogènes avec les statistiques de période et hors du cycle ; le solde est maintenant représenté par une icône de pièces dorée.
+- Les crédits et le buffer suivent désormais la même présentation métrique, sans pastille ; le mode sobre affiche à nouveau l’indicateur de période 24 h / 7 j / 30 j.
+- Les métriques permanentes du mode sobre distinguent maintenant clairement les totaux via `Σ ↑` / `Σ ↓`, tout en restaurant le libellé `Buffer`.
+- Le mode sobre revient à un format monoligne fixe inspiré du bandeau Tr4ker : upload cumulé, download cumulé et ratio, sans animation ni débordement de la top bar.
+- Le bandeau sobre peut désormais afficher trois sections compactes et désactivables séparément : statistiques périodiques défilantes, Buffer et solde ; les cases à cocher de la configuration utilisent maintenant un accent uniforme.
+- Les sections complémentaires du bandeau sobre sont maintenant rendues comme trois tuiles individuelles — période, Buffer et solde — plutôt qu’une ligne visuelle fusionnée.
+- La feuille de style du bandeau est désormais remplacée lors d’une mise à jour du userscript, afin que les corrections visuelles soient appliquées sans rechargement complet de Tr4ker.
+- Le bandeau sobre place maintenant les sections période, Buffer et solde sur la même ligne que les métriques principales, chacune dans une tuile compacte à largeur fixe.
+- Le mode sobre affiche désormais directement jusqu’à six sections homogènes séparées par des traits : upload, download, ratio, période défilante, Buffer et solde.
+- Réduction légère de la police du bandeau sobre pour limiter les valeurs tronquées ; le solde est abrégé en milliers (`1k`, `12,3k`, `286k`) pour rester compact.
+- Nouvelle réduction de la taille des valeurs et libellés du bandeau sobre afin de privilégier l’affichage complet des six sections.
+- Épuration de Matrix : les flèches identifient désormais seules upload/download, les métriques cumulées sont sans libellé redondant et `Buffer` n’est affiché qu’une fois.
+- La top bar Tr4ker adapte désormais sa hauteur au bandeau de statistiques, évitant que le mode Matrix déborde sous l’en-tête.
+- La rangée basse Matrix utilise désormais des lignes valeur/libellé de hauteur fixe, pour aligner proprement totaux, solde et Buffer.
+- Le mode Matrix masque désormais les libellés redondants `Solde` et `Buffer` ; le second choix d’apparence est simplement nommé `Sobre` dans les paramètres.
+- Les valeurs de la rangée basse Matrix sont maintenant centrées verticalement dans leurs cellules.
 
 ### TODO reprise refactor
 
