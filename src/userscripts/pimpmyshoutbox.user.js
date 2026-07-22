@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    http://tampermonkey.net/
-// @version      3.0.86
+// @version      3.0.88
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -61,6 +61,22 @@
     const STORAGE_KEY_TOPBAR_STATS_SHOW_24H = 'tm_t4_topbar_stats_show_24h';
     const STORAGE_KEY_TOPBAR_STATS_SHOW_7D = 'tm_t4_topbar_stats_show_7d';
     const STORAGE_KEY_TOPBAR_STATS_SHOW_30D = 'tm_t4_topbar_stats_show_30d';
+    const STORAGE_KEY_MATRIX_GLOBAL_UPLOAD = 'tm_t4_matrix_global_upload';
+    const STORAGE_KEY_MATRIX_GLOBAL_DOWNLOAD = 'tm_t4_matrix_global_download';
+    const STORAGE_KEY_MATRIX_TICKER_ENABLED = 'tm_t4_matrix_ticker_enabled';
+    const STORAGE_KEY_MATRIX_TICKER_SPEED = 'tm_t4_matrix_ticker_speed';
+    const STORAGE_KEY_MATRIX_TICKER_PAUSE_HOVER = 'tm_t4_matrix_ticker_pause_hover';
+    const STORAGE_KEY_MATRIX_PERIOD_24H_RATIO = 'tm_t4_matrix_period_24h_ratio';
+    const STORAGE_KEY_MATRIX_PERIOD_24H_UPLOAD = 'tm_t4_matrix_period_24h_upload';
+    const STORAGE_KEY_MATRIX_PERIOD_24H_DOWNLOAD = 'tm_t4_matrix_period_24h_download';
+    const STORAGE_KEY_MATRIX_PERIOD_7D_RATIO = 'tm_t4_matrix_period_7d_ratio';
+    const STORAGE_KEY_MATRIX_PERIOD_7D_UPLOAD = 'tm_t4_matrix_period_7d_upload';
+    const STORAGE_KEY_MATRIX_PERIOD_7D_DOWNLOAD = 'tm_t4_matrix_period_7d_download';
+    const STORAGE_KEY_MATRIX_PERIOD_30D_RATIO = 'tm_t4_matrix_period_30d_ratio';
+    const STORAGE_KEY_MATRIX_PERIOD_30D_UPLOAD = 'tm_t4_matrix_period_30d_upload';
+    const STORAGE_KEY_MATRIX_PERIOD_30D_DOWNLOAD = 'tm_t4_matrix_period_30d_download';
+    const STORAGE_KEY_MATRIX_CAROUSEL_INTERVAL = 'tm_t4_matrix_carousel_interval';
+    const STORAGE_KEY_MATRIX_CAROUSEL_PAUSE_HOVER = 'tm_t4_matrix_carousel_pause_hover';
     const STORAGE_KEY_TOPBAR_BURGER_ENABLED = 'tm_t4_topbar_burger_enabled';
     const STORAGE_KEY_LINKIFY_URLS = 'tm_t4_linkify_urls';
     const STORAGE_KEY_EMBED_URL_IMAGES = 'tm_t4_embed_url_images';
@@ -121,6 +137,22 @@
         STORAGE_KEY_TOPBAR_STATS_SHOW_24H,
         STORAGE_KEY_TOPBAR_STATS_SHOW_7D,
         STORAGE_KEY_TOPBAR_STATS_SHOW_30D,
+        STORAGE_KEY_MATRIX_GLOBAL_UPLOAD,
+        STORAGE_KEY_MATRIX_GLOBAL_DOWNLOAD,
+        STORAGE_KEY_MATRIX_TICKER_ENABLED,
+        STORAGE_KEY_MATRIX_TICKER_SPEED,
+        STORAGE_KEY_MATRIX_TICKER_PAUSE_HOVER,
+        STORAGE_KEY_MATRIX_PERIOD_24H_RATIO,
+        STORAGE_KEY_MATRIX_PERIOD_24H_UPLOAD,
+        STORAGE_KEY_MATRIX_PERIOD_24H_DOWNLOAD,
+        STORAGE_KEY_MATRIX_PERIOD_7D_RATIO,
+        STORAGE_KEY_MATRIX_PERIOD_7D_UPLOAD,
+        STORAGE_KEY_MATRIX_PERIOD_7D_DOWNLOAD,
+        STORAGE_KEY_MATRIX_PERIOD_30D_RATIO,
+        STORAGE_KEY_MATRIX_PERIOD_30D_UPLOAD,
+        STORAGE_KEY_MATRIX_PERIOD_30D_DOWNLOAD,
+        STORAGE_KEY_MATRIX_CAROUSEL_INTERVAL,
+        STORAGE_KEY_MATRIX_CAROUSEL_PAUSE_HOVER,
         STORAGE_KEY_TOPBAR_BURGER_ENABLED,
         STORAGE_KEY_LINKIFY_URLS,
         STORAGE_KEY_EMBED_URL_IMAGES,
@@ -332,6 +364,22 @@
         STORAGE_KEY_TOPBAR_STATS_SHOW_24H,
         STORAGE_KEY_TOPBAR_STATS_SHOW_7D,
         STORAGE_KEY_TOPBAR_STATS_SHOW_30D,
+        STORAGE_KEY_MATRIX_GLOBAL_UPLOAD,
+        STORAGE_KEY_MATRIX_GLOBAL_DOWNLOAD,
+        STORAGE_KEY_MATRIX_TICKER_ENABLED,
+        STORAGE_KEY_MATRIX_TICKER_SPEED,
+        STORAGE_KEY_MATRIX_TICKER_PAUSE_HOVER,
+        STORAGE_KEY_MATRIX_PERIOD_24H_RATIO,
+        STORAGE_KEY_MATRIX_PERIOD_24H_UPLOAD,
+        STORAGE_KEY_MATRIX_PERIOD_24H_DOWNLOAD,
+        STORAGE_KEY_MATRIX_PERIOD_7D_RATIO,
+        STORAGE_KEY_MATRIX_PERIOD_7D_UPLOAD,
+        STORAGE_KEY_MATRIX_PERIOD_7D_DOWNLOAD,
+        STORAGE_KEY_MATRIX_PERIOD_30D_RATIO,
+        STORAGE_KEY_MATRIX_PERIOD_30D_UPLOAD,
+        STORAGE_KEY_MATRIX_PERIOD_30D_DOWNLOAD,
+        STORAGE_KEY_MATRIX_CAROUSEL_INTERVAL,
+        STORAGE_KEY_MATRIX_CAROUSEL_PAUSE_HOVER,
         STORAGE_KEY_TOPBAR_BURGER_ENABLED,
         STORAGE_KEY_LINKIFY_URLS,
         STORAGE_KEY_EMBED_URL_IMAGES,
@@ -483,6 +531,15 @@
     const TR4KER_TOPBAR_STATS_BUTTON_ID = 'tm-t4-topbar-stats-button';
     const TR4KER_TOPBAR_STATS_POPOVER_ID = 'tm-t4-topbar-stats-popover';
     const TR4KER_TOPBAR_STATS_CACHE_MS = 5 * 60 * 1000;
+    const MATRIX_DASHBOARD_STYLE_ID = 'tm-t4-matrix-dashboard-style';
+    const MATRIX_DASHBOARD_ID = 'tm-t4-matrix-dashboard';
+    const MATRIX_DASHBOARD_HOST_ATTR = 'data-tm-matrix-dashboard-host';
+    const MATRIX_DEFAULT_TICKER_SPEED = 42;
+    const MATRIX_DEFAULT_CAROUSEL_INTERVAL_MS = 5000;
+    const MATRIX_MIN_CAROUSEL_INTERVAL_MS = 1500;
+    const MATRIX_MAX_CAROUSEL_INTERVAL_MS = 60000;
+    const MATRIX_MIN_TICKER_SPEED = 10;
+    const MATRIX_MAX_TICKER_SPEED = 160;
     const TR4KER_MINIMUM_RATIO = 0.5;
     const TR4KER_TOPBAR_STATS_PERIOD_CYCLE_MS = 4000;
     const TR4KER_TOPBAR_STATS_PERIODS = [
@@ -573,6 +630,19 @@
     let tr4kerTopbarStatsShow24Hours = loadTr4kerTopbarStatsShowPeriod(STORAGE_KEY_TOPBAR_STATS_SHOW_24H);
     let tr4kerTopbarStatsShow7Days = loadTr4kerTopbarStatsShowPeriod(STORAGE_KEY_TOPBAR_STATS_SHOW_7D);
     let tr4kerTopbarStatsShow30Days = loadTr4kerTopbarStatsShowPeriod(STORAGE_KEY_TOPBAR_STATS_SHOW_30D);
+    let matrixDashboardEnabled = loadTr4kerTopbarStatsEnabled();
+    let matrixGlobalUploadEnabled = loadMatrixGlobalUploadEnabled();
+    let matrixGlobalDownloadEnabled = loadMatrixGlobalDownloadEnabled();
+    let matrixTickerEnabled = loadMatrixTickerEnabled();
+    let matrixTickerSpeed = loadMatrixTickerSpeed();
+    let matrixTickerPauseOnHover = loadMatrixTickerPauseOnHover();
+    let matrixCarouselIntervalMs = loadMatrixCarouselIntervalMs();
+    let matrixCarouselPauseOnHover = loadMatrixCarouselPauseOnHover();
+    let matrixPeriodSettings = loadMatrixPeriodSettings();
+    let matrixDashboardData = null;
+    let matrixDashboardSignature = '';
+    let matrixCarouselTimer = null;
+    let matrixCarouselIndex = 0;
     let tr4kerTopbarBurgerEnabled = loadTr4kerTopbarBurgerEnabled();
     let linkifyUrlsEnabled = loadLinkifyUrlsEnabled();
     let embedUrlImagesEnabled = loadEmbedUrlImagesEnabled();
@@ -3053,6 +3123,17 @@
         tr4kerTopbarStatsEnabled = loadTr4kerTopbarStatsEnabled();
         tr4kerTopbarStatsShowCredits = loadTr4kerTopbarStatsShowCredits();
         tr4kerTopbarStatsShowBuffer = loadTr4kerTopbarStatsShowBuffer();
+        matrixDashboardEnabled = loadTr4kerTopbarStatsEnabled();
+        tr4kerTopbarStatsShowCredits = loadTr4kerTopbarStatsShowCredits();
+        tr4kerTopbarStatsShowBuffer = loadTr4kerTopbarStatsShowBuffer();
+        matrixGlobalUploadEnabled = loadMatrixGlobalUploadEnabled();
+        matrixGlobalDownloadEnabled = loadMatrixGlobalDownloadEnabled();
+        matrixTickerEnabled = loadMatrixTickerEnabled();
+        matrixTickerSpeed = loadMatrixTickerSpeed();
+        matrixTickerPauseOnHover = loadMatrixTickerPauseOnHover();
+        matrixCarouselIntervalMs = loadMatrixCarouselIntervalMs();
+        matrixCarouselPauseOnHover = loadMatrixCarouselPauseOnHover();
+        matrixPeriodSettings = loadMatrixPeriodSettings();
         tr4kerTopbarBurgerEnabled = loadTr4kerTopbarBurgerEnabled();
         linkifyUrlsEnabled = loadLinkifyUrlsEnabled();
         embedUrlImagesEnabled = loadEmbedUrlImagesEnabled();
@@ -3130,6 +3211,7 @@
         refreshReactionQuickAccessButtons();
         renderAfkPanel();
         updateStatsBox();
+        syncTr4kerTopbarStatsButton();
     }
 
     function importScriptConfiguration(payload) {
@@ -3641,6 +3723,133 @@
         if (storageKey === STORAGE_KEY_TOPBAR_STATS_SHOW_24H) tr4kerTopbarStatsShow24Hours = enabled;
         if (storageKey === STORAGE_KEY_TOPBAR_STATS_SHOW_7D) tr4kerTopbarStatsShow7Days = enabled;
         if (storageKey === STORAGE_KEY_TOPBAR_STATS_SHOW_30D) tr4kerTopbarStatsShow30Days = enabled;
+    }
+
+    function readMatrixBoolean(key, fallback) {
+        return readStorageItem(key) === null ? !!fallback : readStorageBoolean(key, fallback);
+    }
+
+    function normalizeMatrixRange(value, fallback, min, max) {
+        const parsed = Number(String(value ?? '').trim().replace(',', '.'));
+        if (!Number.isFinite(parsed)) return fallback;
+        return clamp(parsed, min, max);
+    }
+
+    function loadMatrixGlobalUploadEnabled() {
+        return readMatrixBoolean(STORAGE_KEY_MATRIX_GLOBAL_UPLOAD, loadTr4kerTopbarStatsShowTotalUpload());
+    }
+
+    function saveMatrixDashboardEnabled(value) {
+        matrixDashboardEnabled = !!value;
+        saveTr4kerTopbarStatsEnabled(matrixDashboardEnabled);
+    }
+
+    function saveMatrixGlobalUploadEnabled(value) {
+        matrixGlobalUploadEnabled = !!value;
+        writeStorageBoolean(STORAGE_KEY_MATRIX_GLOBAL_UPLOAD, matrixGlobalUploadEnabled);
+    }
+
+    function loadMatrixGlobalDownloadEnabled() {
+        return readMatrixBoolean(STORAGE_KEY_MATRIX_GLOBAL_DOWNLOAD, loadTr4kerTopbarStatsShowTotalDownload());
+    }
+
+    function saveMatrixGlobalDownloadEnabled(value) {
+        matrixGlobalDownloadEnabled = !!value;
+        writeStorageBoolean(STORAGE_KEY_MATRIX_GLOBAL_DOWNLOAD, matrixGlobalDownloadEnabled);
+    }
+
+    function loadMatrixTickerEnabled() {
+        return readMatrixBoolean(STORAGE_KEY_MATRIX_TICKER_ENABLED, true);
+    }
+
+    function saveMatrixTickerEnabled(value) {
+        matrixTickerEnabled = !!value;
+        writeStorageBoolean(STORAGE_KEY_MATRIX_TICKER_ENABLED, matrixTickerEnabled);
+    }
+
+    function loadMatrixTickerSpeed() {
+        return Math.round(normalizeMatrixRange(
+            readStorageItem(STORAGE_KEY_MATRIX_TICKER_SPEED),
+            MATRIX_DEFAULT_TICKER_SPEED,
+            MATRIX_MIN_TICKER_SPEED,
+            MATRIX_MAX_TICKER_SPEED
+        ));
+    }
+
+    function saveMatrixTickerSpeed(value) {
+        matrixTickerSpeed = Math.round(normalizeMatrixRange(value, MATRIX_DEFAULT_TICKER_SPEED, MATRIX_MIN_TICKER_SPEED, MATRIX_MAX_TICKER_SPEED));
+        writeStorageItem(STORAGE_KEY_MATRIX_TICKER_SPEED, String(matrixTickerSpeed));
+    }
+
+    function loadMatrixTickerPauseOnHover() {
+        return readMatrixBoolean(STORAGE_KEY_MATRIX_TICKER_PAUSE_HOVER, true);
+    }
+
+    function saveMatrixTickerPauseOnHover(value) {
+        matrixTickerPauseOnHover = !!value;
+        writeStorageBoolean(STORAGE_KEY_MATRIX_TICKER_PAUSE_HOVER, matrixTickerPauseOnHover);
+    }
+
+    function loadMatrixCarouselIntervalMs() {
+        return Math.round(normalizeMatrixRange(
+            readStorageItem(STORAGE_KEY_MATRIX_CAROUSEL_INTERVAL),
+            MATRIX_DEFAULT_CAROUSEL_INTERVAL_MS,
+            MATRIX_MIN_CAROUSEL_INTERVAL_MS,
+            MATRIX_MAX_CAROUSEL_INTERVAL_MS
+        ));
+    }
+
+    function saveMatrixCarouselIntervalMs(value) {
+        matrixCarouselIntervalMs = Math.round(normalizeMatrixRange(value, MATRIX_DEFAULT_CAROUSEL_INTERVAL_MS, MATRIX_MIN_CAROUSEL_INTERVAL_MS, MATRIX_MAX_CAROUSEL_INTERVAL_MS));
+        writeStorageItem(STORAGE_KEY_MATRIX_CAROUSEL_INTERVAL, String(matrixCarouselIntervalMs));
+    }
+
+    function loadMatrixCarouselPauseOnHover() {
+        return readMatrixBoolean(STORAGE_KEY_MATRIX_CAROUSEL_PAUSE_HOVER, true);
+    }
+
+    function saveMatrixCarouselPauseOnHover(value) {
+        matrixCarouselPauseOnHover = !!value;
+        writeStorageBoolean(STORAGE_KEY_MATRIX_CAROUSEL_PAUSE_HOVER, matrixCarouselPauseOnHover);
+    }
+
+    function getMatrixPeriodStorageKey(periodId, metric) {
+        const prefix = periodId === '24h' ? '24H' : periodId === '7d' ? '7D' : '30D';
+        const suffix = metric === 'ratio' ? 'RATIO' : metric === 'upload' ? 'UPLOAD' : 'DOWNLOAD';
+        return {
+            '24H_RATIO': STORAGE_KEY_MATRIX_PERIOD_24H_RATIO,
+            '24H_UPLOAD': STORAGE_KEY_MATRIX_PERIOD_24H_UPLOAD,
+            '24H_DOWNLOAD': STORAGE_KEY_MATRIX_PERIOD_24H_DOWNLOAD,
+            '7D_RATIO': STORAGE_KEY_MATRIX_PERIOD_7D_RATIO,
+            '7D_UPLOAD': STORAGE_KEY_MATRIX_PERIOD_7D_UPLOAD,
+            '7D_DOWNLOAD': STORAGE_KEY_MATRIX_PERIOD_7D_DOWNLOAD,
+            '30D_RATIO': STORAGE_KEY_MATRIX_PERIOD_30D_RATIO,
+            '30D_UPLOAD': STORAGE_KEY_MATRIX_PERIOD_30D_UPLOAD,
+            '30D_DOWNLOAD': STORAGE_KEY_MATRIX_PERIOD_30D_DOWNLOAD
+        }[`${prefix}_${suffix}`];
+    }
+
+    function loadMatrixPeriodSettings() {
+        const periodStorageKeys = {
+            '24h': STORAGE_KEY_TOPBAR_STATS_SHOW_24H,
+            '7d': STORAGE_KEY_TOPBAR_STATS_SHOW_7D,
+            '30d': STORAGE_KEY_TOPBAR_STATS_SHOW_30D
+        };
+        return ['24h', '7d', '30d'].reduce((periods, periodId) => {
+            periods[periodId] = { enabled: readStorageBoolean(periodStorageKeys[periodId], true) };
+            return periods;
+        }, {});
+    }
+
+    function saveMatrixPeriodSetting(periodId, value) {
+        if (!matrixPeriodSettings[periodId]) matrixPeriodSettings[periodId] = {};
+        matrixPeriodSettings[periodId].enabled = !!value;
+        const storageKey = periodId === '24h'
+            ? STORAGE_KEY_TOPBAR_STATS_SHOW_24H
+            : periodId === '7d'
+                ? STORAGE_KEY_TOPBAR_STATS_SHOW_7D
+                : STORAGE_KEY_TOPBAR_STATS_SHOW_30D;
+        writeStorageBoolean(storageKey, !!value);
     }
 
     function loadTr4kerTopbarBurgerEnabled() {
@@ -5501,6 +5710,689 @@
         window.addEventListener('scroll', positionTr4kerTopbarStatsPopover, true);
     }
 
+    const MATRIX_PERIOD_DEFINITIONS = Object.freeze([
+        { id: '24h', label: '24 heures', shortLabel: '24 h' },
+        { id: '7d', label: '7 jours', shortLabel: '7 j' },
+        { id: '30d', label: '30 jours', shortLabel: '30 j' }
+    ]);
+
+    function getMatrixNumber(value) {
+        const number = Number(value);
+        return Number.isFinite(number) && number >= 0 ? number : null;
+    }
+
+    function getMatrixRatio(upload, download) {
+        if (upload === null || download === null) return null;
+        if (download === 0) return upload > 0 ? Infinity : null;
+        return upload / download;
+    }
+
+    function getMatrixPeriodMetric(statistics, periodId, metric) {
+        const suffix = periodId === '24h' ? '24h' : periodId === '7d' ? '7d' : '30d';
+        if (metric === 'upload') {
+            return getMatrixNumber(statistics[`uploaded_last_${suffix}`] ?? statistics[`upload_last_${suffix}`]);
+        }
+        if (metric === 'download') {
+            return getMatrixNumber(statistics[`downloaded_last_${suffix}`] ?? statistics[`download_last_${suffix}`]);
+        }
+        const explicitRatio = getMatrixNumber(statistics[`ratio_last_${suffix}`]);
+        return explicitRatio === null
+            ? getMatrixRatio(
+                getMatrixPeriodMetric(statistics, periodId, 'upload'),
+                getMatrixPeriodMetric(statistics, periodId, 'download')
+            )
+            : explicitRatio;
+    }
+
+    function getMatrixTotal(summary, primaryKey, bonusKey) {
+        const primary = getMatrixNumber(summary?.[primaryKey]);
+        const bonus = getMatrixNumber(summary?.[bonusKey]) || 0;
+        return primary === null ? null : primary + bonus;
+    }
+
+    function buildMatrixData(statsPayload, userPayload) {
+        const summary = statsPayload?.summary && typeof statsPayload.summary === 'object'
+            ? statsPayload.summary
+            : {};
+        const statistics = statsPayload?.statistics && typeof statsPayload.statistics === 'object'
+            ? statsPayload.statistics
+            : {};
+        const upload = getMatrixTotal(summary, 'uploaded', 'bonus_upload');
+        const download = getMatrixTotal(summary, 'downloaded', 'bonus_download');
+        const periods = {};
+
+        MATRIX_PERIOD_DEFINITIONS.forEach((period) => {
+            periods[period.id] = {
+                ratio: getMatrixPeriodMetric(statistics, period.id, 'ratio'),
+                upload: getMatrixPeriodMetric(statistics, period.id, 'upload'),
+                download: getMatrixPeriodMetric(statistics, period.id, 'download')
+            };
+        });
+
+        const credits = getMatrixNumber(userPayload?.money);
+        const buffer = upload === null || download === null
+            ? null
+            : (upload / TR4KER_MINIMUM_RATIO) - download;
+
+        return {
+            global: {
+                ratio: getMatrixRatio(upload, download),
+                upload,
+                download
+            },
+            periods,
+            extras: { credits, buffer },
+            snapshots: Array.isArray(statsPayload?.snapshots) ? statsPayload.snapshots : []
+        };
+    }
+
+    function getMatrixMetricLabel(metric) {
+        return metric === 'ratio' ? 'Ratio' : metric === 'upload' ? 'Upload' : 'Download';
+    }
+
+    function getMatrixMetricValue(value, metric) {
+        if (value === null || value === undefined || Number.isNaN(value)) return '—';
+        if (metric === 'ratio') return formatTr4kerTopbarStatsRatio(value);
+        if (metric === 'credits') return formatTr4kerTopbarStatsCredits(value);
+        if (metric === 'buffer') return formatTr4kerTopbarMinimumRatioBuffer(value);
+        return formatTr4kerTopbarStatsBytes(value);
+    }
+
+    function getMatrixMetricColor(metric) {
+        return {
+            ratio: '#c7ffd4',
+            upload: '#63ff91',
+            download: '#39ff88',
+            credits: '#9dffb5',
+            buffer: '#74ffad'
+        }[metric] || '#d9f99d';
+    }
+
+    function getActiveMatrixPeriods(data = matrixDashboardData) {
+        if (!data?.periods) return [];
+        return MATRIX_PERIOD_DEFINITIONS.map((definition) => {
+            const configured = matrixPeriodSettings[definition.id] || {};
+            const values = data.periods[definition.id] || {};
+            const metrics = configured.enabled === true
+                ? ['ratio', 'upload', 'download'].filter((metric) => values[metric] !== null && values[metric] !== undefined)
+                : [];
+            return { ...definition, values, metrics };
+        }).filter((period) => period.metrics.length > 0);
+    }
+
+    function getMatrixLayoutState(activePeriods = getActiveMatrixPeriods()) {
+        return {
+            hasZone2: activePeriods.length > 0,
+            hasZone4: true,
+            zone4Items: [
+                matrixDashboardData?.extras?.credits,
+                matrixDashboardData?.extras?.buffer
+            ].filter((value, index) => index === 0 ? matrixDashboardShowCredits() : matrixDashboardShowBuffer()).length
+        };
+    }
+
+    function matrixDashboardShowCredits() {
+        return tr4kerTopbarStatsShowCredits;
+    }
+
+    function matrixDashboardShowBuffer() {
+        return tr4kerTopbarStatsShowBuffer;
+    }
+
+    function buildMatrixGlobalItems(data) {
+        const items = [{ metric: 'ratio', label: 'Ratio', value: data?.global?.ratio ?? null }];
+        if (matrixGlobalUploadEnabled && data?.global?.upload !== null && data?.global?.upload !== undefined) {
+            items.push({ metric: 'upload', label: 'Upload', value: data.global.upload });
+        }
+        if (matrixGlobalDownloadEnabled && data?.global?.download !== null && data?.global?.download !== undefined) {
+            items.push({ metric: 'download', label: 'Download', value: data.global.download });
+        }
+        return items;
+    }
+
+    function renderMatrixMetric(item, className = '') {
+        return `
+            <span class="tm-matrix-metric ${className}" data-tm-matrix-metric="${item.metric}">
+                <span class="tm-matrix-metric-label">${item.label}</span>
+                <strong style="color:${getMatrixMetricColor(item.metric)}">${getMatrixMetricValue(item.value, item.metric)}</strong>
+            </span>
+        `;
+    }
+
+    function renderMatrixGlobalZone(data) {
+        const items = buildMatrixGlobalItems(data);
+        const separator = '<span class="tm-matrix-separator" aria-hidden="true">•</span>';
+        const content = items.map((item) => `${renderMatrixMetric(item)}${separator}`).join('');
+        return `
+            <section class="tm-matrix-zone tm-matrix-zone-global" data-tm-matrix-zone="1" aria-labelledby="tm-matrix-global-title">
+                <div class="tm-matrix-zone-heading">
+                    <span id="tm-matrix-global-title">GLOBAL</span>
+                    <span class="tm-matrix-status">LIVE</span>
+                </div>
+                <div class="tm-matrix-ticker ${matrixTickerEnabled ? '' : 'tm-matrix-ticker-static'}" data-tm-matrix-ticker="1" data-tm-matrix-pause-hover="${matrixTickerPauseOnHover ? '1' : '0'}">
+                    <div class="tm-matrix-ticker-track" data-tm-matrix-ticker-track="1"><span class="tm-matrix-ticker-copy">${content}</span></div>
+                </div>
+            </section>
+        `;
+    }
+
+    function renderMatrixPeriod(period) {
+        return `
+            <article class="tm-matrix-period-slide" data-tm-matrix-period-slide="${period.id}" aria-label="Statistiques ${period.label}">
+                <div class="tm-matrix-period-title">${period.label.toUpperCase()}</div>
+                <div class="tm-matrix-period-metrics">
+                    ${period.metrics.map((metric) => renderMatrixMetric({
+                        metric,
+                        label: getMatrixMetricLabel(metric),
+                        value: period.values[metric]
+                    })).join('')}
+                </div>
+            </article>
+        `;
+    }
+
+    function renderMatrixPeriodZone(activePeriods) {
+        if (activePeriods.length === 0) return '';
+        return `
+            <section class="tm-matrix-zone tm-matrix-zone-periods" data-tm-matrix-zone="2" aria-labelledby="tm-matrix-periods-title">
+                <div class="tm-matrix-zone-heading">
+                    <span id="tm-matrix-periods-title">PERIODS</span>
+                </div>
+                <div class="tm-matrix-period-viewport" data-tm-matrix-period-viewport="1">
+                    ${activePeriods.map(renderMatrixPeriod).join('')}
+                </div>
+            </section>
+        `;
+    }
+
+    function getMatrixChartPoints(snapshots) {
+        const cumulative = (Array.isArray(snapshots) ? snapshots : [])
+            .map((snapshot) => ({
+                date: String(snapshot?.date || ''),
+                upload: getMatrixNumber(snapshot?.uploaded_bytes),
+                download: getMatrixNumber(snapshot?.downloaded_bytes)
+            }))
+            .filter((point) => point.date && point.upload !== null && point.download !== null)
+            .sort((a, b) => a.date.localeCompare(b.date))
+            .slice(-30);
+
+        return cumulative.map((point, index) => {
+            const previous = cumulative[index - 1];
+            const upload = previous ? Math.max(0, point.upload - previous.upload) : 0;
+            const download = previous ? Math.max(0, point.download - previous.download) : 0;
+            return { ...point, upload, download, ratio: getMatrixRatio(upload, download) };
+        });
+    }
+
+    function matrixChartPath(points, key, x, y, width, height, maxValue, logarithmic = false) {
+        return points.map((point, index) => {
+            const rawValue = point[key];
+            const normalizedValue = rawValue === Infinity
+                ? 1
+                : logarithmic
+                    ? Math.log10(1 + Math.max(0, Number(rawValue) || 0)) / Math.log10(1 + Math.max(1, maxValue))
+                    : Math.max(0, Number(rawValue) || 0) / Math.max(1, maxValue);
+            const pointX = x + (points.length <= 1 ? width / 2 : (index / (points.length - 1)) * width);
+            const pointY = y + height - Math.min(1, normalizedValue) * height;
+            return `${pointX.toFixed(1)},${pointY.toFixed(1)}`;
+        }).join(' ');
+    }
+
+    function renderMatrixChart(data) {
+        const points = getMatrixChartPoints(data?.snapshots);
+        const activeSeries = [
+            { key: 'ratio', label: 'Ratio', color: getMatrixMetricColor('ratio'), logarithmic: false },
+            ...(matrixGlobalUploadEnabled ? [{ key: 'upload', label: 'Upload', color: getMatrixMetricColor('upload'), logarithmic: true }] : []),
+            ...(matrixGlobalDownloadEnabled ? [{ key: 'download', label: 'Download', color: getMatrixMetricColor('download'), logarithmic: true }] : [])
+        ];
+
+        if (points.length < 2) {
+            return '<div class="tm-matrix-chart-empty">Historique graphique indisponible pour le moment.</div>';
+        }
+
+        const width = 900;
+        const height = 300;
+        const plotX = 54;
+        const plotY = 24;
+        const plotWidth = 800;
+        const plotHeight = 218;
+        const ratioValues = points.map((point) => point.ratio === Infinity ? 1 : Number(point.ratio) || 0);
+        const bytesValues = points.flatMap((point) => [point.upload, point.download]);
+        const ratioMax = Math.max(1, ...ratioValues);
+        const bytesMax = Math.max(1, ...bytesValues);
+        const gridLines = [0, 0.25, 0.5, 0.75, 1].map((step) => {
+            const lineY = plotY + plotHeight - step * plotHeight;
+            return `<line x1="${plotX}" y1="${lineY}" x2="${plotX + plotWidth}" y2="${lineY}" class="tm-matrix-chart-grid"></line>`;
+        }).join('');
+        const paths = activeSeries.map((series) => `
+            <polyline points="${matrixChartPath(points, series.key, plotX, plotY, plotWidth, plotHeight, series.logarithmic ? bytesMax : ratioMax, series.logarithmic)}" fill="none" stroke="${series.color}" stroke-width="${series.key === 'ratio' ? '2.5' : '1.8'}" stroke-linecap="round" stroke-linejoin="round"></polyline>
+        `).join('');
+        const firstDate = points[0].date.slice(5);
+        const lastDate = points[points.length - 1].date.slice(5);
+
+        return `
+            <div class="tm-matrix-chart-wrap">
+                <svg class="tm-matrix-chart-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Historique du ratio, de l’upload et du download">
+                    ${gridLines}
+                    <line x1="${plotX}" y1="${plotY}" x2="${plotX}" y2="${plotY + plotHeight}" class="tm-matrix-chart-axis"></line>
+                    ${matrixGlobalUploadEnabled || matrixGlobalDownloadEnabled ? `<line x1="${plotX + plotWidth}" y1="${plotY}" x2="${plotX + plotWidth}" y2="${plotY + plotHeight}" class="tm-matrix-chart-axis"></line>` : ''}
+                    <text x="${plotX}" y="16" class="tm-matrix-chart-axis-label">ratio · ${formatTr4kerTopbarStatsRatio(ratioMax)}</text>
+                    ${matrixGlobalUploadEnabled || matrixGlobalDownloadEnabled ? `<text x="${plotX + plotWidth}" y="16" text-anchor="end" class="tm-matrix-chart-axis-label">quantité · log</text>` : ''}
+                    ${paths}
+                    <text x="${plotX}" y="270" class="tm-matrix-chart-date">${firstDate}</text>
+                    <text x="${plotX + plotWidth}" y="270" text-anchor="end" class="tm-matrix-chart-date">${lastDate}</text>
+                </svg>
+            </div>
+        `;
+    }
+
+    function renderMatrixChartZone(data) {
+        return `
+            <section class="tm-matrix-zone tm-matrix-zone-chart" data-tm-matrix-zone="3" aria-labelledby="tm-matrix-chart-title">
+                <div class="tm-matrix-zone-heading">
+                    <span id="tm-matrix-chart-title">TELEMETRY</span>
+                    <span class="tm-matrix-status">RATIO + DATA</span>
+                </div>
+                ${renderMatrixChart(data)}
+            </section>
+        `;
+    }
+
+    function renderMatrixExtraZone(data) {
+        const items = [];
+        if (matrixDashboardShowCredits()) items.push({ metric: 'credits', label: 'Crédits', value: data?.extras?.credits ?? null });
+        if (matrixDashboardShowBuffer()) items.push({ metric: 'buffer', label: 'Buffer', value: data?.extras?.buffer ?? null });
+        if (items.length === 0) return '';
+        return `
+            <section class="tm-matrix-zone tm-matrix-zone-extras" data-tm-matrix-zone="4" aria-labelledby="tm-matrix-extras-title">
+                <div class="tm-matrix-zone-heading"><span id="tm-matrix-extras-title">EXTRAS</span></div>
+                <div class="tm-matrix-extra-list" data-tm-matrix-extra-count="${items.length}" style="--tm-matrix-extra-count:${items.length}">
+                    ${items.map((item) => renderMatrixMetric(item, 'tm-matrix-extra')).join('')}
+                </div>
+            </section>
+        `;
+    }
+
+    function setMatrixCarouselSlide(index) {
+        const dashboard = document.getElementById(MATRIX_DASHBOARD_ID);
+        if (!(dashboard instanceof HTMLElement)) return;
+        const periods = getActiveMatrixPeriods();
+        if (periods.length === 0) return;
+        matrixCarouselIndex = ((index % periods.length) + periods.length) % periods.length;
+        dashboard.querySelectorAll('[data-tm-matrix-period-slide]').forEach((slide, slideIndex) => {
+            const active = slideIndex === matrixCarouselIndex;
+            slide.toggleAttribute('hidden', !active);
+            slide.setAttribute('aria-hidden', active ? 'false' : 'true');
+        });
+        const counter = dashboard.querySelector('[data-tm-matrix-carousel-counter]');
+        if (counter instanceof HTMLElement) counter.textContent = `${matrixCarouselIndex + 1}/${periods.length}`;
+        const dots = dashboard.querySelector('[data-tm-matrix-carousel-dots]');
+        if (dots instanceof HTMLElement) {
+            dots.innerHTML = periods.map((period, periodIndex) => `<button type="button" class="${periodIndex === matrixCarouselIndex ? 'is-active' : ''}" data-tm-matrix-carousel-index="${periodIndex}" aria-label="Afficher ${period.label}"></button>`).join('');
+        }
+    }
+
+    function stopMatrixCarousel() {
+        if (matrixCarouselTimer === null) return;
+        clearInterval(matrixCarouselTimer);
+        matrixCarouselTimer = null;
+    }
+
+    function startMatrixCarousel() {
+        stopMatrixCarousel();
+        const periods = getActiveMatrixPeriods();
+        if (periods.length < 2) return;
+        matrixCarouselTimer = window.setInterval(() => {
+            const dashboard = document.getElementById(MATRIX_DASHBOARD_ID);
+            if (!(dashboard instanceof HTMLElement) || (matrixCarouselPauseOnHover && dashboard.matches(':hover'))) return;
+            setMatrixCarouselSlide(matrixCarouselIndex + 1);
+        }, matrixCarouselIntervalMs);
+    }
+
+    function updateMatrixTicker() {
+        const ticker = document.querySelector(`#${MATRIX_DASHBOARD_ID} [data-tm-matrix-ticker]`);
+        const track = ticker?.querySelector('[data-tm-matrix-ticker-track]');
+        const copy = track?.querySelector('.tm-matrix-ticker-copy');
+        if (!(ticker instanceof HTMLElement) || !(track instanceof HTMLElement) || !(copy instanceof HTMLElement)) return;
+        track.innerHTML = '';
+        track.appendChild(copy);
+        ticker.removeAttribute('data-tm-matrix-overflow');
+        track.style.removeProperty('--tm-matrix-ticker-duration');
+        if (!matrixTickerEnabled || copy.scrollWidth <= 0) return;
+        const duplicate = copy.cloneNode(true);
+        track.appendChild(duplicate);
+        ticker.setAttribute('data-tm-matrix-overflow', '1');
+        track.style.setProperty('--tm-matrix-ticker-duration', `${Math.max(8, (copy.scrollWidth / matrixTickerSpeed) * 2).toFixed(1)}s`);
+    }
+
+    function installMatrixDashboardHandlers(dashboard) {
+        if (dashboard.dataset.tmMatrixHandlers === '1') return;
+        dashboard.dataset.tmMatrixHandlers = '1';
+        dashboard.addEventListener('click', (event) => {
+            const target = event.target instanceof Element ? event.target.closest('[data-tm-matrix-carousel-action], [data-tm-matrix-carousel-index]') : null;
+            if (!(target instanceof HTMLElement)) return;
+            if (target.hasAttribute('data-tm-matrix-carousel-index')) {
+                setMatrixCarouselSlide(Number(target.getAttribute('data-tm-matrix-carousel-index')) || 0);
+                return;
+            }
+            setMatrixCarouselSlide(matrixCarouselIndex + (target.getAttribute('data-tm-matrix-carousel-action') === 'previous' ? -1 : 1));
+        });
+        window.addEventListener('resize', updateMatrixTicker, { passive: true });
+    }
+
+    function renderMatrixBackground() {
+        const glyphs = '01アイウエオカキクケコ<>[]{}#$%&/\\';
+        const lines = Array.from({ length: 8 }, (_, index) => {
+            const text = Array.from({ length: 52 }, () => glyphs[Math.floor(Math.random() * glyphs.length)]).join('');
+            const top = 8 + index * 12;
+            const delay = (Math.random() * -12).toFixed(2);
+            const duration = (15 + Math.random() * 15).toFixed(2);
+            return `<span class="tm-matrix-code-line" style="top:${top}%;animation-delay:${delay}s;animation-duration:${duration}s;">${text}</span>`;
+        }).join('');
+        return `<div class="tm-matrix-background" aria-hidden="true">${lines}</div>`;
+    }
+
+    function renderMatrixDashboard(data) {
+        const dashboard = document.getElementById(MATRIX_DASHBOARD_ID);
+        if (!(dashboard instanceof HTMLElement)) return;
+        matrixDashboardData = data;
+        const activePeriods = getActiveMatrixPeriods(data);
+        const hasZone4 = matrixDashboardShowCredits() || matrixDashboardShowBuffer();
+        const layoutClass = `${activePeriods.length > 0 ? 'has-zone-2' : ''} ${hasZone4 ? 'has-zone-4' : ''}`.trim();
+        matrixCarouselIndex = 0;
+        stopMatrixCarousel();
+        dashboard.className = `tm-matrix-dashboard ${layoutClass}`;
+        dashboard.innerHTML = `
+            ${renderMatrixBackground()}
+            ${renderMatrixGlobalZone(data)}
+            <div class="tm-matrix-body ${layoutClass}" data-tm-matrix-body="1">
+                ${renderMatrixPeriodZone(activePeriods)}
+                ${renderMatrixChartZone(data)}
+                ${hasZone4 ? renderMatrixExtraZone(data) : ''}
+            </div>
+        `;
+        installMatrixDashboardHandlers(dashboard);
+        setMatrixCarouselSlide(0);
+        updateMatrixTicker();
+        if (activePeriods.length > 1) startMatrixCarousel();
+    }
+
+    function destroyMatrixDashboard() {
+        stopMatrixCarousel();
+        matrixDashboardData = null;
+        matrixDashboardSignature = '';
+        document.getElementById(MATRIX_DASHBOARD_ID)?.remove();
+        document.querySelectorAll(`header[${MATRIX_DASHBOARD_HOST_ATTR}]`).forEach((header) => {
+            header.removeAttribute(MATRIX_DASHBOARD_HOST_ATTR);
+        });
+    }
+
+    function getMatrixDashboardSignature() {
+        return [
+            matrixDashboardEnabled ? 'on' : 'off',
+            matrixGlobalUploadEnabled ? 'u1' : 'u0',
+            matrixGlobalDownloadEnabled ? 'd1' : 'd0',
+            matrixTickerEnabled ? 't1' : 't0',
+            matrixTickerSpeed,
+            matrixTickerPauseOnHover ? 'tp1' : 'tp0',
+            matrixCarouselIntervalMs,
+            matrixCarouselPauseOnHover ? 'cp1' : 'cp0',
+            JSON.stringify(matrixPeriodSettings),
+            matrixDashboardData ? tr4kerTopbarStatsFetchedAt : 'empty'
+        ].join('|');
+    }
+
+    function syncMatrixDashboard() {
+        stopTr4kerTopbarStatsPeriodCycle();
+        document.getElementById(TR4KER_TOPBAR_STATS_WIDGET_ID)?.remove();
+        closeTr4kerTopbarStatsPopover();
+        const notificationButton = getTr4kerTopbarStatsNotificationButton();
+        const header = notificationButton instanceof HTMLButtonElement
+            ? notificationButton.closest('header[role="banner"]')
+            : null;
+        if (!isChatPage() || !matrixDashboardEnabled || !(header instanceof HTMLElement)) {
+            destroyMatrixDashboard();
+            return;
+        }
+        const mountTarget = header;
+        if (!(mountTarget instanceof HTMLElement)) return;
+        mountTarget.setAttribute(MATRIX_DASHBOARD_HOST_ATTR, '1');
+        const rightControls = notificationButton.parentElement instanceof HTMLElement
+            ? notificationButton.parentElement
+            : null;
+        ensureMatrixDashboardStyle();
+        let dashboard = document.getElementById(MATRIX_DASHBOARD_ID);
+        if (!(dashboard instanceof HTMLElement)) {
+            dashboard = document.createElement('section');
+            dashboard.id = MATRIX_DASHBOARD_ID;
+            dashboard.setAttribute('aria-label', 'Matrix Dashboard');
+            dashboard.innerHTML = '<div class="tm-matrix-loading">CHARGEMENT DES STATISTIQUES…</div>';
+        }
+        if (
+            dashboard.parentElement !== mountTarget
+            || (rightControls instanceof HTMLElement && dashboard.nextElementSibling !== rightControls)
+        ) {
+            if (rightControls instanceof HTMLElement && rightControls.parentElement === mountTarget) {
+                mountTarget.insertBefore(dashboard, rightControls);
+            } else {
+                mountTarget.appendChild(dashboard);
+            }
+        }
+        const signature = getMatrixDashboardSignature();
+        if (matrixDashboardData && signature !== matrixDashboardSignature) {
+            matrixDashboardSignature = signature;
+            renderMatrixDashboard(matrixDashboardData);
+        }
+        const userCacheIsFresh = tr4kerTopbarUserData && tr4kerTopbarUserFetchedAt > 0 && Date.now() - tr4kerTopbarUserFetchedAt < TR4KER_TOPBAR_STATS_CACHE_MS;
+        if (matrixDashboardShowCredits() && !userCacheIsFresh && !tr4kerTopbarUserRequest) {
+            void fetchTr4kerTopbarUser()
+                .then((userPayload) => {
+                    if (!matrixDashboardData) return;
+                    matrixDashboardData.extras.credits = getMatrixNumber(userPayload?.money);
+                    matrixDashboardSignature = getMatrixDashboardSignature();
+                    renderMatrixDashboard(matrixDashboardData);
+                })
+                .catch(() => {});
+        }
+        if (matrixDashboardData && !tr4kerTopbarStatsData && !tr4kerTopbarStatsRequest) return;
+        const cacheIsFresh = tr4kerTopbarStatsData && tr4kerTopbarStatsFetchedAt > 0 && Date.now() - tr4kerTopbarStatsFetchedAt < TR4KER_TOPBAR_STATS_CACHE_MS;
+        if (cacheIsFresh && !matrixDashboardData) {
+            const data = buildMatrixData(tr4kerTopbarStatsData, tr4kerTopbarUserData);
+            matrixDashboardSignature = getMatrixDashboardSignature();
+            renderMatrixDashboard(data);
+            return;
+        }
+        if (cacheIsFresh) return;
+        fetchTr4kerTopbarStats()
+            .then((payload) => {
+                if (!payload) throw new Error('Réponse statistiques vide');
+                const userPromise = matrixDashboardShowCredits() ? fetchTr4kerTopbarUser().catch(() => null) : Promise.resolve(null);
+                return userPromise.then((userPayload) => ({ payload, userPayload }));
+            })
+            .then(({ payload, userPayload }) => {
+                matrixDashboardData = buildMatrixData(payload, userPayload);
+                matrixDashboardSignature = getMatrixDashboardSignature();
+                renderMatrixDashboard(matrixDashboardData);
+            })
+            .catch((error) => {
+                console.warn('[PimpMyShoutbox] Matrix Dashboard indisponible.', error);
+                matrixDashboardData = buildMatrixData(null, null);
+                matrixDashboardSignature = getMatrixDashboardSignature();
+                renderMatrixDashboard(matrixDashboardData);
+            });
+    }
+
+    function ensureMatrixDashboardStyle() {
+        if (!document.head) return;
+        let style = document.getElementById(MATRIX_DASHBOARD_STYLE_ID);
+        if (!(style instanceof HTMLStyleElement)) {
+            style = document.createElement('style');
+            style.id = MATRIX_DASHBOARD_STYLE_ID;
+            document.head.appendChild(style);
+        }
+        style.textContent = `
+            #${MATRIX_DASHBOARD_ID} {
+                --tm-matrix-bg: rgba(2, 8, 18, 0.97);
+                --tm-matrix-panel: rgba(7, 20, 34, 0.9);
+                --tm-matrix-border: rgba(45, 212, 191, 0.36);
+                --tm-matrix-primary: #a7f3d0;
+                --tm-matrix-text: #e0f2fe;
+                --tm-matrix-muted: #86a6b8;
+                width: 100%;
+                margin: 0 0 18px;
+                color: var(--tm-matrix-text);
+                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+                box-sizing: border-box;
+                position: relative;
+                isolation: isolate;
+                overflow: hidden;
+                contain: layout paint style;
+            }
+            #${MATRIX_DASHBOARD_ID} *, #${MATRIX_DASHBOARD_ID} *::before, #${MATRIX_DASHBOARD_ID} *::after { box-sizing: border-box; }
+            header[${MATRIX_DASHBOARD_HOST_ATTR}] {
+                flex-wrap: nowrap !important;
+                align-content: center !important;
+                column-gap: 4px !important;
+                min-height: 72px !important;
+                height: auto !important;
+                padding-bottom: 5px !important;
+            }
+            header[${MATRIX_DASHBOARD_HOST_ATTR}] > #${MATRIX_DASHBOARD_ID} {
+                order: 3;
+                flex: 0 1 clamp(300px, 34vw, 500px) !important;
+                width: clamp(300px, 34vw, 500px) !important;
+                max-width: none !important;
+                margin: 0 5px !important;
+            }
+            #${MATRIX_DASHBOARD_ID}::after {
+                content: '';
+                position: absolute;
+                inset: 0;
+                pointer-events: none;
+                z-index: 1;
+                opacity: .24;
+                background: repeating-linear-gradient(0deg, transparent 0, transparent 3px, rgba(125, 211, 252, .045) 4px);
+                mix-blend-mode: screen;
+            }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-background { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; opacity: .16; color: #2dd4bf; font-size: 10px; line-height: 1; text-shadow: 0 0 8px rgba(45, 212, 191, .7); }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-code-line { position: absolute; left: -40%; white-space: nowrap; letter-spacing: .3em; animation: tm-matrix-code-drift linear infinite; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-zone-global,
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-body { position: relative; z-index: 2; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-body {
+                display: grid;
+                gap: 10px;
+                grid-template-columns: 1fr;
+                align-items: stretch;
+            }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-body.has-zone-2.has-zone-4 { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1.15fr); }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-body.has-zone-2:not(.has-zone-4) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-body:not(.has-zone-2).has-zone-4 { grid-template-columns: minmax(0, 1fr) minmax(0, .9fr); }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-zone {
+                min-width: 0;
+                min-height: 120px;
+                padding: 10px;
+                border: 1px solid var(--tm-matrix-border);
+                border-radius: 5px;
+                background: linear-gradient(145deg, var(--tm-matrix-panel), rgba(3, 10, 24, 0.88));
+                box-shadow: inset 0 0 22px rgba(45, 212, 191, 0.055), 0 0 16px rgba(14, 165, 233, 0.06);
+                overflow: hidden;
+            }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-zone-global { min-height: 58px; margin-bottom: 6px; padding: 8px 12px; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-zone-periods { border-color: rgba(99, 255, 145, .38); }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-zone-chart { border-color: rgba(57, 255, 136, .42); }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-zone-extras { border-color: rgba(157, 255, 181, .34); }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-zone-heading {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+                margin-bottom: 8px;
+                color: var(--tm-matrix-muted);
+                font-size: 10px;
+                letter-spacing: .12em;
+                text-transform: uppercase;
+            }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-status { color: #63ff91; font-size: 9px; letter-spacing: .08em; animation: tm-matrix-status-glitch 7s steps(2, end) infinite; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-ticker { min-width: 0; overflow: hidden; white-space: nowrap; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-ticker-track { display: inline-flex; min-width: max-content; align-items: center; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-ticker-copy { display: inline-flex; align-items: center; min-width: max-content; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-overflow .tm-matrix-ticker-track,
+            #${MATRIX_DASHBOARD_ID} [data-tm-matrix-overflow="1"] .tm-matrix-ticker-track { animation: tm-matrix-ticker-scroll var(--tm-matrix-ticker-duration, 24s) linear infinite; }
+            #${MATRIX_DASHBOARD_ID} [data-tm-matrix-ticker-pause-hover="1"][data-tm-matrix-overflow="1"]:hover .tm-matrix-ticker-track { animation-play-state: paused; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-ticker-static .tm-matrix-ticker-track { width: 100%; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-metric { display: inline-flex; align-items: baseline; gap: 8px; min-width: 0; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-metric-label { color: var(--tm-matrix-muted); font-size: 10px; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-metric strong { font-size: 15px; font-weight: 700; letter-spacing: .02em; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-zone-global .tm-matrix-metric-label { font-size: 12px; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-zone-global .tm-matrix-metric strong { font-size: 17px; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-separator { margin: 0 12px; color: rgba(125, 211, 252, .52); }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-zone-periods,
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-zone-chart,
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-zone-extras { min-height: 150px; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-period-viewport { min-height: 80px; display: grid; align-items: center; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-period-slide[hidden] { display: none; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-period-title { margin-bottom: 10px; color: var(--tm-matrix-primary); font-size: 12px; letter-spacing: .14em; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-period-metrics { display: grid; gap: 8px; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-period-metrics .tm-matrix-metric { justify-content: space-between; border-bottom: 1px solid rgba(134, 239, 172, .1); padding-bottom: 6px; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-period-metrics .tm-matrix-metric strong { font-size: 17px; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-carousel-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-carousel-controls button { width: 22px; height: 22px; border: 1px solid var(--tm-matrix-border); border-radius: 4px; background: rgba(74, 222, 128, .06); color: var(--tm-matrix-primary); cursor: pointer; font: inherit; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-carousel-controls button:hover, #${MATRIX_DASHBOARD_ID} .tm-matrix-carousel-controls button:focus-visible { background: rgba(74, 222, 128, .16); outline: none; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-carousel-dots { display: flex; gap: 5px; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-carousel-dots button { width: 7px; height: 7px; padding: 0; border-radius: 50%; background: rgba(134, 239, 172, .24); }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-carousel-dots button.is-active { background: var(--tm-matrix-primary); box-shadow: 0 0 7px rgba(134, 239, 172, .8); }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-extra-list { display: grid; height: calc(100% - 22px); gap: 10px; grid-template-rows: repeat(var(--tm-matrix-extra-count, 1), minmax(0, 1fr)); }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-extra { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; padding: 8px; border: 1px solid rgba(134, 239, 172, .16); background: rgba(0, 0, 0, .16); }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-extra .tm-matrix-metric-label { font-size: 11px; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-extra strong { font-size: 18px; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-chart-wrap { display: grid; gap: 4px; align-content: center; min-height: 115px; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-chart-svg { display: block; width: 100%; height: auto; min-height: 90px; overflow: visible; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-chart-grid { stroke: rgba(99, 255, 145, .16); stroke-width: 1; stroke-dasharray: 3 5; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-chart-axis { stroke: rgba(99, 255, 145, .52); stroke-width: 1; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-chart-axis-label, #${MATRIX_DASHBOARD_ID} .tm-matrix-chart-date { fill: var(--tm-matrix-muted); font: 10px ui-monospace, monospace; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-chart-empty, #${MATRIX_DASHBOARD_ID} .tm-matrix-loading { min-height: 120px; display: grid; place-items: center; color: var(--tm-matrix-muted); font-size: 11px; text-align: center; }
+            #${MATRIX_DASHBOARD_ID} .tm-matrix-loading { min-height: 90px; border: 1px solid var(--tm-matrix-border); border-radius: 5px; background: var(--tm-matrix-bg); letter-spacing: .08em; }
+            @keyframes tm-matrix-ticker-scroll { from { transform: translateX(-50%); } to { transform: translateX(0); } }
+            @keyframes tm-matrix-code-drift { from { transform: translateX(0); } to { transform: translateX(180%); } }
+            @keyframes tm-matrix-status-glitch { 0%, 92%, 100% { transform: translateX(0); opacity: 1; } 93% { transform: translateX(-2px); color: #f0abfc; } 95% { transform: translateX(2px); color: #67e8f9; } 97% { transform: translateX(0); opacity: .72; } }
+            header[${MATRIX_DASHBOARD_HOST_ATTR}] #${MATRIX_DASHBOARD_ID} .tm-matrix-zone { min-height: 54px; padding: 4px; border-radius: 3px; }
+            header[${MATRIX_DASHBOARD_HOST_ATTR}] #${MATRIX_DASHBOARD_ID} .tm-matrix-zone-global { min-height: 32px; padding: 4px 6px; margin-bottom: 3px; }
+            header[${MATRIX_DASHBOARD_HOST_ATTR}] #${MATRIX_DASHBOARD_ID} .tm-matrix-zone-periods,
+            header[${MATRIX_DASHBOARD_HOST_ATTR}] #${MATRIX_DASHBOARD_ID} .tm-matrix-zone-chart,
+            header[${MATRIX_DASHBOARD_HOST_ATTR}] #${MATRIX_DASHBOARD_ID} .tm-matrix-zone-extras { min-height: 72px; }
+            header[${MATRIX_DASHBOARD_HOST_ATTR}] #${MATRIX_DASHBOARD_ID} .tm-matrix-period-viewport { min-height: 35px; }
+            header[${MATRIX_DASHBOARD_HOST_ATTR}] #${MATRIX_DASHBOARD_ID} .tm-matrix-chart-wrap { min-height: 44px; }
+            header[${MATRIX_DASHBOARD_HOST_ATTR}] #${MATRIX_DASHBOARD_ID} .tm-matrix-chart-svg { min-height: 38px; }
+            header[${MATRIX_DASHBOARD_HOST_ATTR}] #${MATRIX_DASHBOARD_ID} .tm-matrix-period-metrics { gap: 2px; }
+            header[${MATRIX_DASHBOARD_HOST_ATTR}] #${MATRIX_DASHBOARD_ID} .tm-matrix-period-metrics .tm-matrix-metric { padding-bottom: 1px; }
+            header[${MATRIX_DASHBOARD_HOST_ATTR}] #${MATRIX_DASHBOARD_ID} .tm-matrix-extra strong { font-size: 12px; }
+            header[${MATRIX_DASHBOARD_HOST_ATTR}] #${MATRIX_DASHBOARD_ID} .tm-matrix-zone-heading { margin-bottom: 3px; font-size: 7px; }
+            header[${MATRIX_DASHBOARD_HOST_ATTR}] #${MATRIX_DASHBOARD_ID} .tm-matrix-metric { gap: 3px; }
+            header[${MATRIX_DASHBOARD_HOST_ATTR}] #${MATRIX_DASHBOARD_ID} .tm-matrix-metric-label { font-size: 7px; }
+            header[${MATRIX_DASHBOARD_HOST_ATTR}] #${MATRIX_DASHBOARD_ID} .tm-matrix-metric strong { font-size: 10px; }
+            header[${MATRIX_DASHBOARD_HOST_ATTR}] #${MATRIX_DASHBOARD_ID} .tm-matrix-zone-global .tm-matrix-metric-label { font-size: 13px; }
+            header[${MATRIX_DASHBOARD_HOST_ATTR}] #${MATRIX_DASHBOARD_ID} .tm-matrix-zone-global .tm-matrix-metric strong { font-size: 19px; }
+            header[${MATRIX_DASHBOARD_HOST_ATTR}] #${MATRIX_DASHBOARD_ID} .tm-matrix-period-title { margin-bottom: 4px; font-size: 8px; }
+            header[${MATRIX_DASHBOARD_HOST_ATTR}] #${MATRIX_DASHBOARD_ID} .tm-matrix-carousel-controls { margin-top: 3px; }
+            header[${MATRIX_DASHBOARD_HOST_ATTR}] #${MATRIX_DASHBOARD_ID} .tm-matrix-carousel-controls button { width: 16px; height: 16px; font-size: 10px; }
+            header[${MATRIX_DASHBOARD_HOST_ATTR}] #${MATRIX_DASHBOARD_ID} .tm-matrix-carousel-dots button { width: 5px; height: 5px; }
+            header[${MATRIX_DASHBOARD_HOST_ATTR}] #${MATRIX_DASHBOARD_ID} .tm-matrix-chart-axis-label, header[${MATRIX_DASHBOARD_HOST_ATTR}] #${MATRIX_DASHBOARD_ID} .tm-matrix-chart-date { font-size: 7px; }
+            @media (max-width: 1050px) {
+                #${MATRIX_DASHBOARD_ID} .tm-matrix-body.has-zone-2.has-zone-4 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+                #${MATRIX_DASHBOARD_ID} .tm-matrix-body.has-zone-2.has-zone-4 .tm-matrix-zone-extras { grid-column: 1 / -1; min-height: 180px; }
+                #${MATRIX_DASHBOARD_ID} .tm-matrix-body:not(.has-zone-2).has-zone-4 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+            }
+            @media (max-width: 680px) {
+                #${MATRIX_DASHBOARD_ID} .tm-matrix-body, #${MATRIX_DASHBOARD_ID} .tm-matrix-body.has-zone-2.has-zone-4, #${MATRIX_DASHBOARD_ID} .tm-matrix-body.has-zone-2:not(.has-zone-4), #${MATRIX_DASHBOARD_ID} .tm-matrix-body:not(.has-zone-2).has-zone-4 { grid-template-columns: 1fr; }
+                #${MATRIX_DASHBOARD_ID} .tm-matrix-body.has-zone-2.has-zone-4 .tm-matrix-zone-extras { grid-column: auto; }
+                #${MATRIX_DASHBOARD_ID} .tm-matrix-zone { min-height: 210px; }
+                #${MATRIX_DASHBOARD_ID} .tm-matrix-zone-global { min-height: 92px; }
+                #${MATRIX_DASHBOARD_ID} .tm-matrix-metric strong { font-size: 14px; }
+            }
+            @media (prefers-reduced-motion: reduce) { #${MATRIX_DASHBOARD_ID} [data-tm-matrix-overflow="1"] .tm-matrix-ticker-track, #${MATRIX_DASHBOARD_ID} .tm-matrix-code-line, #${MATRIX_DASHBOARD_ID} .tm-matrix-status { animation: none; } }
+        `;
+    }
+
     function clearTr4kerTopbarStatsHostLayout() {
         document.querySelectorAll(`header[role="banner"][${TR4KER_TOPBAR_STATS_HOST_ATTR}]`).forEach((header) => {
             header.removeAttribute(TR4KER_TOPBAR_STATS_HOST_ATTR);
@@ -5520,86 +6412,18 @@
     }
 
     function syncTr4kerTopbarStatsButton() {
-        if (!isTr4kerPage() || !tr4kerTopbarStatsEnabled) {
-            stopTr4kerTopbarStatsPeriodCycle();
-            closeTr4kerTopbarStatsPopover();
-            document.getElementById(TR4KER_TOPBAR_STATS_BUTTON_ID)?.remove();
-            document.getElementById(TR4KER_TOPBAR_STATS_WIDGET_ID)?.remove();
-            clearTr4kerTopbarStatsHostLayout();
-            return;
-        }
-
-        const notificationButton = getTr4kerTopbarStatsNotificationButton();
-        if (!(notificationButton instanceof HTMLButtonElement)) {
-            clearTr4kerTopbarStatsHostLayout();
-            return;
-        }
-
-        ensureTr4kerTopbarStatsStyle();
-        // Retire le bouton de la version précédente si le userscript a été
-        // rechargé sans rafraîchir complètement la page.
-        closeTr4kerTopbarStatsPopover();
+        matrixDashboardEnabled = loadTr4kerTopbarStatsEnabled();
+        matrixGlobalUploadEnabled = loadMatrixGlobalUploadEnabled();
+        matrixGlobalDownloadEnabled = loadMatrixGlobalDownloadEnabled();
+        matrixTickerEnabled = loadMatrixTickerEnabled();
+        matrixTickerSpeed = loadMatrixTickerSpeed();
+        matrixTickerPauseOnHover = loadMatrixTickerPauseOnHover();
+        matrixCarouselIntervalMs = loadMatrixCarouselIntervalMs();
+        matrixCarouselPauseOnHover = loadMatrixCarouselPauseOnHover();
+        matrixPeriodSettings = loadMatrixPeriodSettings();
         document.getElementById(TR4KER_TOPBAR_STATS_BUTTON_ID)?.remove();
-
-        let widget = document.getElementById(TR4KER_TOPBAR_STATS_WIDGET_ID);
-        if (!(widget instanceof HTMLElement)) {
-            widget = document.createElement('div');
-            widget.id = TR4KER_TOPBAR_STATS_WIDGET_ID;
-            widget.setAttribute('role', 'group');
-            widget.setAttribute('aria-busy', 'true');
-            widget.setAttribute('title', 'Chargement des statistiques Tr4ker…');
-            widget.innerHTML = '<div data-tm-topbar-stats-metric="ratio"><strong>··</strong><span>Chargement</span></div>';
-        }
-        widget.setAttribute('data-tm-topbar-stats-mode', tr4kerTopbarStatsMode);
-
-        if (widget.parentElement !== notificationButton.parentElement || notificationButton.previousElementSibling !== widget) {
-            notificationButton.insertAdjacentElement('beforebegin', widget);
-        }
-        applyTr4kerTopbarStatsHostLayout(notificationButton);
-
-        const userCacheIsFresh = (
-            tr4kerTopbarUserFetchedAt > 0
-            && Date.now() - tr4kerTopbarUserFetchedAt < TR4KER_TOPBAR_STATS_CACHE_MS
-        );
-        if (tr4kerTopbarStatsShowCredits && !userCacheIsFresh && !tr4kerTopbarUserRequest) {
-            void fetchTr4kerTopbarUser()
-                .then(() => {
-                    if (tr4kerTopbarStatsData) renderTr4kerTopbarStatsWidget(tr4kerTopbarStatsData);
-                })
-                .catch(() => {
-                    if (tr4kerTopbarStatsData) renderTr4kerTopbarStatsWidget(tr4kerTopbarStatsData);
-                });
-        }
-
-        const cacheIsFresh = (
-            tr4kerTopbarStatsData
-            && tr4kerTopbarStatsFetchedAt > 0
-            && Date.now() - tr4kerTopbarStatsFetchedAt < TR4KER_TOPBAR_STATS_CACHE_MS
-        );
-        if (cacheIsFresh) {
-            if (
-                widget.dataset.tmTopbarStatsRenderedAt !== String(tr4kerTopbarStatsFetchedAt)
-                || widget.dataset.tmTopbarStatsSettings !== getTr4kerTopbarStatsSettingsSignature()
-            ) {
-                renderTr4kerTopbarStatsWidget(tr4kerTopbarStatsData);
-            }
-            return;
-        }
-
-        fetchTr4kerTopbarStats()
-            .then((payload) => {
-                if (payload) {
-                    renderTr4kerTopbarStatsWidget(payload);
-                    return;
-                }
-                widget?.setAttribute('aria-busy', 'false');
-                widget?.setAttribute('title', 'Statistiques Tr4ker indisponibles pour le moment.');
-            })
-            .catch(() => {
-                tr4kerTopbarStatsFetchedAt = Date.now();
-                widget?.setAttribute('aria-busy', 'false');
-                widget?.setAttribute('title', 'Impossible de charger les statistiques Tr4ker.');
-            });
+        clearTr4kerTopbarStatsHostLayout();
+        syncMatrixDashboard();
     }
 
     function ensureChatScrollbarStyle() {
@@ -9890,6 +10714,17 @@
             embedUrlImagesToggle: modal.querySelector('#tm-embed-url-images-toggle'),
             resetStatsLayoutBtn: modal.querySelector('#tm-reset-stats-layout'),
             hideStatsToggle: modal.querySelector('#tm-hide-stats-toggle'),
+            matrixDashboardToggle: modal.querySelector('#tm-matrix-dashboard-toggle'),
+            matrixGlobalUploadToggle: modal.querySelector('#tm-matrix-global-upload-toggle'),
+            matrixGlobalDownloadToggle: modal.querySelector('#tm-matrix-global-download-toggle'),
+            matrixTickerToggle: modal.querySelector('#tm-matrix-ticker-toggle'),
+            matrixTickerSpeedInput: modal.querySelector('#tm-matrix-ticker-speed-input'),
+            matrixTickerPauseHoverToggle: modal.querySelector('#tm-matrix-ticker-pause-hover-toggle'),
+            matrixPeriodToggles: Array.from(modal.querySelectorAll('[data-tm-matrix-period]')),
+            matrixCarouselIntervalInput: modal.querySelector('#tm-matrix-carousel-interval-input'),
+            matrixCarouselPauseHoverToggle: modal.querySelector('#tm-matrix-carousel-pause-hover-toggle'),
+            matrixCreditsToggle: modal.querySelector('#tm-matrix-credits-toggle'),
+            matrixBufferToggle: modal.querySelector('#tm-matrix-buffer-toggle'),
             topbarStatsToggle: modal.querySelector('#tm-topbar-stats-toggle'),
             topbarStatsModeInputs: Array.from(modal.querySelectorAll('input[name="tm-topbar-stats-mode"]')),
             topbarStatsShowGlobalRatioToggle: modal.querySelector('#tm-topbar-stats-show-global-ratio-toggle'),
@@ -11344,106 +12179,62 @@
             );
         });
 
-        elements.topbarStatsToggle?.addEventListener('change', () => {
-            saveTr4kerTopbarStatsEnabled(elements.topbarStatsToggle.checked);
+        const refreshMatrixConfiguration = (message) => {
+            matrixDashboardSignature = '';
             syncTr4kerTopbarStatsButton();
-            controls.setFeedback(
-                tr4kerTopbarStatsEnabled
-                    ? 'Bandeau de statistiques activé dans la top bar.'
-                    : 'Bandeau de statistiques retiré de la top bar.'
-            );
-        });
+            controls.setFeedback(message);
+        };
 
-        elements.topbarStatsModeInputs.forEach((input) => {
+        elements.matrixDashboardToggle?.addEventListener('change', () => {
+            saveMatrixDashboardEnabled(elements.matrixDashboardToggle.checked);
+            refreshMatrixConfiguration(matrixDashboardEnabled ? 'Matrix Dashboard activé.' : 'Matrix Dashboard désactivé.');
+        });
+        elements.matrixGlobalUploadToggle?.addEventListener('change', () => {
+            saveMatrixGlobalUploadEnabled(elements.matrixGlobalUploadToggle.checked);
+            refreshMatrixConfiguration(matrixGlobalUploadEnabled ? 'Upload global affiché.' : 'Upload global masqué.');
+        });
+        elements.matrixGlobalDownloadToggle?.addEventListener('change', () => {
+            saveMatrixGlobalDownloadEnabled(elements.matrixGlobalDownloadToggle.checked);
+            refreshMatrixConfiguration(matrixGlobalDownloadEnabled ? 'Download global affiché.' : 'Download global masqué.');
+        });
+        elements.matrixTickerToggle?.addEventListener('change', () => {
+            saveMatrixTickerEnabled(elements.matrixTickerToggle.checked);
+            refreshMatrixConfiguration(matrixTickerEnabled ? 'Défilement activé si nécessaire.' : 'Défilement désactivé.');
+        });
+        elements.matrixTickerSpeedInput?.addEventListener('change', () => {
+            saveMatrixTickerSpeed(elements.matrixTickerSpeedInput.value);
+            elements.matrixTickerSpeedInput.value = String(matrixTickerSpeed);
+            refreshMatrixConfiguration('Vitesse du bandeau enregistrée.');
+        });
+        elements.matrixTickerPauseHoverToggle?.addEventListener('change', () => {
+            saveMatrixTickerPauseOnHover(elements.matrixTickerPauseHoverToggle.checked);
+            refreshMatrixConfiguration('Pause au survol du bandeau mise à jour.');
+        });
+        elements.matrixPeriodToggles.forEach((input) => {
             if (!(input instanceof HTMLInputElement)) return;
             input.addEventListener('change', () => {
-                if (!input.checked) return;
-                saveTr4kerTopbarStatsMode(input.value);
-                syncTr4kerTopbarStatsButton();
-                syncTr4kerTopbarBurgerMenu();
-                controls.setFeedback(
-                    tr4kerTopbarStatsMode === 'sober'
-                        ? 'Mode sobre Tr4ker appliqué au bandeau et au menu burger.'
-                        : 'Mode Matrix appliqué au bandeau et au menu burger.'
-                );
+                const periodId = String(input.getAttribute('data-tm-matrix-period') || '');
+                if (!matrixPeriodSettings[periodId]) return;
+                saveMatrixPeriodSetting(periodId, input.checked);
+                refreshMatrixConfiguration('Périodes du carrousel mises à jour.');
             });
         });
-
-        const refreshTopbarStatsConfiguration = () => {
-            tr4kerTopbarStatsPeriodIndex = 0;
-            syncTr4kerTopbarStatsButton();
-            if (tr4kerTopbarStatsData) renderTr4kerTopbarStatsWidget(tr4kerTopbarStatsData);
-        };
-
-        elements.topbarStatsShowGlobalRatioToggle?.addEventListener('change', () => {
-            saveTr4kerTopbarStatsShowGlobalRatio(elements.topbarStatsShowGlobalRatioToggle.checked);
-            if (!tr4kerTopbarStatsShowGlobalRatio && !getTr4kerTopbarStatsActivePeriod()) {
-                saveTr4kerTopbarStatsShowGlobalRatio(true);
-                elements.topbarStatsShowGlobalRatioToggle.checked = true;
-                controls.setFeedback('Garde au moins le ratio ou une période pour ne pas vider le bandeau.', true);
-                return;
-            }
-            refreshTopbarStatsConfiguration();
-            controls.setFeedback(tr4kerTopbarStatsShowGlobalRatio ? 'Ratio affiché dans le bandeau.' : 'Ratio retiré du bandeau quand une période est affichée.');
+        elements.matrixCarouselIntervalInput?.addEventListener('change', () => {
+            saveMatrixCarouselIntervalMs(Number(elements.matrixCarouselIntervalInput.value) * 1000);
+            elements.matrixCarouselIntervalInput.value = (matrixCarouselIntervalMs / 1000).toFixed(1);
+            refreshMatrixConfiguration('Intervalle du carrousel enregistré.');
         });
-
-        const bindTopbarPeriodToggle = (element, storageKey, label) => {
-            element?.addEventListener('change', () => {
-                saveTr4kerTopbarStatsShowPeriod(storageKey, element.checked);
-                if (!getTr4kerTopbarStatsActivePeriod() && !tr4kerTopbarStatsShowGlobalRatio) {
-                    saveTr4kerTopbarStatsShowGlobalRatio(true);
-                    if (elements.topbarStatsShowGlobalRatioToggle instanceof HTMLInputElement) {
-                        elements.topbarStatsShowGlobalRatioToggle.checked = true;
-                    }
-                }
-                refreshTopbarStatsConfiguration();
-                controls.setFeedback(element.checked ? `Statistiques ${label} ajoutées au cycle.` : `Statistiques ${label} retirées du cycle.`);
-            });
-        };
-        elements.topbarStatsShowPeriodicSectionToggle?.addEventListener('change', () => {
-            saveTr4kerTopbarStatsShowPeriodicSection(elements.topbarStatsShowPeriodicSectionToggle.checked);
-            refreshTopbarStatsConfiguration();
-            controls.setFeedback(
-                tr4kerTopbarStatsShowPeriodicSection
-                    ? 'Section des statistiques périodiques affichée.'
-                    : 'Section des statistiques périodiques masquée.'
-            );
+        elements.matrixCarouselPauseHoverToggle?.addEventListener('change', () => {
+            saveMatrixCarouselPauseOnHover(elements.matrixCarouselPauseHoverToggle.checked);
+            refreshMatrixConfiguration('Pause au survol du carrousel mise à jour.');
         });
-        bindTopbarPeriodToggle(elements.topbarStatsShow24HoursToggle, STORAGE_KEY_TOPBAR_STATS_SHOW_24H, '24 h');
-        bindTopbarPeriodToggle(elements.topbarStatsShow7DaysToggle, STORAGE_KEY_TOPBAR_STATS_SHOW_7D, '7 jours');
-        bindTopbarPeriodToggle(elements.topbarStatsShow30DaysToggle, STORAGE_KEY_TOPBAR_STATS_SHOW_30D, '30 jours');
-
-        elements.topbarStatsShowTotalUploadToggle?.addEventListener('change', () => {
-            saveTr4kerTopbarStatsShowTotalUpload(elements.topbarStatsShowTotalUploadToggle.checked);
-            refreshTopbarStatsConfiguration();
-            controls.setFeedback(tr4kerTopbarStatsShowTotalUpload ? 'Upload total ajouté au bandeau.' : 'Upload total retiré du bandeau.');
+        elements.matrixCreditsToggle?.addEventListener('change', () => {
+            saveTr4kerTopbarStatsShowCredits(elements.matrixCreditsToggle.checked);
+            refreshMatrixConfiguration('Affichage des crédits mis à jour.');
         });
-
-        elements.topbarStatsShowTotalDownloadToggle?.addEventListener('change', () => {
-            saveTr4kerTopbarStatsShowTotalDownload(elements.topbarStatsShowTotalDownloadToggle.checked);
-            refreshTopbarStatsConfiguration();
-            controls.setFeedback(tr4kerTopbarStatsShowTotalDownload ? 'Download total ajouté au bandeau.' : 'Download total retiré du bandeau.');
-        });
-
-        elements.topbarStatsShowCreditsToggle?.addEventListener('change', () => {
-            saveTr4kerTopbarStatsShowCredits(elements.topbarStatsShowCreditsToggle.checked);
-            syncTr4kerTopbarStatsButton();
-            if (tr4kerTopbarStatsData) renderTr4kerTopbarStatsWidget(tr4kerTopbarStatsData);
-            controls.setFeedback(
-                tr4kerTopbarStatsShowCredits
-                    ? 'Crédits disponibles ajoutés au bandeau.'
-                    : 'Crédits retirés du bandeau.'
-            );
-        });
-
-        elements.topbarStatsShowBufferToggle?.addEventListener('change', () => {
-            saveTr4kerTopbarStatsShowBuffer(elements.topbarStatsShowBufferToggle.checked);
-            if (tr4kerTopbarStatsData) renderTr4kerTopbarStatsWidget(tr4kerTopbarStatsData);
-            controls.setFeedback(
-                tr4kerTopbarStatsShowBuffer
-                    ? 'Buffer avant ratio 0,50 ajouté au bandeau.'
-                    : 'Buffer avant ratio 0,50 retiré du bandeau.'
-            );
+        elements.matrixBufferToggle?.addEventListener('change', () => {
+            saveTr4kerTopbarStatsShowBuffer(elements.matrixBufferToggle.checked);
+            refreshMatrixConfiguration('Affichage du buffer mis à jour.');
         });
 
         elements.topbarBurgerToggle?.addEventListener('change', () => {
@@ -11761,81 +12552,62 @@
         `;
     }
 
-    function renderSettingsTopbarStatsCard(settingsCardStyle, settingsCheckboxLabelWithMarginStyle) {
-        const radioStyle = 'accent-color:#4ade80;cursor:pointer;';
+    function renderSettingsMatrixDashboardCard(settingsCardStyle, settingsCheckboxLabelWithMarginStyle) {
+        const periodRows = MATRIX_PERIOD_DEFINITIONS.map((period) => `
+            <label style="${settingsCheckboxLabelWithMarginStyle};margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06);">
+                <input data-tm-matrix-period="${period.id}" type="checkbox" ${matrixPeriodSettings[period.id]?.enabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#4ade80')}">
+                <span>${period.label} <small style="color:#71717a;">(Ratio + Upload + Download)</small></span>
+            </label>
+        `).join('');
         return `
             <details style="${settingsCardStyle}">
-                <summary style="font-size:13px;font-weight:700;margin-bottom:10px;cursor:pointer;user-select:none;">Bandeau de statistiques</summary>
-
+                <summary style="font-size:13px;font-weight:700;margin-bottom:10px;cursor:pointer;user-select:none;">Matrix Dashboard</summary>
                 <label style="${settingsCheckboxLabelWithMarginStyle}">
-                    <input id="tm-topbar-stats-toggle" type="checkbox" ${tr4kerTopbarStatsEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#4ade80')}">
-                    <span>Afficher le bandeau dans la top bar</span>
+                    <input id="tm-matrix-dashboard-toggle" type="checkbox" ${matrixDashboardEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#4ade80')}">
+                    <span>Activer le Matrix Dashboard</span>
                 </label>
-
-                <div style="margin-top:12px;font-size:12px;color:#c4c4c8;font-weight:700;">Apparence</div>
-                <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:7px;">
-                    <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:#e4e4e7;cursor:pointer;">
-                        <input type="radio" name="tm-topbar-stats-mode" value="matrix" ${tr4kerTopbarStatsMode === 'matrix' ? 'checked' : ''} style="${radioStyle}">
-                        <span>Matrix</span>
+                <div style="margin-top:12px;font-size:12px;color:#c4c4c8;font-weight:700;">Données globales</div>
+                <div style="display:grid;gap:8px;margin-top:8px;">
+                    <label style="${settingsCheckboxLabelWithMarginStyle};margin-top:0;opacity:.75;">
+                        <input type="checkbox" checked disabled style="${createSettingsCheckboxInputStyle('#4ade80')}">
+                        <span>Ratio global — toujours affiché</span>
                     </label>
-                    <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:#e4e4e7;cursor:pointer;">
-                        <input type="radio" name="tm-topbar-stats-mode" value="sober" ${tr4kerTopbarStatsMode === 'sober' ? 'checked' : ''} style="${radioStyle}">
-                        <span>Sobre</span>
+                    <label style="${settingsCheckboxLabelWithMarginStyle};margin-top:0;">
+                        <input id="tm-matrix-global-upload-toggle" type="checkbox" ${matrixGlobalUploadEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#67e8f9')}">
+                        <span>Upload global</span>
+                    </label>
+                    <label style="${settingsCheckboxLabelWithMarginStyle};margin-top:0;">
+                        <input id="tm-matrix-global-download-toggle" type="checkbox" ${matrixGlobalDownloadEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#fda4af')}">
+                        <span>Download global</span>
                     </label>
                 </div>
-                <div style="margin-top:6px;font-size:11px;color:#71717a;line-height:1.45;">
-                    Le mode sobre reprend les couleurs et les séparateurs du site. Il applique aussi ce thème au menu burger.
+                <div style="margin-top:12px;font-size:12px;color:#c4c4c8;font-weight:700;">Bandeau supérieur</div>
+                <label style="${settingsCheckboxLabelWithMarginStyle}">
+                    <input id="tm-matrix-ticker-toggle" type="checkbox" ${matrixTickerEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#4ade80')}">
+                    <span>Défilement si le contenu dépasse</span>
+                </label>
+                <label style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;font-size:12px;color:#d4d4d8;">
+                    <span>Vitesse</span><input id="tm-matrix-ticker-speed-input" type="number" min="${MATRIX_MIN_TICKER_SPEED}" max="${MATRIX_MAX_TICKER_SPEED}" step="1" value="${matrixTickerSpeed}" style="width:72px;background:#18181b;color:#fff;border:1px solid rgba(255,255,255,0.10);border-radius:8px;padding:7px;text-align:center;">
+                </label>
+                <label style="${settingsCheckboxLabelWithMarginStyle}">
+                    <input id="tm-matrix-ticker-pause-hover-toggle" type="checkbox" ${matrixTickerPauseOnHover ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#4ade80')}">
+                    <span>Pause au survol</span>
+                </label>
+                ${periodRows}
+                <div style="margin-top:12px;font-size:12px;color:#c4c4c8;font-weight:700;">Carrousel</div>
+                <label style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;font-size:12px;color:#d4d4d8;">
+                    <span>Intervalle</span><input id="tm-matrix-carousel-interval-input" type="number" min="${MATRIX_MIN_CAROUSEL_INTERVAL_MS / 1000}" max="${MATRIX_MAX_CAROUSEL_INTERVAL_MS / 1000}" step="0.5" value="${(matrixCarouselIntervalMs / 1000).toFixed(1)}" style="width:72px;background:#18181b;color:#fff;border:1px solid rgba(255,255,255,0.10);border-radius:8px;padding:7px;text-align:center;"><span>s</span>
+                </label>
+                <label style="${settingsCheckboxLabelWithMarginStyle}">
+                    <input id="tm-matrix-carousel-pause-hover-toggle" type="checkbox" ${matrixCarouselPauseOnHover ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#4ade80')}">
+                    <span>Pause au survol</span>
+                </label>
+                <div style="margin-top:12px;font-size:12px;color:#c4c4c8;font-weight:700;">Informations supplémentaires</div>
+                <div style="display:grid;gap:8px;margin-top:8px;">
+                    <label style="${settingsCheckboxLabelWithMarginStyle};margin-top:0;"><input id="tm-matrix-credits-toggle" type="checkbox" ${matrixDashboardShowCredits() ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#fde68a')}"><span>Crédits</span></label>
+                    <label style="${settingsCheckboxLabelWithMarginStyle};margin-top:0;"><input id="tm-matrix-buffer-toggle" type="checkbox" ${matrixDashboardShowBuffer() ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#c4b5fd')}"><span>Buffer</span></label>
                 </div>
-
-                <div style="margin-top:12px;font-size:12px;color:#c4c4c8;font-weight:700;">Informations affichées</div>
-                <label style="${settingsCheckboxLabelWithMarginStyle}">
-                    <input id="tm-topbar-stats-show-global-ratio-toggle" type="checkbox" ${tr4kerTopbarStatsShowGlobalRatio ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#4ade80')}">
-                    <span>Ratio</span>
-                </label>
-                <label style="${settingsCheckboxLabelWithMarginStyle}">
-                    <input id="tm-topbar-stats-show-periodic-section-toggle" type="checkbox" ${tr4kerTopbarStatsShowPeriodicSection ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#4ade80')}">
-                    <span>Section statistiques périodiques</span>
-                </label>
-                <label style="${settingsCheckboxLabelWithMarginStyle}">
-                    <input id="tm-topbar-stats-show-24h-toggle" type="checkbox" ${tr4kerTopbarStatsShow24Hours ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#38bdf8')}">
-                    <span>Statistiques sur 24 h</span>
-                </label>
-                <label style="${settingsCheckboxLabelWithMarginStyle}">
-                    <input id="tm-topbar-stats-show-7d-toggle" type="checkbox" ${tr4kerTopbarStatsShow7Days ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#60a5fa')}">
-                    <span>Statistiques sur 7 jours</span>
-                </label>
-                <label style="${settingsCheckboxLabelWithMarginStyle}">
-                    <input id="tm-topbar-stats-show-30d-toggle" type="checkbox" ${tr4kerTopbarStatsShow30Days ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#818cf8')}">
-                    <span>Statistiques sur 30 jours</span>
-                </label>
-                <label style="${settingsCheckboxLabelWithMarginStyle}">
-                    <input id="tm-topbar-stats-show-total-upload-toggle" type="checkbox" ${tr4kerTopbarStatsShowTotalUpload ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#4ade80')}">
-                    <span>Upload total</span>
-                </label>
-                <label style="${settingsCheckboxLabelWithMarginStyle}">
-                    <input id="tm-topbar-stats-show-total-download-toggle" type="checkbox" ${tr4kerTopbarStatsShowTotalDownload ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#60a5fa')}">
-                    <span>Download total</span>
-                </label>
-                <label style="${settingsCheckboxLabelWithMarginStyle}">
-                    <input id="tm-topbar-stats-show-credits-toggle" type="checkbox" ${tr4kerTopbarStatsShowCredits ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#fbbf24')}">
-                    <span>Section solde</span>
-                </label>
-                <label style="${settingsCheckboxLabelWithMarginStyle}">
-                    <input id="tm-topbar-stats-show-buffer-toggle" type="checkbox" ${tr4kerTopbarStatsShowBuffer ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#a78bfa')}">
-                    <span>Section Buffer</span>
-                </label>
-                <div style="margin-top:8px;font-size:11px;color:#71717a;line-height:1.45;">
-                    Seules les périodes cochées alternent. En mode sobre, la section périodique, le buffer et le solde occupent une seconde ligne fixe et peuvent être masqués séparément. Le buffer est calculé ainsi : (upload total ÷ 0,50) − download total, bonus inclus.
-                </div>
-
-                <div style="margin-top:12px;font-size:12px;color:#c4c4c8;font-weight:700;">Navigation</div>
-                <label style="${settingsCheckboxLabelWithMarginStyle}">
-                    <input id="tm-topbar-burger-toggle" type="checkbox" ${tr4kerTopbarBurgerEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#38bdf8')}">
-                    <span>Afficher le menu burger de navigation</span>
-                </label>
-                <div style="margin-top:6px;font-size:11px;color:#71717a;line-height:1.45;">
-                    Chat, wiki, compte, uploads, succès, paramètres, teams, demandes, boutique, forum et migrations.
-                </div>
+                <div style="margin-top:10px;font-size:11px;color:#71717a;line-height:1.45;">Zone 2 et Zone 4 disparaissent réellement lorsqu’aucune information active ne les compose. Le graphique utilise un axe ratio et, si nécessaire, un axe quantité logarithmique.</div>
             </details>
         `;
     }
@@ -12896,7 +13668,7 @@
             ">
                 ${renderSettingsHomeCard(homeView, styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)}
                 ${renderSettingsStatsCard(currentPageLabel, styles.settingsCardStyle, styles.settingsCheckboxLabelWithMarginStyle)}
-                ${renderSettingsTopbarStatsCard(styles.settingsCardStyle, styles.settingsCheckboxLabelWithMarginStyle)}
+                ${renderSettingsMatrixDashboardCard(styles.settingsCardStyle, styles.settingsCheckboxLabelWithMarginStyle)}
                 ${renderSettingsAccessibilityCard(currentPageLabel, isChatView, styles)}
                 ${renderSettingsSavedPhrasesCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)}
                 ${renderSettingsConfigCard(styles.settingsCardStyle)}
