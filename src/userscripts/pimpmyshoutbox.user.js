@@ -51,6 +51,7 @@
     const STORAGE_KEY_CUSTOM_BACKGROUND_COLOR = 'tm_t4_custom_background_color';
     const STORAGE_KEY_MESSAGE_ACTIONS_LEFT_ENABLED = 'tm_t4_message_actions_left_enabled';
     const STORAGE_KEY_TOPBAR_STATS_ENABLED = 'tm_t4_topbar_stats_enabled';
+    const STORAGE_KEY_TOPBAR_STATS_ALL_SITE = 'tm_t4_topbar_stats_all_site';
     const STORAGE_KEY_TOPBAR_STATS_SHOW_CREDITS = 'tm_t4_topbar_stats_show_credits';
     const STORAGE_KEY_TOPBAR_STATS_SHOW_BUFFER = 'tm_t4_topbar_stats_show_buffer';
     const STORAGE_KEY_TOPBAR_STATS_SHOW_TOTAL_UPLOAD = 'tm_t4_topbar_stats_show_total_upload';
@@ -127,6 +128,7 @@
         STORAGE_KEY_CUSTOM_BACKGROUND_COLOR,
         STORAGE_KEY_MESSAGE_ACTIONS_LEFT_ENABLED,
         STORAGE_KEY_TOPBAR_STATS_ENABLED,
+        STORAGE_KEY_TOPBAR_STATS_ALL_SITE,
         STORAGE_KEY_TOPBAR_STATS_SHOW_CREDITS,
         STORAGE_KEY_TOPBAR_STATS_SHOW_BUFFER,
         STORAGE_KEY_TOPBAR_STATS_SHOW_TOTAL_UPLOAD,
@@ -354,6 +356,7 @@
         STORAGE_KEY_CUSTOM_BACKGROUND_COLOR,
         STORAGE_KEY_MESSAGE_ACTIONS_LEFT_ENABLED,
         STORAGE_KEY_TOPBAR_STATS_ENABLED,
+        STORAGE_KEY_TOPBAR_STATS_ALL_SITE,
         STORAGE_KEY_TOPBAR_STATS_SHOW_CREDITS,
         STORAGE_KEY_TOPBAR_STATS_SHOW_BUFFER,
         STORAGE_KEY_TOPBAR_STATS_SHOW_TOTAL_UPLOAD,
@@ -620,6 +623,7 @@
     let customBackgroundColor = loadCustomBackgroundColor();
     let messageActionsLeftEnabled = loadMessageActionsLeftEnabled();
     let tr4kerTopbarStatsEnabled = loadTr4kerTopbarStatsEnabled();
+    let tr4kerTopbarStatsAllSite = loadTr4kerTopbarStatsAllSite();
     let tr4kerTopbarStatsShowCredits = loadTr4kerTopbarStatsShowCredits();
     let tr4kerTopbarStatsShowBuffer = loadTr4kerTopbarStatsShowBuffer();
     let tr4kerTopbarStatsShowTotalUpload = loadTr4kerTopbarStatsShowTotalUpload();
@@ -3121,6 +3125,7 @@
         customBackgroundColor = loadCustomBackgroundColor();
         messageActionsLeftEnabled = loadMessageActionsLeftEnabled();
         tr4kerTopbarStatsEnabled = loadTr4kerTopbarStatsEnabled();
+        tr4kerTopbarStatsAllSite = loadTr4kerTopbarStatsAllSite();
         tr4kerTopbarStatsShowCredits = loadTr4kerTopbarStatsShowCredits();
         tr4kerTopbarStatsShowBuffer = loadTr4kerTopbarStatsShowBuffer();
         matrixDashboardEnabled = loadTr4kerTopbarStatsEnabled();
@@ -3647,6 +3652,15 @@
     function saveTr4kerTopbarStatsEnabled(value) {
         tr4kerTopbarStatsEnabled = !!value;
         writeStorageBoolean(STORAGE_KEY_TOPBAR_STATS_ENABLED, tr4kerTopbarStatsEnabled);
+    }
+
+    function loadTr4kerTopbarStatsAllSite() {
+        return readStorageBoolean(STORAGE_KEY_TOPBAR_STATS_ALL_SITE, true);
+    }
+
+    function saveTr4kerTopbarStatsAllSite(value) {
+        tr4kerTopbarStatsAllSite = !!value;
+        writeStorageBoolean(STORAGE_KEY_TOPBAR_STATS_ALL_SITE, tr4kerTopbarStatsAllSite);
     }
 
     function loadTr4kerTopbarStatsShowCredits() {
@@ -5536,6 +5550,7 @@
     function getTr4kerTopbarStatsSettingsSignature() {
         return [
             tr4kerTopbarStatsMode,
+            tr4kerTopbarStatsAllSite ? 'site1' : 'chat1',
             tr4kerTopbarStatsShowGlobalRatio ? 'g1' : 'g0',
             tr4kerTopbarStatsShow24Hours ? '24' : '',
             tr4kerTopbarStatsShow7Days ? '7' : '',
@@ -6219,7 +6234,7 @@
         const header = notificationButton instanceof HTMLButtonElement
             ? notificationButton.closest('header[role="banner"]')
             : null;
-        if (!isChatPage() || !tr4kerTopbarStatsEnabled || !(header instanceof HTMLElement)) {
+        if (!isTr4kerPage() || !tr4kerTopbarStatsEnabled || (!tr4kerTopbarStatsAllSite && !isChatPage()) || !(header instanceof HTMLElement)) {
             destroySoberTopbarStats();
             return;
         }
@@ -6295,7 +6310,7 @@
         const header = notificationButton instanceof HTMLButtonElement
             ? notificationButton.closest('header[role="banner"]')
             : null;
-        if (!isChatPage() || !matrixDashboardEnabled || !(header instanceof HTMLElement)) {
+        if (!isTr4kerPage() || !matrixDashboardEnabled || (!tr4kerTopbarStatsAllSite && !isChatPage()) || !(header instanceof HTMLElement)) {
             destroyMatrixDashboard();
             return;
         }
@@ -6558,6 +6573,7 @@
 
     function syncTr4kerTopbarStatsButton() {
         tr4kerTopbarStatsEnabled = loadTr4kerTopbarStatsEnabled();
+        tr4kerTopbarStatsAllSite = loadTr4kerTopbarStatsAllSite();
         tr4kerTopbarStatsShowCredits = loadTr4kerTopbarStatsShowCredits();
         tr4kerTopbarStatsShowBuffer = loadTr4kerTopbarStatsShowBuffer();
         tr4kerTopbarStatsShowTotalUpload = loadTr4kerTopbarStatsShowTotalUpload();
@@ -10873,6 +10889,7 @@
             resetStatsLayoutBtn: modal.querySelector('#tm-reset-stats-layout'),
             hideStatsToggle: modal.querySelector('#tm-hide-stats-toggle'),
             matrixDashboardToggle: modal.querySelector('#tm-matrix-dashboard-toggle'),
+            topbarStatsAllSiteToggle: modal.querySelector('#tm-topbar-stats-all-site-toggle'),
             matrixGlobalUploadToggle: modal.querySelector('#tm-matrix-global-upload-toggle'),
             matrixGlobalDownloadToggle: modal.querySelector('#tm-matrix-global-download-toggle'),
             matrixTickerToggle: modal.querySelector('#tm-matrix-ticker-toggle'),
@@ -12346,6 +12363,14 @@
             saveMatrixDashboardEnabled(elements.matrixDashboardToggle.checked);
             refreshMatrixConfiguration(matrixDashboardEnabled ? 'Matrix Dashboard activé.' : 'Matrix Dashboard désactivé.');
         });
+        elements.topbarStatsAllSiteToggle?.addEventListener('change', () => {
+            saveTr4kerTopbarStatsAllSite(elements.topbarStatsAllSiteToggle.checked);
+            refreshMatrixConfiguration(
+                tr4kerTopbarStatsAllSite
+                    ? 'Statistiques affichées sur tout le site Tr4ker.'
+                    : 'Statistiques limitées à la page du chat.'
+            );
+        });
         elements.topbarStatsModeInputs.forEach((input) => {
             if (!(input instanceof HTMLInputElement)) return;
             input.addEventListener('change', () => {
@@ -12732,6 +12757,10 @@
                 <label style="${settingsCheckboxLabelWithMarginStyle}">
                     <input id="tm-matrix-dashboard-toggle" type="checkbox" ${matrixDashboardEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#4ade80')}">
                     <span>Activer les statistiques dans la top bar</span>
+                </label>
+                <label style="${settingsCheckboxLabelWithMarginStyle}">
+                    <input id="tm-topbar-stats-all-site-toggle" type="checkbox" ${tr4kerTopbarStatsAllSite ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#45c7c7')}">
+                    <span>Afficher sur toutes les pages du site Tr4ker</span>
                 </label>
                 <div style="margin-top:12px;font-size:12px;color:#c4c4c8;font-weight:700;">Mode d’affichage</div>
                 <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;">
@@ -21998,6 +22027,7 @@
         const currentChatContextKey = getCurrentChatContextKey();
 
         tr4kerTopbarStatsEnabled = loadTr4kerTopbarStatsEnabled();
+        tr4kerTopbarStatsAllSite = loadTr4kerTopbarStatsAllSite();
         tr4kerTopbarStatsShowCredits = loadTr4kerTopbarStatsShowCredits();
         tr4kerTopbarStatsShowBuffer = loadTr4kerTopbarStatsShowBuffer();
         tr4kerTopbarStatsShowTotalUpload = loadTr4kerTopbarStatsShowTotalUpload();
