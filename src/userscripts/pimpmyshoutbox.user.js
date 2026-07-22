@@ -3695,7 +3695,7 @@
     }
 
     function loadTr4kerTopbarStatsMode() {
-        const mode = String(readStorageItem(STORAGE_KEY_TOPBAR_STATS_MODE) || 'matrix').trim().toLowerCase();
+        const mode = String(readStorageItem(STORAGE_KEY_TOPBAR_STATS_MODE) || 'sober').trim().toLowerCase();
         return mode === 'sober' ? 'sober' : 'matrix';
     }
 
@@ -5137,6 +5137,64 @@
                 height: 40px;
             }
 
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-mode="sober"] {
+                --tm-sober-upload: #20d67b;
+                --tm-sober-download: #4da3ff;
+                --tm-sober-credit: #d6b85a;
+                --tm-sober-buffer: #45c7c7;
+                width: max-content;
+                min-width: 0;
+                max-width: min(760px, calc(100vw - 290px));
+                height: 36px;
+                padding: 0;
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                border-radius: 4px;
+                background: #08090a;
+                color: #e6e6e6;
+                display: flex;
+                align-items: stretch;
+                overflow: hidden;
+                font-family: Inter, Arial, sans-serif;
+                text-shadow: none;
+                box-shadow: none;
+            }
+
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-mode="sober"] > [data-tm-topbar-stats-sober-item] {
+                display: inline-flex;
+                flex: 0 0 auto;
+                align-items: center;
+                gap: 6px;
+                min-width: 0;
+                padding: 0 12px;
+                border-left: 1px solid rgba(255, 255, 255, 0.14);
+                color: #e6e6e6;
+                font-size: 11px;
+                font-weight: 600;
+                line-height: 1;
+                white-space: nowrap;
+            }
+
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-mode="sober"] > [data-tm-topbar-stats-sober-item]:first-child { border-left: 0; }
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-mode="sober"] [data-tm-topbar-stats-sober-item="ratio"] strong { color: #20d67b; font-size: 14px; }
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-mode="sober"] .tm-topbar-stats-sober-label { color: #9aa0a6; font-size: 9px; letter-spacing: .04em; }
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-mode="sober"] .tm-topbar-stats-sober-upload { color: var(--tm-sober-upload); }
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-mode="sober"] .tm-topbar-stats-sober-download { color: var(--tm-sober-download); }
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-mode="sober"] .tm-topbar-stats-sober-credit { color: var(--tm-sober-credit); }
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-mode="sober"] .tm-topbar-stats-sober-buffer { color: var(--tm-sober-buffer); }
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-mode="sober"] [data-tm-topbar-stats-sober-item="period"] {
+                flex: 1 1 auto;
+                overflow: hidden;
+                gap: 8px;
+            }
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-mode="sober"] .tm-topbar-stats-sober-period-label { color: #9aa0a6; font-size: 9px; letter-spacing: .04em; }
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-mode="sober"] .tm-topbar-stats-sober-period-metric { display: inline-flex; align-items: center; gap: 3px; }
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-mode="sober"] .tm-topbar-stats-sober-period-metric strong { font-size: 10px; }
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-mode="sober"] .tm-topbar-stats-sober-ratio { color: #9aa0a6; }
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-mode="sober"] .tm-topbar-stats-sober-ratio strong { color: #20d67b; }
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-mode="sober"] .tm-topbar-stats-sober-period-metric.tm-topbar-stats-sober-upload { color: var(--tm-sober-upload); }
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-mode="sober"] .tm-topbar-stats-sober-period-metric.tm-topbar-stats-sober-download { color: var(--tm-sober-download); }
+            #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-mode="sober"] [data-tm-topbar-stats-state="1"] { padding: 0 12px; align-self: center; color: #9aa0a6; font-size: 10px; }
+
             @keyframes tm-t4-topbar-matrix-drift {
                 from { transform: translateY(-7px); }
                 to { transform: translateY(0); }
@@ -5206,6 +5264,19 @@
 
                 #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-mode="sober"] [data-tm-topbar-stats-metric] span {
                     font-size: 7px;
+                }
+
+                #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-mode="sober"] {
+                    max-width: calc(100vw - 110px);
+                    height: 34px;
+                }
+                #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-mode="sober"] > [data-tm-topbar-stats-sober-item] {
+                    gap: 4px;
+                    padding: 0 7px;
+                    font-size: 10px;
+                }
+                #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-mode="sober"] [data-tm-topbar-stats-sober-item="period"] {
+                    gap: 5px;
                 }
 
                 #${TR4KER_TOPBAR_STATS_WIDGET_ID} [data-tm-topbar-stats-extras="1"] {
@@ -5471,7 +5542,6 @@
             tr4kerTopbarStatsShow30Days ? '30' : '',
             tr4kerTopbarStatsShowTotalUpload ? 'u1' : 'u0',
             tr4kerTopbarStatsShowTotalDownload ? 'd1' : 'd0',
-            tr4kerTopbarStatsShowPeriodicSection ? 'p1' : 'p0',
             tr4kerTopbarStatsShowCredits ? 'c1' : 'c0',
             tr4kerTopbarStatsShowBuffer ? 'b1' : 'b0'
         ].join('|');
@@ -5504,6 +5574,9 @@
                 stopTr4kerTopbarStatsPeriodCycle();
                 return;
             }
+
+            const widget = document.getElementById(TR4KER_TOPBAR_STATS_WIDGET_ID);
+            if (tr4kerTopbarStatsMode === 'sober' && matrixCarouselPauseOnHover && widget instanceof HTMLElement && widget.matches(':hover')) return;
 
             tr4kerTopbarStatsPeriodIndex = (tr4kerTopbarStatsPeriodIndex + 1) % enabledPeriodCount;
             renderTr4kerTopbarStatsWidget(tr4kerTopbarStatsData);
@@ -5595,32 +5668,19 @@
                     <span>${torrentsSeeding} en seed</span>
                 </div>
             ` : ''}`;
+        const soberPeriod = activePeriod
+            ? `<div data-tm-topbar-stats-sober-item="period" title="Statistiques sur ${activePeriod.label}"><span class="tm-topbar-stats-sober-period-label">${activePeriod.label.toUpperCase()}</span><span class="tm-topbar-stats-sober-period-metric tm-topbar-stats-sober-ratio">RATIO <strong>${formatTr4kerTopbarStatsRatio(ratio)}</strong></span><span class="tm-topbar-stats-sober-period-metric tm-topbar-stats-sober-upload">↑ <strong>${formatTr4kerTopbarStatsBytes(uploaded)}</strong></span><span class="tm-topbar-stats-sober-period-metric tm-topbar-stats-sober-download">↓ <strong>${formatTr4kerTopbarStatsBytes(downloaded)}</strong></span></div>`
+            : '';
         const soberMetrics = `
-            <div data-tm-topbar-stats-metric="upload">
-                <strong style="color:#4ade80">↑ ${formatTr4kerTopbarStatsBytes(totalUploaded)}</strong>
-            </div>
-            <div data-tm-topbar-stats-metric="download">
-                <strong style="color:#60a5fa">↓ ${formatTr4kerTopbarStatsBytes(totalDownloaded)}</strong>
-            </div>
-            <div data-tm-topbar-stats-metric="ratio">
-                <span>Ratio</span>
+            <div data-tm-topbar-stats-sober-item="ratio" title="Ratio global">
+                <span class="tm-topbar-stats-sober-label">RATIO</span>
                 <strong style="color:${globalRatio === null ? '#fafafa' : globalRatio >= 1 ? '#86efac' : '#fcd34d'}">${formatTr4kerTopbarStatsRatio(globalRatio)}</strong>
             </div>
-            ${tr4kerTopbarStatsShowPeriodicSection && activePeriod ? `
-                <div data-tm-topbar-stats-metric="period" title="Statistiques sur ${activePeriod.label}">
-                    <strong style="color:#e4e4e7">${activePeriod.label.toUpperCase()} ↑ ${formatTr4kerTopbarStatsBytes(uploaded)} · ↓ ${formatTr4kerTopbarStatsBytes(downloaded)}</strong>
-                </div>
-            ` : ''}
-            ${tr4kerTopbarStatsShowBuffer ? `
-                <div data-tm-topbar-stats-metric="buffer" title="${bufferTitle}">
-                    <strong style="color:#c4b5fd">Buffer · ${formatTr4kerTopbarMinimumRatioBuffer(downloadAllowance)}</strong>
-                </div>
-            ` : ''}
-            ${tr4kerTopbarStatsShowCredits ? `
-                <div data-tm-topbar-stats-metric="credits" title="Solde disponible">
-                    <strong style="color:#fef3c7"><i class="material-symbols-outlined" data-tm-topbar-credit-icon="1" aria-hidden="true">toll</i> ${formatTr4kerTopbarStatsCredits(tr4kerTopbarUserData?.money)}</strong>
-                </div>
-            ` : ''}
+            ${tr4kerTopbarStatsShowTotalUpload ? `<div data-tm-topbar-stats-sober-item="upload" title="Upload total"><strong class="tm-topbar-stats-sober-upload">↑ ${formatTr4kerTopbarStatsBytes(totalUploaded)}</strong></div>` : ''}
+            ${tr4kerTopbarStatsShowTotalDownload ? `<div data-tm-topbar-stats-sober-item="download" title="Download total"><strong class="tm-topbar-stats-sober-download">↓ ${formatTr4kerTopbarStatsBytes(totalDownloaded)}</strong></div>` : ''}
+            ${tr4kerTopbarStatsShowCredits ? `<div data-tm-topbar-stats-sober-item="credits" title="Solde disponible"><span class="tm-topbar-stats-sober-label">CREDIT</span><strong class="tm-topbar-stats-sober-credit">${formatTr4kerTopbarStatsCredits(tr4kerTopbarUserData?.money)}</strong></div>` : ''}
+            ${tr4kerTopbarStatsShowBuffer ? `<div data-tm-topbar-stats-sober-item="buffer" title="${bufferTitle}"><span class="tm-topbar-stats-sober-label">BUFFER</span><strong class="tm-topbar-stats-sober-buffer">${formatTr4kerTopbarMinimumRatioBuffer(downloadAllowance)}</strong></div>` : ''}
+            ${soberPeriod}
         `;
 
         widget.setAttribute('aria-busy', 'false');
@@ -5649,7 +5709,7 @@
             ${tr4kerTopbarStatsMode === 'matrix' && activePeriod ? buildTr4kerTopbarStatsMatrixGraph(payload?.snapshots) : ''}
         `;
         widget.dataset.tmTopbarStatsRenderedAt = String(tr4kerTopbarStatsFetchedAt);
-        widget.dataset.tmTopbarStatsSettings = getTr4kerTopbarStatsSettingsSignature();
+        widget.dataset.tmTopbarStatsSettings = `${getTr4kerTopbarStatsSettingsSignature()}|${tr4kerTopbarStatsFetchedAt}`;
         startTr4kerTopbarStatsPeriodCycle();
     }
 
@@ -6142,8 +6202,93 @@
         ].join('|');
     }
 
-    function syncMatrixDashboard() {
+    function destroySoberTopbarStats() {
         stopTr4kerTopbarStatsPeriodCycle();
+        document.getElementById(TR4KER_TOPBAR_STATS_WIDGET_ID)?.remove();
+        closeTr4kerTopbarStatsPopover();
+    }
+
+    function syncSoberTopbarStats() {
+        stopMatrixCarousel();
+        document.getElementById(MATRIX_DASHBOARD_ID)?.remove();
+        document.querySelectorAll(`header[${MATRIX_DASHBOARD_HOST_ATTR}]`).forEach((header) => {
+            header.removeAttribute(MATRIX_DASHBOARD_HOST_ATTR);
+        });
+
+        const notificationButton = getTr4kerTopbarStatsNotificationButton();
+        const header = notificationButton instanceof HTMLButtonElement
+            ? notificationButton.closest('header[role="banner"]')
+            : null;
+        if (!isChatPage() || !tr4kerTopbarStatsEnabled || !(header instanceof HTMLElement)) {
+            destroySoberTopbarStats();
+            return;
+        }
+
+        ensureTr4kerTopbarStatsStyle();
+        installTr4kerTopbarStatsGlobalHandlers();
+        header.setAttribute(TR4KER_TOPBAR_STATS_HOST_ATTR, '1');
+        const rightControls = notificationButton.parentElement instanceof HTMLElement
+            ? notificationButton.parentElement
+            : null;
+        let widget = document.getElementById(TR4KER_TOPBAR_STATS_WIDGET_ID);
+        if (!(widget instanceof HTMLElement)) {
+            widget = document.createElement('section');
+            widget.id = TR4KER_TOPBAR_STATS_WIDGET_ID;
+            widget.setAttribute('aria-label', 'Statistiques Tr4ker');
+            widget.setAttribute('aria-busy', 'true');
+            widget.innerHTML = '<span data-tm-topbar-stats-state="1">Chargement des statistiques…</span>';
+        }
+        if (
+            widget.parentElement !== header
+            || (rightControls instanceof HTMLElement && widget.nextElementSibling !== rightControls)
+        ) {
+            if (rightControls instanceof HTMLElement && rightControls.parentElement === header) {
+                header.insertBefore(widget, rightControls);
+            } else {
+                header.appendChild(widget);
+            }
+        }
+
+        const renderSignature = `${getTr4kerTopbarStatsSettingsSignature()}|${tr4kerTopbarStatsFetchedAt}`;
+        if (tr4kerTopbarStatsData && widget.dataset.tmTopbarStatsSettings !== renderSignature) {
+            renderTr4kerTopbarStatsWidget(tr4kerTopbarStatsData);
+        }
+
+        const userCacheIsFresh = tr4kerTopbarUserData
+            && tr4kerTopbarUserFetchedAt > 0
+            && Date.now() - tr4kerTopbarUserFetchedAt < TR4KER_TOPBAR_STATS_CACHE_MS;
+        if (tr4kerTopbarStatsShowCredits && !userCacheIsFresh && !tr4kerTopbarUserRequest) {
+            void fetchTr4kerTopbarUser()
+                .then(() => {
+                    if (tr4kerTopbarStatsData) renderTr4kerTopbarStatsWidget(tr4kerTopbarStatsData);
+                })
+                .catch(() => {});
+        }
+
+        const cacheIsFresh = tr4kerTopbarStatsData
+            && tr4kerTopbarStatsFetchedAt > 0
+            && Date.now() - tr4kerTopbarStatsFetchedAt < TR4KER_TOPBAR_STATS_CACHE_MS;
+        if (cacheIsFresh || tr4kerTopbarStatsRequest) return;
+
+        fetchTr4kerTopbarStats()
+            .then((payload) => {
+                if (payload) renderTr4kerTopbarStatsWidget(payload);
+            })
+            .catch(() => {
+                if (widget instanceof HTMLElement) {
+                    widget.setAttribute('aria-busy', 'false');
+                    widget.innerHTML = '<span data-tm-topbar-stats-state="1">Statistiques indisponibles.</span>';
+                }
+            });
+    }
+
+    function syncMatrixDashboard() {
+        if (tr4kerTopbarStatsMode === 'sober') {
+            syncSoberTopbarStats();
+            return;
+        }
+        stopTr4kerTopbarStatsPeriodCycle();
+        destroySoberTopbarStats();
         document.getElementById(TR4KER_TOPBAR_STATS_WIDGET_ID)?.remove();
         closeTr4kerTopbarStatsPopover();
         const notificationButton = getTr4kerTopbarStatsNotificationButton();
@@ -6412,9 +6557,22 @@
     }
 
     function syncTr4kerTopbarStatsButton() {
+        tr4kerTopbarStatsEnabled = loadTr4kerTopbarStatsEnabled();
+        tr4kerTopbarStatsShowCredits = loadTr4kerTopbarStatsShowCredits();
+        tr4kerTopbarStatsShowBuffer = loadTr4kerTopbarStatsShowBuffer();
+        tr4kerTopbarStatsShowTotalUpload = loadTr4kerTopbarStatsShowTotalUpload();
+        tr4kerTopbarStatsShowTotalDownload = loadTr4kerTopbarStatsShowTotalDownload();
+        tr4kerTopbarStatsShowPeriodicSection = loadTr4kerTopbarStatsShowPeriodicSection();
+        tr4kerTopbarStatsMode = loadTr4kerTopbarStatsMode();
+        tr4kerTopbarStatsShowGlobalRatio = loadTr4kerTopbarStatsShowGlobalRatio();
+        tr4kerTopbarStatsShow24Hours = loadTr4kerTopbarStatsShowPeriod(STORAGE_KEY_TOPBAR_STATS_SHOW_24H);
+        tr4kerTopbarStatsShow7Days = loadTr4kerTopbarStatsShowPeriod(STORAGE_KEY_TOPBAR_STATS_SHOW_7D);
+        tr4kerTopbarStatsShow30Days = loadTr4kerTopbarStatsShowPeriod(STORAGE_KEY_TOPBAR_STATS_SHOW_30D);
         matrixDashboardEnabled = loadTr4kerTopbarStatsEnabled();
         matrixGlobalUploadEnabled = loadMatrixGlobalUploadEnabled();
         matrixGlobalDownloadEnabled = loadMatrixGlobalDownloadEnabled();
+        tr4kerTopbarStatsShowTotalUpload = matrixGlobalUploadEnabled;
+        tr4kerTopbarStatsShowTotalDownload = matrixGlobalDownloadEnabled;
         matrixTickerEnabled = loadMatrixTickerEnabled();
         matrixTickerSpeed = loadMatrixTickerSpeed();
         matrixTickerPauseOnHover = loadMatrixTickerPauseOnHover();
@@ -10728,7 +10886,6 @@
             topbarStatsToggle: modal.querySelector('#tm-topbar-stats-toggle'),
             topbarStatsModeInputs: Array.from(modal.querySelectorAll('input[name="tm-topbar-stats-mode"]')),
             topbarStatsShowGlobalRatioToggle: modal.querySelector('#tm-topbar-stats-show-global-ratio-toggle'),
-            topbarStatsShowPeriodicSectionToggle: modal.querySelector('#tm-topbar-stats-show-periodic-section-toggle'),
             topbarStatsShow24HoursToggle: modal.querySelector('#tm-topbar-stats-show-24h-toggle'),
             topbarStatsShow7DaysToggle: modal.querySelector('#tm-topbar-stats-show-7d-toggle'),
             topbarStatsShow30DaysToggle: modal.querySelector('#tm-topbar-stats-show-30d-toggle'),
@@ -12189,12 +12346,22 @@
             saveMatrixDashboardEnabled(elements.matrixDashboardToggle.checked);
             refreshMatrixConfiguration(matrixDashboardEnabled ? 'Matrix Dashboard activé.' : 'Matrix Dashboard désactivé.');
         });
+        elements.topbarStatsModeInputs.forEach((input) => {
+            if (!(input instanceof HTMLInputElement)) return;
+            input.addEventListener('change', () => {
+                if (!input.checked) return;
+                saveTr4kerTopbarStatsMode(input.value);
+                refreshMatrixConfiguration(tr4kerTopbarStatsMode === 'sober' ? 'Mode Sobre activé.' : 'Mode Matrix activé.');
+            });
+        });
         elements.matrixGlobalUploadToggle?.addEventListener('change', () => {
             saveMatrixGlobalUploadEnabled(elements.matrixGlobalUploadToggle.checked);
+            saveTr4kerTopbarStatsShowTotalUpload(elements.matrixGlobalUploadToggle.checked);
             refreshMatrixConfiguration(matrixGlobalUploadEnabled ? 'Upload global affiché.' : 'Upload global masqué.');
         });
         elements.matrixGlobalDownloadToggle?.addEventListener('change', () => {
             saveMatrixGlobalDownloadEnabled(elements.matrixGlobalDownloadToggle.checked);
+            saveTr4kerTopbarStatsShowTotalDownload(elements.matrixGlobalDownloadToggle.checked);
             refreshMatrixConfiguration(matrixGlobalDownloadEnabled ? 'Download global affiché.' : 'Download global masqué.');
         });
         elements.matrixTickerToggle?.addEventListener('change', () => {
@@ -12564,8 +12731,19 @@
                 <summary style="font-size:13px;font-weight:700;margin-bottom:10px;cursor:pointer;user-select:none;">Matrix Dashboard</summary>
                 <label style="${settingsCheckboxLabelWithMarginStyle}">
                     <input id="tm-matrix-dashboard-toggle" type="checkbox" ${matrixDashboardEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#4ade80')}">
-                    <span>Activer le Matrix Dashboard</span>
+                    <span>Activer les statistiques dans la top bar</span>
                 </label>
+                <div style="margin-top:12px;font-size:12px;color:#c4c4c8;font-weight:700;">Mode d’affichage</div>
+                <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;">
+                    <label style="${settingsCheckboxLabelWithMarginStyle};margin-top:0;">
+                        <input name="tm-topbar-stats-mode" type="radio" value="matrix" ${tr4kerTopbarStatsMode === 'matrix' ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#4ade80')}">
+                        <span>Matrix</span>
+                    </label>
+                    <label style="${settingsCheckboxLabelWithMarginStyle};margin-top:0;">
+                        <input name="tm-topbar-stats-mode" type="radio" value="sober" ${tr4kerTopbarStatsMode === 'sober' ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#d6b85a')}">
+                        <span>Sobre</span>
+                    </label>
+                </div>
                 <div style="margin-top:12px;font-size:12px;color:#c4c4c8;font-weight:700;">Données globales</div>
                 <div style="display:grid;gap:8px;margin-top:8px;">
                     <label style="${settingsCheckboxLabelWithMarginStyle};margin-top:0;opacity:.75;">
