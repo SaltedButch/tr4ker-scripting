@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    http://tampermonkey.net/
-// @version      3.0.88
+// @version      3.0.89
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -4432,19 +4432,22 @@
     }
 
     function renderTr4kerT9MenuLinks() {
-        return `
-            <div><h3>Général</h3><a href="/">Accueil</a><a href="/faq">FAQ</a><a href="/vpn">Guide VPN</a><a href="/tokens">Boutique à Tokens</a></div>
-            <div><h3>Torrents</h3><a href="/torrent-du-jour">Torrents du jour</a><a href="/torrent-de-la-semaine">Torrents de la semaine</a><a href="/rss">Flux RSS &amp; API</a><a href="/sharewood">Sharewood</a></div>
-            <div><h3>Upload</h3><a href="/upload">Uploader un torrent</a><a href="/regles-upload">Règles d’upload</a></div>
-            <div><h3>Communauté</h3><a href="/requests">Demandes</a><a href="https://forum.torr9.xyz/" target="_blank" rel="noopener noreferrer">Forum</a><a href="/teams">Teams</a><a href="/devblog">DevBlog &amp; Suggestions</a></div>
-        `;
+        const groups = [
+            ['Navigation', TR4KER_TOPBAR_BURGER_LINKS.slice(0, 3)],
+            ['Compte', TR4KER_TOPBAR_BURGER_LINKS.slice(3, 6)],
+            ['Communauté', TR4KER_TOPBAR_BURGER_LINKS.slice(6, 9)],
+            ['Liens', TR4KER_TOPBAR_BURGER_LINKS.slice(9)]
+        ];
+        return groups.map(([title, links]) => `
+            <div><h3>${title}</h3>${links.map((link) => `<a href="${link.href}">${link.label}</a>`).join('')}</div>
+        `).join('');
     }
 
     function renderTr4kerT9ProfileLinks(context) {
         return `
             <a href="/profile">Profil</a>
             <a href="/my-uploads">Mes torrents</a>
-            <a href="/stats">Statistiques</a>
+            <a href="/mon-compte/stats">Statistiques</a>
             <a href="${escapeHtml(context.notificationsHref)}">Notifications</a>
         `;
     }
@@ -4883,7 +4886,7 @@
     }
 
     function syncTr4kerTopbarBurgerMenu() {
-        if (!isTr4kerPage() || !tr4kerTopbarBurgerEnabled) {
+        if (!isTr4kerPage() || !tr4kerTopbarBurgerEnabled || tr4kerTopbarStatsMode === 't9') {
             closeTr4kerTopbarBurgerMenu();
             document.getElementById(TR4KER_TOPBAR_BURGER_ID)?.remove();
             return;
