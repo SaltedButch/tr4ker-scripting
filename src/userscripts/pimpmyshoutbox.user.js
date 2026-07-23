@@ -4349,7 +4349,22 @@
 
     function formatTr4kerTopbarStatsBytes(value) {
         const bytes = Math.max(0, Number(value) || 0);
-        const units = ['o', 'Ko', 'Mo', 'Go', 'To', 'Po'];
+        const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+        let unitIndex = 0;
+        let amount = bytes;
+
+        while (amount >= 1024 && unitIndex < units.length - 1) {
+            amount /= 1024;
+            unitIndex += 1;
+        }
+
+        if (unitIndex === 0) return `${Math.round(amount)} ${units[unitIndex]}`;
+        return `${amount < 10 ? amount.toFixed(1) : amount.toFixed(0)} ${units[unitIndex]}`;
+    }
+
+    function formatTr4kerT9Bytes(value) {
+        const bytes = Math.max(0, Number(value) || 0);
+        const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
         let unitIndex = 0;
         let amount = bytes;
 
@@ -5989,17 +6004,17 @@
         const ratioLabel = formatTr4kerTopbarStatsRatio(ratio);
 
         block.setAttribute('aria-busy', 'false');
-        block.setAttribute('aria-label', `Upload ${formatTr4kerTopbarStatsBytes(totalUploaded)}, Download ${formatTr4kerTopbarStatsBytes(totalDownloaded)}, Ratio ${ratioLabel}`);
-        block.setAttribute('title', `Upload ${formatTr4kerTopbarStatsBytes(totalUploaded)} · Download ${formatTr4kerTopbarStatsBytes(totalDownloaded)} · Ratio ${ratioLabel}`);
+        block.setAttribute('aria-label', `Upload ${formatTr4kerT9Bytes(totalUploaded)}, Download ${formatTr4kerT9Bytes(totalDownloaded)}, Ratio ${ratioLabel}`);
+        block.setAttribute('title', `Upload ${formatTr4kerT9Bytes(totalUploaded)} · Download ${formatTr4kerT9Bytes(totalDownloaded)} · Ratio ${ratioLabel}`);
         block.innerHTML = `
             <div data-tm-topbar-t9-item="upload" title="Upload">
                 <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 256 256" aria-hidden="true"><path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0ZM93.66,77.66,120,51.31V144a8,8,0,0,0,16,0V51.31l26.34,26.35a8,8,0,0,0,11.32-11.32l-40-40a8,8,0,0,0-11.32,0l-40,40A8,8,0,0,0,93.66,77.66Z"></path></svg>
-                <span>${formatTr4kerTopbarStatsBytes(totalUploaded)}</span>
+                <span>${formatTr4kerT9Bytes(totalUploaded)}</span>
             </div>
             <div class="tm-topbar-t9-separator" aria-hidden="true"></div>
             <div data-tm-topbar-t9-item="download" title="Download">
                 <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 256 256" aria-hidden="true"><path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40a8,8,0,0,0-11.32-11.32L136,124.69V32a8,8,0,0,0-16,0v92.69L93.66,98.34a8,8,0,0,0-11.32,11.32Z"></path></svg>
-                <span>${formatTr4kerTopbarStatsBytes(totalDownloaded)}</span>
+                <span>${formatTr4kerT9Bytes(totalDownloaded)}</span>
             </div>
             <div class="tm-topbar-t9-separator" aria-hidden="true"></div>
             <div data-tm-topbar-t9-item="ratio" title="Ratio">
@@ -11316,6 +11331,7 @@
             hideStatsToggle: modal.querySelector('#tm-hide-stats-toggle'),
             matrixDashboardToggle: modal.querySelector('#tm-matrix-dashboard-toggle'),
             topbarStatsAllSiteToggle: modal.querySelector('#tm-topbar-stats-all-site-toggle'),
+            matrixOnlySettings: modal.querySelector('[data-tm-matrix-only-settings]'),
             matrixGlobalUploadToggle: modal.querySelector('#tm-matrix-global-upload-toggle'),
             matrixGlobalDownloadToggle: modal.querySelector('#tm-matrix-global-download-toggle'),
             matrixTickerToggle: modal.querySelector('#tm-matrix-ticker-toggle'),
@@ -12682,7 +12698,21 @@
         });
     }
 
+    function syncMatrixOnlySettingsState(elements) {
+        const matrixOnlySettings = elements.matrixOnlySettings;
+        if (!(matrixOnlySettings instanceof HTMLFieldSetElement)) return;
+
+        const disabled = tr4kerTopbarStatsMode === 't9';
+        matrixOnlySettings.disabled = disabled;
+        matrixOnlySettings.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+        matrixOnlySettings.style.opacity = disabled ? '0.42' : '1';
+        matrixOnlySettings.style.filter = disabled ? 'grayscale(1)' : 'none';
+        matrixOnlySettings.style.pointerEvents = disabled ? 'none' : 'auto';
+    }
+
     function bindSettingsModalFeatureToggleEvents(elements, controls, currentPageLabel) {
+        syncMatrixOnlySettingsState(elements);
+
         elements.phrasesEnabledToggle?.addEventListener('change', () => {
             saveSavedPhrasesEnabled(elements.phrasesEnabledToggle.checked);
             controls.syncSavedPhrasesMainSummary();
@@ -12787,7 +12817,7 @@
 
         elements.matrixDashboardToggle?.addEventListener('change', () => {
             saveMatrixDashboardEnabled(elements.matrixDashboardToggle.checked);
-            refreshMatrixConfiguration(matrixDashboardEnabled ? 'Matrix Dashboard activé.' : 'Matrix Dashboard désactivé.');
+            refreshMatrixConfiguration(matrixDashboardEnabled ? 'Header customisé activé.' : 'Header customisé désactivé.');
         });
         elements.topbarStatsAllSiteToggle?.addEventListener('change', () => {
             saveTr4kerTopbarStatsAllSite(elements.topbarStatsAllSiteToggle.checked);
@@ -12802,6 +12832,7 @@
             input.addEventListener('change', () => {
                 if (!input.checked) return;
                 saveTr4kerTopbarStatsMode(input.value);
+                syncMatrixOnlySettingsState(elements);
                 refreshMatrixConfiguration(
                     tr4kerTopbarStatsMode === 'sober'
                         ? 'Mode Sobre activé.'
@@ -13185,7 +13216,7 @@
         `).join('');
         return `
             <details style="${settingsCardStyle}">
-                <summary style="font-size:13px;font-weight:700;margin-bottom:10px;cursor:pointer;user-select:none;">Matrix Dashboard</summary>
+                <summary style="font-size:13px;font-weight:700;margin-bottom:10px;cursor:pointer;user-select:none;">Header customisé</summary>
                 <label style="${settingsCheckboxLabelWithMarginStyle}">
                     <input id="tm-matrix-dashboard-toggle" type="checkbox" ${matrixDashboardEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#4ade80')}">
                     <span>Activer les statistiques dans la top bar</span>
@@ -13209,6 +13240,7 @@
                         <span>Hommage à T9</span>
                     </label>
                 </div>
+                <fieldset data-tm-matrix-only-settings="1" ${tr4kerTopbarStatsMode === 't9' ? 'disabled' : ''} style="border:0;padding:0;margin:0;min-width:0;opacity:${tr4kerTopbarStatsMode === 't9' ? '0.42' : '1'};filter:${tr4kerTopbarStatsMode === 't9' ? 'grayscale(1)' : 'none'};pointer-events:${tr4kerTopbarStatsMode === 't9' ? 'none' : 'auto'};">
                 <div style="margin-top:12px;font-size:12px;color:#c4c4c8;font-weight:700;">Données globales</div>
                 <div style="display:grid;gap:8px;margin-top:8px;">
                     <label style="${settingsCheckboxLabelWithMarginStyle};margin-top:0;opacity:.75;">
@@ -13250,7 +13282,7 @@
                     <label style="${settingsCheckboxLabelWithMarginStyle};margin-top:0;"><input id="tm-matrix-credits-toggle" type="checkbox" ${matrixDashboardShowCredits() ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#fde68a')}"><span>Crédits</span></label>
                     <label style="${settingsCheckboxLabelWithMarginStyle};margin-top:0;"><input id="tm-matrix-buffer-toggle" type="checkbox" ${matrixDashboardShowBuffer() ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#c4b5fd')}"><span>Buffer</span></label>
                 </div>
-                <div style="margin-top:10px;font-size:11px;color:#71717a;line-height:1.45;">Zone 2 et Zone 4 disparaissent réellement lorsqu’aucune information active ne les compose. Le graphique utilise un axe ratio et, si nécessaire, un axe quantité logarithmique.</div>
+                </fieldset>
             </details>
         `;
     }
