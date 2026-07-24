@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    http://tampermonkey.net/
-// @version      3.0.89
+// @version      3.0.90
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -634,6 +634,7 @@
     const CHAT_INPUT_TOOLBAR_SPACE_ATTR = 'data-tm-chat-input-toolbar-space';
     const CHAT_INPUT_TOOLBAR_SYNC_BOUND_ATTR = 'data-tm-chat-input-toolbar-sync-bound';
     const CHAT_INPUT_TOOLBAR_RESERVED_HEIGHT_PX = 46;
+    const CHAT_INPUT_TOOLBAR_DOCKED_GAP_PX = 6;
     const MESSAGE_REACTION_QUICK_ACCESS_GROUP_ATTR = 'data-tm-message-reaction-quick-access-group';
     const MESSAGE_REACTION_QUICK_ACCESS_BUTTON_ATTR = 'data-tm-message-reaction-quick-access-button';
     const MANUAL_QUICK_ACCESS_PICKER_MARKER_ATTR = 'data-tm-manual-quick-access-picker-marker';
@@ -3699,6 +3700,7 @@
         if (!enabled) {
             root.style.removeProperty('--surface');
             root.style.removeProperty('--surface-dim');
+            root.style.removeProperty('--surface-container-low');
             root.style.removeProperty('background-color');
             root.removeAttribute('data-tm-custom-background');
             return;
@@ -3707,6 +3709,7 @@
         const normalizedColor = normalizeHexColor(color, '#131313');
         root.style.setProperty('--surface', normalizedColor);
         root.style.setProperty('--surface-dim', normalizedColor);
+        root.style.setProperty('--surface-container-low', normalizedColor);
         root.style.setProperty('background-color', normalizedColor);
         root.setAttribute('data-tm-custom-background', '1');
     }
@@ -4238,14 +4241,17 @@
         if (document.getElementById(CHAT_INPUT_TOOLBAR_STYLE_ID)) return;
         if (!document.head) return;
 
+        const toolbarHeight = isTr4kerPage() ? 42 : 32;
+        const toolbarPadding = isTr4kerPage() ? '7px 8px' : '3px 6px';
+        const toolbarButtonHeight = isTr4kerPage() ? 28 : 24;
         const style = document.createElement('style');
         style.id = CHAT_INPUT_TOOLBAR_STYLE_ID;
         style.textContent = `
             [${CHAT_INPUT_TOOLBAR_RAIL_ATTR}="1"] {
                 box-sizing: border-box;
-                min-height: 32px;
-                height: 32px;
-                padding: 3px 6px;
+                min-height: ${toolbarHeight}px;
+                height: ${toolbarHeight}px;
+                padding: ${toolbarPadding};
                 gap: 4px !important;
                 border: 1px solid color-mix(in srgb, var(--outline-variant, #474747) 78%, transparent);
                 border-radius: 9px;
@@ -4260,7 +4266,7 @@
 
             [${CHAT_INPUT_TOOLBAR_RAIL_ATTR}="1"] > div {
                 min-width: 0;
-                height: 24px;
+                height: ${toolbarButtonHeight}px;
                 gap: 4px !important;
             }
 
@@ -4272,7 +4278,7 @@
             [${CHAT_INPUT_TOOLBAR_RAIL_ATTR}="1"] button {
                 box-sizing: border-box;
                 min-width: 26px;
-                height: 24px !important;
+                height: ${toolbarButtonHeight}px !important;
                 padding: 0 8px !important;
                 border-radius: 6px !important;
                 font-family: Geist Variable, Inter, Arial, sans-serif !important;
@@ -17021,7 +17027,16 @@
     }
 
     function getChatInputToolbarReservedHeightPx() {
-        return isTr4kerPage() ? 44 : CHAT_INPUT_TOOLBAR_RESERVED_HEIGHT_PX;
+        if (!isTr4kerPage()) return CHAT_INPUT_TOOLBAR_RESERVED_HEIGHT_PX;
+
+        const input = getChatInput();
+        const inputHeight = input instanceof HTMLElement
+            ? Math.round(input.getBoundingClientRect().height)
+            : 0;
+        return Math.max(
+            CHAT_INPUT_TOOLBAR_RESERVED_HEIGHT_PX,
+            inputHeight + CHAT_INPUT_TOOLBAR_DOCKED_GAP_PX + 2
+        );
     }
 
     function getChatInputToolbarRail(mountParent) {
@@ -17154,12 +17169,21 @@
         }
 
         const isTr4kerDockedToolbar = isTr4kerPage() && !chatInputToolbarInline;
+        const inputHeight = context?.input instanceof HTMLElement
+            ? Math.round(context.input.getBoundingClientRect().height)
+            : 0;
+        const dockedToolbarHeight = Math.max(32, inputHeight || 42);
+        const reservedToolbarHeight = getChatInputToolbarReservedHeightPx();
 
         rail.style.position = 'absolute';
-        rail.style.top = isTr4kerDockedToolbar ? '6px' : '0';
+        rail.style.height = isTr4kerDockedToolbar ? `${dockedToolbarHeight}px` : '';
+        rail.style.minHeight = isTr4kerDockedToolbar ? `${dockedToolbarHeight}px` : '';
+        rail.style.top = isTr4kerDockedToolbar
+            ? `${Math.max(0, reservedToolbarHeight - dockedToolbarHeight - CHAT_INPUT_TOOLBAR_DOCKED_GAP_PX)}px`
+            : '0';
         rail.style.bottom = 'auto';
-        rail.style.left = isTr4kerDockedToolbar ? '8px' : '0';
-        rail.style.right = isTr4kerDockedToolbar ? '8px' : '0';
+        rail.style.left = isTr4kerDockedToolbar ? '16px' : '0';
+        rail.style.right = isTr4kerDockedToolbar ? '16px' : '0';
         rail.style.justifyContent = chatInputToolbarAlignRight ? 'flex-end' : 'flex-start';
         rail.style.flexWrap = 'nowrap';
         rail.style.flexShrink = '0';
