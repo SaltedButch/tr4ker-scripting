@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    https://github.com/SaltedButch/tr4ker-scripting
-// @version      3.0.90
+// @version      3.0.91
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -51,6 +51,7 @@
     const STORAGE_KEY_CHAT_SCROLLBAR_ENABLED = 'tm_t4_chat_scrollbar_enabled';
     const STORAGE_KEY_CUSTOM_BACKGROUND_ENABLED = 'tm_t4_custom_background_enabled';
     const STORAGE_KEY_CUSTOM_BACKGROUND_COLOR = 'tm_t4_custom_background_color';
+    const TR4KER_ME_PREFERENCES_ENDPOINT = '/api/me/preferences';
     const STORAGE_KEY_MESSAGE_ACTIONS_LEFT_ENABLED = 'tm_t4_message_actions_left_enabled';
     const STORAGE_KEY_TOPBAR_STATS_ENABLED = 'tm_t4_topbar_stats_enabled';
     const STORAGE_KEY_TOPBAR_STATS_ALL_SITE = 'tm_t4_topbar_stats_all_site';
@@ -691,6 +692,7 @@
     let tr4kerTopbarUserData = null;
     let tr4kerTopbarUserFetchedAt = 0;
     let tr4kerTopbarUserRequest = null;
+    let tr4kerAdultModeRequest = null;
     let tr4kerTopbarStatsViewportHandlerInstalled = false;
     let tr4kerTopbarStatsPeriodIndex = 0;
     let tr4kerTopbarStatsPeriodCycleTimer = null;
@@ -8961,7 +8963,7 @@
 
         html += `
             <div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08);font-size:11px;color:#9ca3af;line-height:1.45;">
-                <p>${formatGlobalShortcutLabel('C')} : paramètres · ${formatAfkShortcutLabel()} : mode AFK · ${formatBlacklistShortcutLabel()} : blacklist</p>
+                <p>${formatGlobalShortcutLabel('C')} : paramètres · ${formatAfkShortcutLabel()} : mode AFK · ${formatGlobalShortcutLabel('P')} : mode adulte · ${formatBlacklistShortcutLabel()} : blacklist</p>
                 <p>${debugMode ? 'Mode debug activé' : ''}</p>
             </div>
         `;
@@ -9069,6 +9071,76 @@
         return event.ctrlKey
             && hasPlatformShortcutModifier(event)
             && String(event.key || '').toLowerCase() === String(key || '').toLowerCase();
+    }
+
+    function toggleAdultProfileMode() {
+        if (tr4kerAdultModeRequest) return tr4kerAdultModeRequest;
+
+        tr4kerAdultModeRequest = (async () => {
+            const currentResponse = await fetch('/api/me', { credentials: 'include' });
+            if (!currentResponse.ok) {
+                throw new Error(`Impossible de lire le profil (HTTP ${currentResponse.status}).`);
+            }
+
+            const currentPayload = await currentResponse.json();
+            const currentPreferences = currentPayload && typeof currentPayload === 'object'
+                ? currentPayload
+                : {};
+            const nextShowAdult = currentPreferences.show_adult !== true;
+
+            const payload = {
+                show_adult: nextShowAdult,
+                upload_anonymous: currentPreferences.upload_anonymous === true,
+                mute_mention_notifications: currentPreferences.mute_mention_notifications === true,
+                hide_ratio: currentPreferences.hide_ratio === true,
+                hide_uploads: currentPreferences.hide_uploads === true,
+                hide_leaderboard: currentPreferences.hide_leaderboard === true
+            };
+
+            console.info('[PimpMyShoutbox] Raccourci mode adulte détecté.', {
+                show_adult: nextShowAdult,
+                shortcut: formatGlobalShortcutLabel('P')
+            });
+
+            const response = await fetch(TR4KER_ME_PREFERENCES_ENDPOINT, {
+                method: 'PUT',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            let responsePayload = null;
+            try {
+                responsePayload = await response.json();
+            } catch (error) {
+                responsePayload = null;
+            }
+
+            if (!response.ok) {
+                throw new Error(responsePayload?.error || `HTTP ${response.status}`);
+            }
+
+            if (tr4kerTopbarUserData && typeof tr4kerTopbarUserData === 'object') {
+                tr4kerTopbarUserData.show_adult = nextShowAdult;
+            }
+
+            return nextShowAdult;
+        })()
+            .then((enabled) => {
+                console.info(`[PimpMyShoutbox] Mode adulte ${enabled ? 'activé' : 'désactivé'}.`);
+                showToast(enabled ? 'Mode adulte activé dans votre profil.' : 'Mode adulte désactivé dans votre profil.');
+                window.setTimeout(() => window.location.reload(), 350);
+                return enabled;
+            })
+            .catch((error) => {
+                console.error('[PimpMyShoutbox] Échec du toggle mode adulte.', error);
+                showToast(`Impossible de modifier le mode adulte : ${error instanceof Error ? error.message : 'erreur inconnue.'}`, true);
+                return false;
+            })
+            .finally(() => {
+                tr4kerAdultModeRequest = null;
+            });
+
+        return tr4kerAdultModeRequest;
     }
 
     function formatAfkShortcutLabel() {
@@ -13195,6 +13267,20 @@
                         <div style="font-size:12px;font-weight:700;color:#bbf7d0;">${formatAfkShortcutLabel()}</div>
                         <div style="margin-top:4px;font-size:11px;color:#86efac;line-height:1.45;">
                             Active ou coupe le mode AFK sur le chat en cours, avec historique dédié des mentions et réponses.
+                        </div>
+                    </div>
+
+                    <div style="padding:10px 12px;border-radius:12px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.24);">
+                        <div style="font-size:12px;font-weight:700;color:#fecaca;">${formatGlobalShortcutLabel('P')}</div>
+                        <div style="margin-top:4px;font-size:11px;color:#fca5a5;line-height:1.45;">
+                            Active ou désactive le mode adulte de votre profil via les préférences Tr4ker.
+                        </div>
+                    </div>
+
+                    <div style="padding:10px 12px;border-radius:12px;background:rgba(14,165,233,0.12);border:1px solid rgba(56,189,248,0.24);">
+                        <div style="font-size:12px;font-weight:700;color:#bae6fd;">Raccourci sur Mac</div>
+                        <div style="margin-top:4px;font-size:11px;color:#7dd3fc;line-height:1.45;">
+                            Sur Mac, la touche Command (⌘) remplace Alt : utilise Ctrl+⌘+P pour le mode adulte.
                         </div>
                     </div>
 
@@ -22944,6 +23030,21 @@
         const isSettingsShortcut = matchesGlobalShortcut(e, 'c');
         const isAfkShortcut = matchesGlobalShortcut(e, 'a');
         const isSavedPhrasesShortcut = matchesGlobalShortcut(e, 'r');
+        const isAdultModeShortcut = matchesGlobalShortcut(e, 'p');
+
+        if (isAdultModeShortcut) {
+            console.info('[PimpMyShoutbox] Raccourci Ctrl+Alt/⌘+P détecté.', {
+                isMac: IS_MAC_PLATFORM,
+                ctrlKey: e.ctrlKey,
+                metaKey: e.metaKey,
+                altKey: e.altKey
+            });
+            if (!isTr4kerPage()) return;
+            if (imageViewerOpen) return;
+            e.preventDefault();
+            void toggleAdultProfileMode();
+            return;
+        }
 
         if (isSettingsShortcut) {
             if (!isSupportedPage()) return;
@@ -22979,7 +23080,7 @@
             const result = toggleAfkModeForCurrentContext();
             showToast(result.message, !result.ok);
         }
-    });
+    }, true);
 
     function init() {
         installQuickToggleHandler();
@@ -22997,7 +23098,7 @@
         installRouteWatcher();
         document.addEventListener('click', handleStatsBoxActionClick, true);
         refreshForRoute();
-        console.log(`[PimpMyShoutbox] Script actif. Raccourcis : ${formatGlobalShortcutLabel('C')} · ${formatGlobalShortcutLabel('R')} · ${formatAfkShortcutLabel()}`);
+        console.log(`[PimpMyShoutbox] Script actif. Raccourcis : ${formatGlobalShortcutLabel('C')} · ${formatGlobalShortcutLabel('R')} · ${formatAfkShortcutLabel()} · ${formatGlobalShortcutLabel('P')}`);
     }
 
     if (document.readyState === 'loading') {
