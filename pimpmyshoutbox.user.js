@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    https://github.com/SaltedButch/tr4ker-scripting
-// @version      3.0.89
+// @version      3.0.90
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -18,8 +18,7 @@
 // @supportURL   https://github.com/SaltedButch/tr4ker-scripting/issues
 // @updateURL    https://raw.githubusercontent.com/SaltedButch/tr4ker-scripting/userscripts/pimpmyshoutbox.meta.js
 // @downloadURL  https://raw.githubusercontent.com/SaltedButch/tr4ker-scripting/userscripts/pimpmyshoutbox.user.js
-// ==/UserScript==
-(function () {
+// ==/UserScript==(function () {
     'use strict';
 
     const STORAGE_KEY_USERS = 'tm_hidden_shout_users_t4';
@@ -499,6 +498,77 @@
     const KLIPY_SEARCH_MIN_LENGTH = 2;
     const KLIPY_SEARCH_DEBOUNCE_MS = 280;
     const KLIPY_CACHE_MAX_ENTRIES = 24;
+    const KLIPY_OFFICIAL_POWERED_BY_LOGO_DATA_URI = 'data:image/svg+xml,' + encodeURIComponent(String.raw`
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 28.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 640 255.3" style="enable-background:new 0 0 640 255.3;" xml:space="preserve">
+<style type="text/css">
+	.st0{opacity:0.4;}
+	.st1{fill:#F7DC3C;}
+	.st2{fill:#EE4523;}
+</style>
+<g>
+	<g>
+		<g>
+			<path d="M433.6,250.6h-23.7c-2.7,0-4.8-2.2-4.8-4.8V144.2c0-2.7,2.2-4.8,4.8-4.8h23.7c2.7,0,4.8,2.2,4.8,4.8v101.6
+				C438.4,248.5,436.4,250.6,433.6,250.6z"/>
+			<path d="M351.1,216.5v-72.3c0-2.7-2.2-4.8-4.8-4.8h-23.7c-2.7,0-4.8,2.2-4.8,4.8v77.2v24.4c0,2.7,2.2,4.8,4.8,4.8H351h42.2
+				c2.7,0,4.8-2.2,4.8-4.8v-19.6c0-2.7-2.2-4.8-4.8-4.8h-37.3C353.3,221.3,351.1,219.3,351.1,216.5z"/>
+			<path d="M491.9,139.4c-1.2,0-3.8,0-3.9,0h-11.8h-26.1c-2.7,0-4.8,2.2-4.8,4.8v101.6c0,2.7,2.2,4.8,4.8,4.8h23.7
+				c2.7,0,4.8-2.2,4.8-4.8v-28c0-0.9,0.8-1.4,1.5-1.2c11.9,3.5,27.4,3.8,40.9-9.5C549.7,178.4,522.7,139.4,491.9,139.4z
+				 M500.2,188.1c-12.7,9-26.7-5.1-17.7-17.7c0.3-0.4,0.7-0.8,1.1-1.1c12.7-9,26.7,5.1,17.7,17.7
+				C500.9,187.5,500.5,187.8,500.2,188.1z"/>
+			<path d="M635.6,157l-16.3-16.3c-1.9-1.9-4.7-1.9-6.7,0l-26,26c-0.7,0.7-2,0.7-2.6,0l-26-26c-1.9-1.9-4.7-1.9-6.7,0L535.1,157
+				c-1.9,1.9-1.9,4.7,0,6.7l33.4,33.4c0.3,0.3,0.5,0.9,0.5,1.3V246c0,2.6,2.2,4.6,4.6,4.6h23.1c2.6,0,4.6-2.2,4.6-4.6v-47.5
+				c0-0.5,0.2-1,0.5-1.3l33.4-33.4C637.3,161.8,637.3,158.8,635.6,157z"/>
+		</g>
+		<path d="M308.8,244.8l-42.3-48.7c-1-1.2-1-3.1,0.1-4.3l41.9-45.7c2.2-2.4,0.5-6.1-2.7-6.1h-27.9c-2.9,0-5.6,1.2-7.4,3.3L247.1,170
+			c-1.2,1.4-3.6,0.5-3.6-1.3v-25.6c0-1.6-1.3-3-3-3h-27.2c-1.6,0-3,1.3-3,3v104.5c0,1.6,1.3,3,3,3h27.2c1.6,0,3-1.3,3-3v-28.9
+			c0-2,2.5-2.8,3.7-1.2l23.3,29.6c1.9,2.4,4.7,3.8,7.7,3.8h27.8C309.3,250.8,310.9,247.2,308.8,244.8z"/>
+	</g>
+	<g class="st0">
+		<path d="M240.8,76.4c2.7,2.6,4,6.2,4,10.8c0,3.1-0.6,5.8-1.9,7.9c-1.2,2.3-3,3.9-5.3,5.1c-2.3,1.1-4.8,1.8-7.7,1.8h-10.6v16.6
+			h-9.1V72.5H230C234.5,72.5,238.1,73.7,240.8,76.4z M228.9,93.8c2,0,3.5-0.6,4.7-1.8c1.2-1.1,1.9-2.8,1.9-4.8
+			c0-2.2-0.6-3.8-1.9-4.9c-1.2-1.1-2.9-1.8-4.7-1.8h-9.5v13.4h9.5V93.8z"/>
+		<path d="M285.7,74.7c3.6,2,6.4,4.6,8.5,8.2c2.1,3.6,3.1,7.7,3.1,12.5s-1,9-3.1,12.5c-2.1,3.6-4.8,6.3-8.5,8.2s-7.6,2.9-12.3,2.9
+			s-8.8-0.9-12.4-2.9c-3.6-2-6.5-4.6-8.6-8.2c-2.1-3.6-3.1-7.7-3.1-12.5s1-9,3.1-12.5c2.1-3.6,4.8-6.3,8.6-8.2
+			c3.6-2,7.7-2.9,12.4-2.9C278,71.8,282.1,72.8,285.7,74.7z M260.7,103.8c1.2,2.4,3,4.1,5.2,5.4s4.7,1.9,7.6,1.9
+			c2.8,0,5.4-0.6,7.5-1.9c2.2-1.2,3.9-3.1,5.2-5.4c1.2-2.4,1.9-5.2,1.9-8.4s-0.6-6-1.9-8.4c-1.2-2.4-2.9-4.1-5.2-5.4
+			c-2.2-1.2-4.7-1.9-7.5-1.9c-2.9,0-5.4,0.6-7.6,1.9c-2.2,1.2-3.9,3.1-5.2,5.4c-1.2,2.4-1.9,5.2-1.9,8.4S259.5,101.4,260.7,103.8z"
+			/>
+		<path d="M333.6,88.4l-10,30h-7.7l-16.1-46h10l10,30.9l10-30.9h7.5l10,30.9l10-30.9h10l-16.1,46.1h-7.7L333.6,88.4z"/>
+		<path d="M382,90.9h17.6v7.9H382v11.5h20.3v8.1h-29.5V72.5h29.4v8h-20.3v10.4H382z"/>
+		<path d="M410,72.5h19.5c4.4,0,8,1.3,10.7,3.9c2.7,2.6,4,6.2,4,10.8c0,3.2-0.6,5.9-2,8.1c-1.3,2.3-3.2,3.9-5.6,5.1l10,18.2h-10.3
+			l-9.1-16.7h-0.8h-7.2v16.7h-9.1V72.5H410z M428.3,93.7c2,0,3.6-0.6,4.8-1.8s1.9-2.8,1.9-4.8c0-2.1-0.6-3.7-1.9-4.8
+			c-1.2-1.1-2.8-1.8-4.8-1.8h-9.3v13.2L428.3,93.7L428.3,93.7z"/>
+		<path d="M462.5,90.9h17.6v7.9h-17.6v11.5h20.3v8.1h-29.5V72.5h29.4v8h-20.3v10.4H462.5z"/>
+		<path d="M520.9,75.1c3.4,1.9,6.2,4.5,8.1,7.9c2,3.5,3,7.5,3,12.3s-1,8.9-3,12.3c-2,3.5-4.7,6.1-8.1,7.9c-3.4,1.9-7.4,2.8-11.8,2.8
+			h-18.8V72.5h18.9C513.6,72.5,517.5,73.4,520.9,75.1z M509.3,110.6c4.2,0,7.5-1.3,10-3.9c2.5-2.6,3.7-6.4,3.7-11.2
+			c0-4.9-1.2-8.7-3.7-11.2c-2.5-2.6-5.8-3.9-10-3.9h-9.8v30.3L509.3,110.6L509.3,110.6z"/>
+		<path d="M583.2,75.7c2.6,2.2,3.9,5.4,3.9,9.5c0,2.1-0.4,3.9-1.1,5.4c-0.8,1.5-1.9,2.8-3.1,3.7c1.8,0.8,3.2,2.1,4.3,4
+			c1.1,1.9,1.8,4.1,1.8,6.9c0,4.3-1.3,7.6-4,9.9c-2.7,2.3-6.3,3.4-10.7,3.4h-20.4v-46h19.1C577.1,72.5,580.6,73.5,583.2,75.7z
+			 M572.4,91c1.6,0,3-0.4,4-1.2c0.9-0.8,1.4-2.2,1.4-3.9c0-1.8-0.5-3.1-1.6-4c-1-0.9-2.6-1.3-4.4-1.3h-8.9V91L572.4,91L572.4,91z
+			 M573.1,110.4c2.1,0,3.6-0.5,4.8-1.4s1.8-2.4,1.8-4.3c0-2-0.6-3.4-1.8-4.3c-1.1-0.9-2.7-1.4-4.6-1.4h-10.4v11.5H573.1z"/>
+		<path d="M609,118.4v-17.8l-17.5-28.3h10.6l11.4,19.2L625,72.4h10.6l-17.4,28.3v17.8H609z"/>
+	</g>
+	<g>
+		<g>
+			<g>
+				<path class="st1" d="M197,244l-51.9-80.1c-0.9-1.5-0.9-3.3,0-4.7l48.7-80.1c1.8-3.1-0.3-6.8-3.8-6.8l-30.7,7
+					c-24.4,5.6-31.6,19.8-46.3,40.1c-2.8,4-4.7,6.6-4.7,6.6c-2.2,4.1-8.4,2.5-8.4-2.2V57.9c-18.7,0-28.4,6.8-35.9,13.1
+					c-23.4,19.2-28.4,43.1-28.4,73.5v101.9c0,2.5,2,4.5,4.5,4.5h55.5c2.5,0,4.5-2,4.5-4.5v-50.8c0-4.5,5.9-6.1,8.3-2.3l18.8,55.5
+					c0.9,1.5,2.3,2.2,3.8,2.2h62.5C196.8,250.8,199,246.9,197,244z M86.9,81.3c-3.4,0-6.1-2.7-6.1-6.1c0-3.4,2.7-6.1,6.1-6.1
+					c3.4,0,6.1,2.7,6.1,6.1C93,78.6,90.3,81.3,86.9,81.3z"/>
+			</g>
+			<path class="st2" d="M27.4,116.6c0.5,1.3,4.8-68.3,72.9-68.8c0,0-55.1-64.7-75.6-35.9c0,0-10.1,15.8,9.4,20.8
+				c0,0-31.5,8.3-30.9,30.2c0.2,6.8,7.2,11.3,13.5,8.6c3.6-1.6,8.3-4.7,14.2-10.2C30.8,61.1,17,88.8,27.4,116.6z"/>
+		</g>
+		<path class="st2" d="M107.2,60.6v16.9c0,1.3,1.3,2,2.3,1.3L125.7,68l-16.2-8.8C108.4,58.8,107.2,59.5,107.2,60.6z"/>
+	</g>
+</g>
+</svg>
+`);
     const LONG_PRESS_REACTION_DELAY_MS = 420;
     const LONG_PRESS_REACTION_MOVE_THRESHOLD_PX = 10;
     const LONG_PRESS_REACTION_PICKER_OFFSET_X = 18;
@@ -567,6 +637,7 @@
     const CHAT_INPUT_TOOLBAR_SPACE_ATTR = 'data-tm-chat-input-toolbar-space';
     const CHAT_INPUT_TOOLBAR_SYNC_BOUND_ATTR = 'data-tm-chat-input-toolbar-sync-bound';
     const CHAT_INPUT_TOOLBAR_RESERVED_HEIGHT_PX = 46;
+    const CHAT_INPUT_TOOLBAR_DOCKED_GAP_PX = 6;
     const MESSAGE_REACTION_QUICK_ACCESS_GROUP_ATTR = 'data-tm-message-reaction-quick-access-group';
     const MESSAGE_REACTION_QUICK_ACCESS_BUTTON_ATTR = 'data-tm-message-reaction-quick-access-button';
     const MANUAL_QUICK_ACCESS_PICKER_MARKER_ATTR = 'data-tm-manual-quick-access-picker-marker';
@@ -3632,6 +3703,7 @@
         if (!enabled) {
             root.style.removeProperty('--surface');
             root.style.removeProperty('--surface-dim');
+            root.style.removeProperty('--surface-container-low');
             root.style.removeProperty('background-color');
             root.removeAttribute('data-tm-custom-background');
             return;
@@ -3640,6 +3712,7 @@
         const normalizedColor = normalizeHexColor(color, '#131313');
         root.style.setProperty('--surface', normalizedColor);
         root.style.setProperty('--surface-dim', normalizedColor);
+        root.style.setProperty('--surface-container-low', normalizedColor);
         root.style.setProperty('background-color', normalizedColor);
         root.setAttribute('data-tm-custom-background', '1');
     }
@@ -4171,14 +4244,17 @@
         if (document.getElementById(CHAT_INPUT_TOOLBAR_STYLE_ID)) return;
         if (!document.head) return;
 
+        const toolbarHeight = isTr4kerPage() ? 42 : 32;
+        const toolbarPadding = isTr4kerPage() ? '7px 8px' : '3px 6px';
+        const toolbarButtonHeight = isTr4kerPage() ? 28 : 24;
         const style = document.createElement('style');
         style.id = CHAT_INPUT_TOOLBAR_STYLE_ID;
         style.textContent = `
             [${CHAT_INPUT_TOOLBAR_RAIL_ATTR}="1"] {
                 box-sizing: border-box;
-                min-height: 32px;
-                height: 32px;
-                padding: 3px 6px;
+                min-height: ${toolbarHeight}px;
+                height: ${toolbarHeight}px;
+                padding: ${toolbarPadding};
                 gap: 4px !important;
                 border: 1px solid color-mix(in srgb, var(--outline-variant, #474747) 78%, transparent);
                 border-radius: 9px;
@@ -4193,7 +4269,7 @@
 
             [${CHAT_INPUT_TOOLBAR_RAIL_ATTR}="1"] > div {
                 min-width: 0;
-                height: 24px;
+                height: ${toolbarButtonHeight}px;
                 gap: 4px !important;
             }
 
@@ -4205,7 +4281,7 @@
             [${CHAT_INPUT_TOOLBAR_RAIL_ATTR}="1"] button {
                 box-sizing: border-box;
                 min-width: 26px;
-                height: 24px !important;
+                height: ${toolbarButtonHeight}px !important;
                 padding: 0 8px !important;
                 border-radius: 6px !important;
                 font-family: Geist Variable, Inter, Arial, sans-serif !important;
@@ -5532,6 +5608,28 @@
                 font-family: Inter, Arial, sans-serif;
                 text-shadow: none;
                 box-shadow: none;
+            }
+
+            header[role="banner"][${TR4KER_TOPBAR_STATS_HOST_ATTR}="1"] > * {
+                min-width: 0;
+            }
+
+            header[role="banner"][${TR4KER_TOPBAR_STATS_HOST_ATTR}="1"] > #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-mode="sober"] {
+                flex: 0 1 auto;
+                min-width: 0;
+                max-width: min(760px, calc(100% - 290px));
+            }
+
+            @media (max-width: 900px) {
+                header[role="banner"][${TR4KER_TOPBAR_STATS_HOST_ATTR}="1"] > #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-mode="sober"] {
+                    max-width: 32vw;
+                }
+            }
+
+            @media (max-width: 640px) {
+                header[role="banner"][${TR4KER_TOPBAR_STATS_HOST_ATTR}="1"] > #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-mode="sober"] {
+                    max-width: 24vw;
+                }
             }
 
             #${TR4KER_TOPBAR_STATS_WIDGET_ID}[data-tm-topbar-stats-mode="sober"] > [data-tm-topbar-stats-sober-item] {
@@ -8118,7 +8216,7 @@
 
         return {
             id: String(result?.id || hashString(gifUrl)),
-            title: String(result?.title || result?.content_description || result?.tags?.[0] || 'GIF Klipy').trim(),
+            title: String(result?.title || result?.content_description || result?.tags?.[0] || 'GIF KLIPY').trim(),
             gifUrl,
             previewUrl,
             itemUrl: normalizeUrlForChatInsertion(result?.itemurl) || 'https://klipy.com',
@@ -12735,12 +12833,12 @@
 
             if (klipyGifsEnabled) {
                 injectKlipyGifToolbar();
-                controls.setFeedback('Bouton GIF Klipy activé.');
+            controls.setFeedback('Bouton GIF KLIPY activé.');
                 return;
             }
 
             removeKlipyGifToolbar();
-            controls.setFeedback('Bouton GIF Klipy désactivé.');
+            controls.setFeedback('Bouton GIF KLIPY désactivé.');
         });
 
         elements.linkifyUrlsToggle?.addEventListener('change', () => {
@@ -13510,11 +13608,11 @@
     function renderSettingsGifCard(settingsCardStyle, settingsCheckboxLabelStyle) {
         return `
             <div style="${settingsCardStyle}">
-                <div style="font-size:13px;font-weight:700;margin-bottom:10px;">GIF Klipy</div>
+                <div style="font-size:13px;font-weight:700;margin-bottom:10px;">GIF KLIPY</div>
 
                 <label style="${settingsCheckboxLabelStyle}">
                     <input id="tm-klipy-gifs-toggle" type="checkbox" ${klipyGifsEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#22c55e')}">
-                    <span>Activer le bouton GIF Klipy</span>
+                    <span>Activer le bouton GIF KLIPY</span>
                 </label>
 
                 <div style="margin-top:10px;font-size:12px;color:#a1a1aa;line-height:1.5;">
@@ -16932,7 +17030,16 @@
     }
 
     function getChatInputToolbarReservedHeightPx() {
-        return isTr4kerPage() ? 44 : CHAT_INPUT_TOOLBAR_RESERVED_HEIGHT_PX;
+        if (!isTr4kerPage()) return CHAT_INPUT_TOOLBAR_RESERVED_HEIGHT_PX;
+
+        const input = getChatInput();
+        const inputHeight = input instanceof HTMLElement
+            ? Math.round(input.getBoundingClientRect().height)
+            : 0;
+        return Math.max(
+            CHAT_INPUT_TOOLBAR_RESERVED_HEIGHT_PX,
+            inputHeight + CHAT_INPUT_TOOLBAR_DOCKED_GAP_PX + 2
+        );
     }
 
     function getChatInputToolbarRail(mountParent) {
@@ -17065,12 +17172,21 @@
         }
 
         const isTr4kerDockedToolbar = isTr4kerPage() && !chatInputToolbarInline;
+        const inputHeight = context?.input instanceof HTMLElement
+            ? Math.round(context.input.getBoundingClientRect().height)
+            : 0;
+        const dockedToolbarHeight = Math.max(32, inputHeight || 42);
+        const reservedToolbarHeight = getChatInputToolbarReservedHeightPx();
 
         rail.style.position = 'absolute';
-        rail.style.top = isTr4kerDockedToolbar ? '6px' : '0';
+        rail.style.height = isTr4kerDockedToolbar ? `${dockedToolbarHeight}px` : '';
+        rail.style.minHeight = isTr4kerDockedToolbar ? `${dockedToolbarHeight}px` : '';
+        rail.style.top = isTr4kerDockedToolbar
+            ? `${Math.max(0, reservedToolbarHeight - dockedToolbarHeight - CHAT_INPUT_TOOLBAR_DOCKED_GAP_PX)}px`
+            : '0';
         rail.style.bottom = 'auto';
-        rail.style.left = isTr4kerDockedToolbar ? '8px' : '0';
-        rail.style.right = isTr4kerDockedToolbar ? '8px' : '0';
+        rail.style.left = isTr4kerDockedToolbar ? '16px' : '0';
+        rail.style.right = isTr4kerDockedToolbar ? '16px' : '0';
         rail.style.justifyContent = chatInputToolbarAlignRight ? 'flex-end' : 'flex-start';
         rail.style.flexWrap = 'nowrap';
         rail.style.flexShrink = '0';
@@ -17947,7 +18063,7 @@
     function insertGifIntoChatInput(input, gifUrl) {
         const embedMarkup = buildKlipyGifEmbedMarkup(gifUrl);
         if (!embedMarkup) {
-            return { ok: false, message: 'GIF Klipy invalide.' };
+            return { ok: false, message: 'GIF KLIPY invalide.' };
         }
 
         return insertTextIntoChatInput(input, embedMarkup, 'Balise BBCode GIF insérée.');
@@ -19156,7 +19272,7 @@
     function createKlipyGifResultCard(result, menu) {
         const card = document.createElement('button');
         card.type = 'button';
-        card.title = result.title || 'Insérer ce GIF Klipy';
+            card.title = result.title || 'Insérer ce GIF KLIPY';
         card.style.display = 'flex';
         card.style.flexDirection = 'column';
         card.style.gap = '8px';
@@ -19172,7 +19288,7 @@
 
         const preview = document.createElement('img');
         preview.src = result.previewUrl;
-        preview.alt = result.title || 'GIF Klipy';
+            preview.alt = result.title || 'GIF KLIPY';
         preview.loading = 'lazy';
         preview.referrerPolicy = 'no-referrer';
         preview.style.display = 'block';
@@ -19184,7 +19300,7 @@
         preview.style.background = 'rgba(15,23,42,0.55)';
 
         const title = document.createElement('div');
-        title.textContent = result.title || 'GIF Klipy';
+            title.textContent = result.title || 'GIF KLIPY';
         title.style.fontSize = '11px';
         title.style.fontWeight = '700';
         title.style.lineHeight = '1.35';
@@ -19294,10 +19410,10 @@
         setKlipyGifMenuStatus(
             menu,
             rawQuery && rawQuery.length < KLIPY_SEARCH_MIN_LENGTH
-                ? `Tendances Klipy. Tape au moins ${KLIPY_SEARCH_MIN_LENGTH} caractères pour chercher.`
+                ? `Tendances KLIPY. Tape au moins ${KLIPY_SEARCH_MIN_LENGTH} caractères pour chercher.`
                 : effectiveQuery
-                    ? `Recherche Klipy: ${effectiveQuery}`
-                    : 'Chargement des tendances Klipy...'
+                    ? `Recherche KLIPY: ${effectiveQuery}`
+                    : 'Chargement des tendances KLIPY...'
         );
 
         try {
@@ -19317,18 +19433,18 @@
                 setKlipyGifMenuStatus(
                     menu,
                     effectiveQuery
-                        ? `Aucun GIF Klipy pour "${effectiveQuery}".`
+                        ? `Aucun GIF KLIPY pour "${effectiveQuery}".`
                         : 'Aucun GIF tendance disponible pour le moment.',
                     true
                 );
             } else if (rawQuery && rawQuery.length < KLIPY_SEARCH_MIN_LENGTH) {
-                setKlipyGifMenuStatus(menu, `Tendances Klipy. Tape au moins ${KLIPY_SEARCH_MIN_LENGTH} caractères pour chercher.`);
+                setKlipyGifMenuStatus(menu, `Tendances KLIPY. Tape au moins ${KLIPY_SEARCH_MIN_LENGTH} caractères pour chercher.`);
             } else {
                 setKlipyGifMenuStatus(
                     menu,
                     effectiveQuery
-                        ? `Résultats Klipy pour "${effectiveQuery}".`
-                        : 'Tendances Klipy.'
+                        ? `Résultats KLIPY pour "${effectiveQuery}".`
+                        : 'Tendances KLIPY.'
                 );
             }
 
@@ -19344,7 +19460,7 @@
             updateKlipyGifMoreButton(menu, false, false);
             setKlipyGifMenuStatus(
                 menu,
-                `Erreur Klipy: ${error instanceof Error ? error.message : 'chargement impossible.'}`,
+                `Erreur KLIPY: ${error instanceof Error ? error.message : 'chargement impossible.'}`,
                 true
             );
             scheduleKlipyGifMenuReposition(menu, 2);
@@ -19400,8 +19516,8 @@
         const toggleBtn = document.createElement('button');
         toggleBtn.type = 'button';
         toggleBtn.innerHTML = '<span style="margin-right:4px;">🎞</span> GIF';
-        toggleBtn.title = 'Ouvrir le picker GIF Klipy';
-        toggleBtn.setAttribute('aria-label', 'Ouvrir le picker GIF Klipy');
+        toggleBtn.title = 'Ouvrir le picker GIF KLIPY';
+        toggleBtn.setAttribute('aria-label', 'Ouvrir le picker GIF KLIPY');
         toggleBtn.style.background = 'linear-gradient(135deg, rgba(21,128,61,0.72) 0%, rgba(5,150,105,0.72) 100%)';
         toggleBtn.style.border = '1px solid rgba(74,222,128,0.26)';
         toggleBtn.style.color = '#ecfdf5';
@@ -19464,7 +19580,7 @@
         header.style.gap = '10px';
 
         const title = document.createElement('div');
-        title.textContent = 'Klipy GIF';
+        title.textContent = 'KLIPY GIF';
         title.style.fontSize = '12px';
         title.style.fontWeight = '700';
         title.style.color = '#f8fafc';
@@ -19482,7 +19598,7 @@
         providerLink.href = 'https://klipy.com/';
         providerLink.target = '_blank';
         providerLink.rel = 'noreferrer noopener';
-        providerLink.textContent = 'Klipy';
+        providerLink.textContent = 'KLIPY';
         providerLink.style.fontSize = '10px';
         providerLink.style.fontWeight = '700';
         providerLink.style.color = '#86efac';
@@ -19493,17 +19609,55 @@
         return header;
     }
 
+    function createKlipyPoweredByBrand() {
+        const brandLink = document.createElement('a');
+        brandLink.href = 'https://klipy.com/';
+        brandLink.target = '_blank';
+        brandLink.rel = 'noreferrer noopener';
+        brandLink.setAttribute('aria-label', 'Powered by KLIPY');
+        brandLink.style.display = 'inline-flex';
+        brandLink.style.alignItems = 'center';
+        brandLink.style.alignSelf = 'flex-start';
+        brandLink.style.padding = '4px 8px';
+        brandLink.style.background = '#f8fafc';
+        brandLink.style.border = '1px solid rgba(255,255,255,0.8)';
+        brandLink.style.borderRadius = '8px';
+        brandLink.style.lineHeight = '0';
+        brandLink.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+        brandLink.style.flex = '0 0 92px';
+        brandLink.style.width = '92px';
+        brandLink.style.height = '36px';
+        brandLink.style.boxSizing = 'border-box';
+
+        const logoMarkup = decodeURIComponent(KLIPY_OFFICIAL_POWERED_BY_LOGO_DATA_URI.slice(KLIPY_OFFICIAL_POWERED_BY_LOGO_DATA_URI.indexOf(',') + 1))
+            .replace(/^<\?xml[^>]*>\s*/i, '')
+            .trim();
+        brandLink.innerHTML = logoMarkup;
+        const logo = brandLink.querySelector('svg');
+        if (logo instanceof SVGElement) {
+            logo.setAttribute('role', 'img');
+            logo.setAttribute('aria-label', 'Powered by KLIPY');
+            logo.style.display = 'block';
+            logo.style.width = '76px';
+            logo.style.height = '30px';
+        }
+        return brandLink;
+    }
+
     function createKlipyGifSearchInput() {
         const searchInput = document.createElement('input');
         searchInput.type = 'text';
-        searchInput.placeholder = 'Rechercher un GIF Klipy';
+        searchInput.placeholder = 'Rechercher sur KLIPY';
+        searchInput.setAttribute('aria-label', 'Rechercher sur KLIPY');
         searchInput.setAttribute('data-tm-klipy-search', '1');
-        searchInput.style.width = '100%';
+        searchInput.style.flex = '1 1 auto';
+        searchInput.style.minWidth = '0';
+        searchInput.style.width = 'auto';
         searchInput.style.background = 'rgba(15,23,42,0.75)';
         searchInput.style.color = '#f8fafc';
         searchInput.style.border = '1px solid rgba(255,255,255,0.08)';
         searchInput.style.borderRadius = '12px';
-        searchInput.style.padding = '10px 12px';
+        searchInput.style.padding = '8px 11px';
         searchInput.style.outline = 'none';
         searchInput.style.fontSize = '12px';
         return searchInput;
@@ -19512,7 +19666,7 @@
     function createKlipyGifStatusElement() {
         const status = document.createElement('div');
         status.setAttribute('data-tm-klipy-status', '1');
-        status.textContent = `Tendances Klipy. Tape au moins ${KLIPY_SEARCH_MIN_LENGTH} caractères pour chercher.`;
+        status.textContent = `Tendances KLIPY. Tape au moins ${KLIPY_SEARCH_MIN_LENGTH} caractères pour chercher.`;
         status.style.fontSize = '11px';
         status.style.lineHeight = '1.45';
         status.style.color = '#cbd5f5';
@@ -19561,14 +19715,23 @@
     function createKlipyGifMenuView() {
         const menu = createKlipyGifMenuSurface();
         const header = buildKlipyGifMenuHeader();
+        const poweredByBrand = createKlipyPoweredByBrand();
         const searchInput = createKlipyGifSearchInput();
+        const searchRow = document.createElement('div');
+        searchRow.style.display = 'flex';
+        searchRow.style.alignItems = 'center';
+        searchRow.style.gap = '8px';
+        searchRow.style.width = '100%';
+        searchRow.style.minWidth = '0';
+        searchRow.appendChild(searchInput);
+        searchRow.appendChild(poweredByBrand);
         const status = createKlipyGifStatusElement();
         const results = createKlipyGifResultsGrid();
         const loadMoreBtn = createKlipyGifLoadMoreButton();
         const footer = createKlipyGifMenuFooter();
 
         menu.appendChild(header);
-        menu.appendChild(searchInput);
+        menu.appendChild(searchRow);
         menu.appendChild(status);
         menu.appendChild(results);
         menu.appendChild(loadMoreBtn);
