@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    http://tampermonkey.net/
-// @version      3.0.91
+// @version      3.0.92
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -15,6 +15,7 @@
 // @connect      pixabay.com
 // @connect      cdn.pixabay.com
 // ==/UserScript==
+
 (function () {
     'use strict';
 
