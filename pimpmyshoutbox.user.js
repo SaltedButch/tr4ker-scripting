@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    https://github.com/SaltedButch/tr4ker-scripting
-// @version      3.0.91
+// @version      3.0.92
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -18,7 +18,8 @@
 // @supportURL   https://github.com/SaltedButch/tr4ker-scripting/issues
 // @updateURL    https://raw.githubusercontent.com/SaltedButch/tr4ker-scripting/userscripts/pimpmyshoutbox.meta.js
 // @downloadURL  https://raw.githubusercontent.com/SaltedButch/tr4ker-scripting/userscripts/pimpmyshoutbox.user.js
-// ==/UserScript==(function () {
+// ==/UserScript==
+(function () {
     'use strict';
 
     const STORAGE_KEY_USERS = 'tm_hidden_shout_users_t4';
