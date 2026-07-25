@@ -658,7 +658,7 @@
     const AFK_AUTO_REPLY_MAX_INACTIVITY_MS = 30 * 60 * 1000;
     const AFK_RELOAD_REPLAY_PROTECTION_MS = 8000;
     const CREDIT_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
-    const CREDIT_MAX_GAP_MIN=90;
+    const CREDIT_MAX_GAP_MIN = 90;
 
     const DEFAULT_POSITION = {
         rightPercent: 2,
@@ -23132,7 +23132,7 @@
             if (isToday) {
                 status = '🕒 Journée en cours (incomplète)';
                 statusClass = 'tm-partial';
-            } else if (isLastGroup && minutesFromMidnight > MAX_GAP_MIN) {
+            } else if (isLastGroup && minutesFromMidnight > CREDIT_MAX_GAP_MIN) {
                 status = '⚠️ Potentiellement incomplète (limite de lignes)';
                 statusClass = 'tm-partial';
             } else {
@@ -23332,7 +23332,7 @@
         const res = await fetch('/api/shop/history', { credentials: 'include' });
         if (!res.ok) throw new Error('API error ' + res.status);
         const json = await res.json();
-        const json.transactions || [];
+        const transactions = Array.isArray(json.transactions) ? json.transactions : [];
         return transactions.map(({ id, amount, reason, created_at }) => ({
               id,
               amount,
@@ -23417,8 +23417,8 @@
         let merged = [...byId.values()];
         merged.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-        if (MAX_HISTORY_DAYS) {
-            const cutoff = Date.now() - MAX_HISTORY_DAYS * 24 * 60 * 60 * 1000;
+        if (CREDIT_MAX_HISTORY_DAYS) {
+            const cutoff = Date.now() - CREDIT_MAX_HISTORY_DAYS * 24 * 60 * 60 * 1000;
             merged = merged.filter(tx => new Date(tx.created_at).getTime() >= cutoff);
         }
 
