@@ -23095,30 +23095,31 @@
 
     function dayLabel(date) {
         return date.toLocaleDateString('fr-FR', {
-        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
         });
     }
 
     function computeDailySummaries(transactions) {
 
-        console.log("transactions", transactions);
         // created_at est en UTC (suffixe Z) -> new Date() gère la conversion en heure locale automatiquement
-        const sorted = [...transactions].sort(
-        (a, b) => new Date(b.created_at) - new Date(a.created_at)
-        );
+        const sorted = [...transactions]
+            .filter(tx => tx.amount > 0)
+            .sort(
+                (a, b) => new Date(b.created_at) - new Date(a.created_at)
+            );
 
         const groups = [];
         let current = null;
 
         sorted.forEach(tx => {
-        const date = new Date(tx.created_at);
-        const key = dayKey(date);
-        if (!current || current.key !== key) {
-            current = { key, date, items: [], total: 0 };
-            groups.push(current);
-        }
-        current.items.push({ date, amount: tx.amount });
-        current.total += tx.amount;
+            const date = new Date(tx.created_at);
+            const key = dayKey(date);
+            if (!current || current.key !== key) {
+                current = { key, date, items: [], total: 0 };
+                groups.push(current);
+            }
+            current.items.push({ date, amount: tx.amount });
+            current.total += tx.amount;
         });
 
         return groups.map((group, idx) => {
@@ -23210,22 +23211,17 @@
 
         waitForElement('[class*="_histToggle_"]', (containers) => {
             document.querySelectorAll('.tm-day-header').forEach(el => el.remove());
-            console.log("containers", containers);
 
             const container = containers[0];
             if(!container) return;
 
-
-            console.log("container", container);
             const section = container.parentElement;
-            console.log("section", section);
             if (!section || !section.parentElement) {
                 console.log("pas de section");
                 return;
             }
 
             const c = getSiteClasses();
-            console.log('classes récupérées :', c);
 
             const wrapper = document.createElement('div');
             wrapper.className = 'tm-day-header';
@@ -23357,15 +23353,10 @@
                 const previousTransactions = (cache && Array.isArray(cache.data)) ? cache.data : [];
                 const merged = mergeTransactions(previousTransactions, freshTransactions);
 
-                console.log(
-                    `[Récap] fusion : ${previousTransactions.length} déjà stockées + ${freshTransactions.length} reçues → ${merged.length} au total`
-                );
-
                 const payload = { fetchedAt: Date.now(), data: merged };
                 writeStorageJson(STORAGE_KEY_CREDIT_HISTORY, payload);
                 return payload;
             } catch (e) {
-                console.warn('[Récap journalier] échec du fetch API, utilisation du cache existant', e);
                 return cache; // peut être null si jamais rien n'a réussi
             }
         }
