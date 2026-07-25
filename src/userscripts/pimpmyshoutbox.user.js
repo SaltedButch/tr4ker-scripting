@@ -107,6 +107,7 @@
     const STORAGE_KEY_GRADE_PSEUDONYM_EFFECTS = 'tm_t4_grade_pseudonym_effects';
     const SESSION_STORAGE_KEY_AFK_TAB_ID = 'tm_t4_afk_tab_id';
     const STORAGE_KEY_MIGRATION_DONE = 'tm_t4_storage_migration_v1';
+    const STORAGE_KEY_CREDIT_RECAP_ENABLED = 'tm_t4_credit_recap_enabled';
     const STORAGE_KEY_CREDIT_HISTORY = 'tm_t4_shop_history_cache_v1';
     const STORAGE_KEYS_TO_MIGRATE = [
         STORAGE_KEY_USERS,
@@ -403,6 +404,7 @@
         STORAGE_KEY_CHAT_INPUT_TOOLBAR_ALIGN_RIGHT,
         STORAGE_KEY_IMAGE_HOSTING_ENABLED,
         STORAGE_KEY_IMAGE_HOSTING_EXPIRATION_SECONDS,
+        STORAGE_KEY_CREDIT_RECAP_ENABLED,
         STORAGE_KEY_AFK_PANEL_POSITION,
         STORAGE_KEY_GRADE_PSEUDONYM_COLORS,
         STORAGE_KEY_GRADE_PSEUDONYM_EFFECTS
@@ -736,6 +738,10 @@
     let savedPhrasesEnabled = loadSavedPhrasesEnabled();
     let savedPhrasesReplaceInput = loadSavedPhrasesReplaceInput();
     let klipyGifsEnabled = loadKlipyGifsEnabled();
+    let creditRecapEnabled = loadCreditRecapEnabled();
+    let creditRecapRefreshIntervalId = null;
+    let creditRecapBodyObserver = null;
+    let creditRecapVisibilityHandler = null;
     let emojiUsageCounts = loadEmojiUsageCounts();
     let reactionUsageCounts = loadReactionUsageCounts();
     let emojiQuickAccessLimit = loadEmojiQuickAccessLimit();
@@ -1267,6 +1273,15 @@
     function saveKlipyGifsEnabled(value) {
         klipyGifsEnabled = !!value;
         writeStorageBoolean(STORAGE_KEY_KLIPY_GIFS_ENABLED, klipyGifsEnabled);
+    }
+
+    function loadCreditRecapEnabled() {
+        return readStorageBoolean(STORAGE_KEY_CREDIT_RECAP_ENABLED, false);
+    }
+
+    function saveCreditRecapEnabled(value) {
+        creditRecapEnabled = !!value;
+        writeStorageBoolean(STORAGE_KEY_CREDIT_RECAP_ENABLED, creditRecapEnabled);
     }
 
     function normalizeEmojiUsageAssetPath(value) {
@@ -3228,6 +3243,7 @@
         savedPhrasesEnabled = loadSavedPhrasesEnabled();
         savedPhrasesReplaceInput = loadSavedPhrasesReplaceInput();
         klipyGifsEnabled = loadKlipyGifsEnabled();
+        creditRecapEnabled = loadCreditRecapEnabled();
         emojiQuickAccessLimit = loadEmojiQuickAccessLimit();
         reactionQuickAccessLimit = loadReactionQuickAccessLimit();
         quickAccessMode = loadQuickAccessMode();
@@ -3244,6 +3260,7 @@
         afkState = loadAfkState();
         afkPanelPosition = loadAfkPanelPosition();
         afkPanelHidden = loadAfkPanelHidden();
+        syncCreditRecapFeatureState();
 
         hiddenUsers.clear();
         loadHiddenUsers().forEach((username) => {
@@ -11427,6 +11444,7 @@
             toggleBtn: modal.querySelector('#tm-user-toggle'),
             phrasesEnabledToggle: modal.querySelector('#tm-phrases-enabled-toggle'),
             klipyGifsToggle: modal.querySelector('#tm-klipy-gifs-toggle'),
+            creditRecapToggle: modal.querySelector('#tm-credit-recap-toggle'),
             imageHostingEnabledToggle: modal.querySelector('#tm-image-hosting-enabled-toggle'),
             imageHostingExpanded: modal.querySelector('#tm-image-hosting-expanded'),
             imgbbApiKeyInput: modal.querySelector('#tm-imgbb-api-key-input'),
@@ -12915,6 +12933,16 @@
             controls.setFeedback('Bouton GIF KLIPY désactivé.');
         });
 
+        elements.creditRecapToggle?.addEventListener('change', () => {
+            saveCreditRecapEnabled(elements.creditRecapToggle.checked);
+            syncCreditRecapFeatureState();
+            controls.setFeedback(
+                creditRecapEnabled
+                    ? 'Récapitulatif des crédits activé.'
+                    : 'Récapitulatif des crédits désactivé.'
+            );
+        });
+
         elements.linkifyUrlsToggle?.addEventListener('change', () => {
             saveLinkifyUrlsEnabled(elements.linkifyUrlsToggle.checked);
             processAllMessages();
@@ -13705,6 +13733,23 @@
 
                 <div style="margin-top:10px;font-size:12px;color:#a1a1aa;line-height:1.5;">
                     Permet d’utiliser un picker GIF directement depuis le chat.
+                </div>
+            </div>
+        `;
+    }
+
+    function renderSettingsCreditRecapCard(settingsCardStyle, settingsCheckboxLabelStyle) {
+        return `
+            <div style="${settingsCardStyle}">
+                <div style="font-size:13px;font-weight:700;margin-bottom:10px;">Récapitulatif des crédits</div>
+
+                <label style="${settingsCheckboxLabelStyle}">
+                    <input id="tm-credit-recap-toggle" type="checkbox" ${creditRecapEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#facc15')}">
+                    <span>Afficher le récapitulatif quotidien et le gain du jour</span>
+                </label>
+
+                <div style="margin-top:10px;font-size:12px;color:#a1a1aa;line-height:1.5;">
+                    Consulte l’historique de la boutique pour calculer les crédits gagnés par jour. Désactivé par défaut.
                 </div>
             </div>
         `;
@@ -14536,6 +14581,7 @@
                 ${renderSettingsAccessibilityCard(currentPageLabel, isChatView, styles)}
                 ${renderSettingsSavedPhrasesCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)}
                 ${renderSettingsConfigCard(styles.settingsCardStyle)}
+                ${renderSettingsCreditRecapCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)}
                 ${renderSettingsGifCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)}
                 ${renderSettingsImageHostingCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)}
                 ${renderSettingsEmojiQuickAccessCard(styles.settingsCardStyle)}
@@ -23188,84 +23234,61 @@
         };
     }
 
-    function waitForElement(selector, callback) {
-        const el = document.querySelector(selector);
-        if (el) {
-            callback([el]);
-            return;
-        }
-
-        const observer = new MutationObserver((mutations, obs) => {
-            const elements = [...document.querySelectorAll(selector)];
-            if (elements.length > 0) {
-                obs.disconnect(); // On arrête d'observer une fois trouvé
-                callback(elements);
-            }
-        });
-
-        observer.observe(document.body, { childList: true, subtree: true });
-    }
-
     function renderHeader(summaries, fetchedAt) {
+        if (!creditRecapEnabled) return;
 
+        const container = document.querySelector('[class*="_histToggle_"]');
+        if (!(container instanceof HTMLElement)) return;
 
-        waitForElement('[class*="_histToggle_"]', (containers) => {
-            document.querySelectorAll('.tm-day-header').forEach(el => el.remove());
+        document.querySelectorAll('.tm-day-header').forEach(el => el.remove());
 
-            const container = containers[0];
-            if(!container) return;
+        const section = container.parentElement;
+        if (!section || !section.parentElement) return;
 
-            const section = container.parentElement;
-            if (!section || !section.parentElement) {
-                console.log("pas de section");
-                return;
-            }
+        const c = getSiteClasses();
 
-            const c = getSiteClasses();
+        const wrapper = document.createElement('div');
+        wrapper.className = 'tm-day-header';
+        wrapper.style.cssText = 'margin-bottom:12px;';
 
-            const wrapper = document.createElement('div');
-            wrapper.className = 'tm-day-header';
-            wrapper.style.cssText = 'margin-bottom:12px;';
+        const updated = new Date(fetchedAt).toLocaleString('fr-FR');
+        const title = document.createElement('div');
+        title.textContent = `📊 Récap par jour — mis à jour ${updated}`;
+        title.style.cssText = 'font-weight:600;opacity:0.85;padding:4px 0 8px;';
+        wrapper.appendChild(title);
 
-            const updated = new Date(fetchedAt).toLocaleString('fr-FR');
-            const title = document.createElement('div');
-            title.textContent = `📊 Récap par jour — mis à jour ${updated}`;
-            title.style.cssText = 'font-weight:600;opacity:0.85;padding:4px 0 8px;';
-            wrapper.appendChild(title);
+        const list = document.createElement('div');
+        list.className = c.list;
 
-            const list = document.createElement('div');
-            list.className = c.list;
+        summaries.forEach(s => {
+            const row = document.createElement('div');
+            row.className = `${c.row} tm-summary-row`;
+            row.style.cssText = 'font-weight:600;';
 
-            summaries.forEach(s => {
-                const row = document.createElement('div');
-                row.className = `${c.row} tm-summary-row`;
-                row.style.cssText = 'font-weight:600;';
+            const amountSpan = document.createElement('span');
+            amountSpan.className = `${c.amount} ${c.credit}`;
+            const sign = s.total >= 0 ? '+' : '';
+            amountSpan.textContent = `${sign}${s.total.toLocaleString('fr-FR')}`;
+            if (s.total < 0) amountSpan.style.color = '#e53935';
 
-                const amountSpan = document.createElement('span');
-                amountSpan.className = `${c.amount} ${c.credit}`;
-                const sign = s.total >= 0 ? '+' : '';
-                amountSpan.textContent = `${sign}${s.total.toLocaleString('fr-FR')}`;
-                if (s.total < 0) amountSpan.style.color = '#e53935';
+            const noteSpan = document.createElement('span');
+            noteSpan.className = c.note;
+            noteSpan.textContent = `Récap — ${s.label} (${s.count} ligne${s.count > 1 ? 's' : ''})`;
 
-                const noteSpan = document.createElement('span');
-                noteSpan.className = c.note;
-                noteSpan.textContent = `Récap — ${s.label} (${s.count} ligne${s.count > 1 ? 's' : ''})`;
+            const dateSpan = document.createElement('span');
+            dateSpan.className = c.date;
+            dateSpan.textContent = s.status;
+            dateSpan.style.color = s.statusClass === 'tm-complete' ? '#4caf50' : '#ff9800';
+            dateSpan.style.fontWeight = '600';
 
-                const dateSpan = document.createElement('span');
-                dateSpan.className = c.date;
-                dateSpan.textContent = s.status;
-                dateSpan.style.color = s.statusClass === 'tm-complete' ? '#4caf50' : '#ff9800';
-                dateSpan.style.fontWeight = '600';
-
-                row.appendChild(amountSpan);
-                row.appendChild(noteSpan);
-                row.appendChild(dateSpan);
-                list.appendChild(row);
-            });
-
-            wrapper.appendChild(list);
-            section.parentElement.insertBefore(wrapper, section);
+            row.appendChild(amountSpan);
+            row.appendChild(noteSpan);
+            row.appendChild(dateSpan);
+            list.appendChild(row);
         });
+
+        wrapper.appendChild(list);
+        section.parentElement.insertBefore(wrapper, section);
     }
 
     // Formate un nombre en version compacte : 186241 -> "186K", 2500000 -> "2.5M", etc.
@@ -23364,23 +23387,59 @@
     }
 
     async function runCreditRecapJournalier(force) {
+        if (!creditRecapEnabled) return;
         const cache = await refreshIfNeededCreditRecapJournalier(force);
-        if (!cache) return;
+        if (!creditRecapEnabled || !cache) return;
         const summaries = computeDailySummaries(cache.data);
         renderHeader(summaries, cache.fetchedAt);       // seulement si la page historique est affichée
         renderCreditsBadge(summaries);                  // sur toutes les pages où le bouton crédits existe
     }
 
-   function initCreditRecapJournalier() {
-        runCreditRecapJournalier(false);
-        setInterval(() => runCreditRecapJournalier(false), CREDIT_REFRESH_INTERVAL_MS);
+    function removeCreditRecapUi() {
+        document.querySelectorAll('.tm-day-header').forEach((element) => element.remove());
 
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') runCreditRecapJournalier(false);
+        document.querySelectorAll('.tm-credits-wrapper').forEach((wrapper) => {
+            const count = wrapper.querySelector('[class*="_tokensCount_"]');
+            if (count instanceof HTMLElement && wrapper.parentElement) {
+                count.style.border = '';
+                count.style.padding = '';
+                wrapper.parentElement.insertBefore(count, wrapper);
+            }
+            wrapper.remove();
         });
+    }
+
+    function stopCreditRecapJournalier() {
+        if (creditRecapRefreshIntervalId !== null) {
+            clearInterval(creditRecapRefreshIntervalId);
+            creditRecapRefreshIntervalId = null;
+        }
+        creditRecapBodyObserver?.disconnect();
+        creditRecapBodyObserver = null;
+        if (creditRecapVisibilityHandler) {
+            document.removeEventListener('visibilitychange', creditRecapVisibilityHandler);
+            creditRecapVisibilityHandler = null;
+        }
+        removeCreditRecapUi();
+    }
+
+    function initCreditRecapJournalier() {
+        if (!creditRecapEnabled || creditRecapRefreshIntervalId !== null) return;
+
+        runCreditRecapJournalier(false);
+        creditRecapRefreshIntervalId = setInterval(
+            () => runCreditRecapJournalier(false),
+            CREDIT_REFRESH_INTERVAL_MS
+        );
+
+        creditRecapVisibilityHandler = () => {
+            if (document.visibilityState === 'visible') runCreditRecapJournalier(false);
+        };
+        document.addEventListener('visibilitychange', creditRecapVisibilityHandler);
 
         let lastRunAt = 0;
         const tryRun = () => {
+            if (!creditRecapEnabled) return;
             const needsBadge = document.querySelector('a[class*="_tokens_"]') && !document.querySelector('.tm-credits-badge');
             const needsHeader = document.querySelector('[class*="_histToggle_"]') && !document.querySelector('.tm-day-header');
             if (needsBadge || needsHeader) {
@@ -23392,22 +23451,20 @@
             }
         };
 
-        // On observe le <body> uniquement pour détecter l'apparition tardive
-        // du bouton crédits / du tableau historique (navigation SPA). Une fois
-        // que les deux sont trouvés au moins une fois, plus besoin de surveiller
-        // tout le body : on bascule sur une simple vérification périodique légère.
-        let bothFound = false;
-        const bodyObserver = new MutationObserver(() => {
-            if (bothFound) return;
+        // La navigation SPA peut monter ou démonter le bouton crédits et l'historique
+        // à tout moment ; l'observateur relance le rendu seulement si l'un manque.
+        creditRecapBodyObserver = new MutationObserver(() => {
             tryRun();
-            if (document.querySelector('.tm-credits-badge') && document.querySelector('.tm-day-header')) {
-                bothFound = true;
-                bodyObserver.disconnect();
-                // Filet de sécurité léger si jamais le site les fait disparaître plus tard
-                setInterval(tryRun, 5000);
-            }
         });
-        bodyObserver.observe(document.body, { childList: true, subtree: true });
+        creditRecapBodyObserver.observe(document.body, { childList: true, subtree: true });
+    }
+
+    function syncCreditRecapFeatureState() {
+        if (creditRecapEnabled) {
+            initCreditRecapJournalier();
+            return;
+        }
+        stopCreditRecapJournalier();
     }
 
     function mergeTransactions(oldList, newList) {
@@ -23445,7 +23502,7 @@
         installYouTubePlayerHandler();
         installImagePasteHandler();
         installRouteWatcher();
-        initCreditRecapJournalier()
+        syncCreditRecapFeatureState();
         document.addEventListener('click', handleStatsBoxActionClick, true);
         refreshForRoute();
         console.log(`[PimpMyShoutbox] Script actif. Raccourcis : ${formatGlobalShortcutLabel('C')} · ${formatGlobalShortcutLabel('R')} · ${formatAfkShortcutLabel()} · ${formatGlobalShortcutLabel('P')}`);
