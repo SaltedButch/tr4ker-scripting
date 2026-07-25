@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    http://tampermonkey.net/
-// @version      3.0.92
+// @version      3.0.93
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -107,6 +107,7 @@
     const STORAGE_KEY_GRADE_PSEUDONYM_EFFECTS = 'tm_t4_grade_pseudonym_effects';
     const SESSION_STORAGE_KEY_AFK_TAB_ID = 'tm_t4_afk_tab_id';
     const STORAGE_KEY_MIGRATION_DONE = 'tm_t4_storage_migration_v1';
+    const STORAGE_KEY_CREDIT_HISTORY = 'tm_t4_shop_history_cache_v1';
     const STORAGE_KEYS_TO_MIGRATE = [
         STORAGE_KEY_USERS,
         STORAGE_KEY_POS_HOME,
@@ -656,6 +657,8 @@
     const AFK_AUTO_REPLY_PER_USER_COOLDOWN_MS = 5 * 60 * 1000;
     const AFK_AUTO_REPLY_MAX_INACTIVITY_MS = 30 * 60 * 1000;
     const AFK_RELOAD_REPLAY_PROTECTION_MS = 8000;
+    const CREDIT_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
+    const CREDIT_MAX_GAP_MIN=90;
 
     const DEFAULT_POSITION = {
         rightPercent: 2,
@@ -664,6 +667,7 @@
     const DEFAULT_STATS_BOX_WIDTH_PX = 240;
     const MIN_STATS_BOX_WIDTH_PX = 220;
     const MIN_STATS_BOX_HEIGHT_PX = 110;
+    const CREDIT_MAX_HISTORY_DAYS = 35;
 
     let observer = null;
     let statsBox = null;
@@ -23080,6 +23084,362 @@
         }
     }, true);
 
+
+    /*
+    * Tr4ker - Récap journalier des crédits
+    */
+
+    function dayKey(date) {
+        return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+    }
+
+    function dayLabel(date) {
+        return date.toLocaleDateString('fr-FR', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+        });
+    }
+
+    function computeDailySummaries(transactions) {
+
+        console.log("transactions", transactions);
+        // created_at est en UTC (suffixe Z) -> new Date() gère la conversion en heure locale automatiquement
+        const sorted = [...transactions].sort(
+        (a, b) => new Date(b.created_at) - new Date(a.created_at)
+        );
+
+        const groups = [];
+        let current = null;
+
+        sorted.forEach(tx => {
+        const date = new Date(tx.created_at);
+        const key = dayKey(date);
+        if (!current || current.key !== key) {
+            current = { key, date, items: [], total: 0 };
+            groups.push(current);
+        }
+        current.items.push({ date, amount: tx.amount });
+        current.total += tx.amount;
+        });
+
+        return groups.map((group, idx) => {
+            const isToday = dayKey(new Date()) === group.key;
+            const isLastGroup = idx === groups.length - 1; // journée la plus ancienne renvoyée par l'API
+            const earliestTime = group.items[group.items.length - 1].date;
+            const minutesFromMidnight = earliestTime.getHours() * 60 + earliestTime.getMinutes();
+
+            let status, statusClass;
+            if (isToday) {
+                status = '🕒 Journée en cours (incomplète)';
+                statusClass = 'tm-partial';
+            } else if (isLastGroup && minutesFromMidnight > MAX_GAP_MIN) {
+                status = '⚠️ Potentiellement incomplète (limite de lignes)';
+                statusClass = 'tm-partial';
+            } else {
+                status = '✅ Journée complète';
+                statusClass = 'tm-complete';
+            }
+
+            return {
+                label: dayLabel(group.date),
+                total: group.total,
+                count: group.items.length,
+                status,
+                statusClass,
+                isToday
+            };
+        });
+    }
+
+    function getSiteClasses() {
+        const fallback = {
+        section: '_section_rjw65_162',
+        list: '_histList_rjw65_301',
+        row: '_histRow_rjw65_334',
+        amount: '_histAmount_rjw65_345',
+        credit: '_credit_rjw65_350',
+        note: '_histNote_rjw65_353',
+        date: '_histDate_rjw65_360'
+        };
+
+        const sampleRow = document.querySelector('[class*="_histRow_"]');
+        if (!sampleRow) return fallback;
+
+        const sampleAmount = sampleRow.querySelector('[class*="_histAmount_"]');
+        const sampleNote = sampleRow.querySelector('[class*="_histNote_"]');
+        const sampleDate = sampleRow.querySelector('[class*="_histDate_"]');
+        const sampleSection = sampleRow.closest('[class*="_section_"]');
+
+        const creditClass = sampleAmount
+        ? [...sampleAmount.classList].find(c => c.includes('_credit_'))
+        : null;
+        const amountBaseClass = sampleAmount
+        ? [...sampleAmount.classList].find(c => c.includes('_histAmount_'))
+        : null;
+
+        return {
+        section: sampleSection ? sampleSection.className : fallback.section,
+        list: 'className' in (sampleRow.parentElement || {}) ? sampleRow.parentElement.className : fallback.list,
+        row: sampleRow.className,
+        amount: amountBaseClass || fallback.amount,
+        credit: creditClass || fallback.credit,
+        note: sampleNote ? sampleNote.className : fallback.note,
+        date: sampleDate ? sampleDate.className : fallback.date
+        };
+    }
+
+    function waitForElement(selector, callback) {
+        const el = document.querySelector(selector);
+        if (el) {
+            callback([el]);
+            return;
+        }
+
+        const observer = new MutationObserver((mutations, obs) => {
+            const elements = [...document.querySelectorAll(selector)];
+            if (elements.length > 0) {
+                obs.disconnect(); // On arrête d'observer une fois trouvé
+                callback(elements);
+            }
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    function renderHeader(summaries, fetchedAt) {
+
+
+        waitForElement('[class*="_histToggle_"]', (containers) => {
+            document.querySelectorAll('.tm-day-header').forEach(el => el.remove());
+            console.log("containers", containers);
+
+            const container = containers[0];
+            if(!container) return;
+
+
+            console.log("container", container);
+            const section = container.parentElement;
+            console.log("section", section);
+            if (!section || !section.parentElement) {
+                console.log("pas de section");
+                return;
+            }
+
+            const c = getSiteClasses();
+            console.log('classes récupérées :', c);
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'tm-day-header';
+            wrapper.style.cssText = 'margin-bottom:12px;';
+
+            const updated = new Date(fetchedAt).toLocaleString('fr-FR');
+            const title = document.createElement('div');
+            title.textContent = `📊 Récap par jour — mis à jour ${updated}`;
+            title.style.cssText = 'font-weight:600;opacity:0.85;padding:4px 0 8px;';
+            wrapper.appendChild(title);
+
+            const list = document.createElement('div');
+            list.className = c.list;
+
+            summaries.forEach(s => {
+                const row = document.createElement('div');
+                row.className = `${c.row} tm-summary-row`;
+                row.style.cssText = 'font-weight:600;';
+
+                const amountSpan = document.createElement('span');
+                amountSpan.className = `${c.amount} ${c.credit}`;
+                const sign = s.total >= 0 ? '+' : '';
+                amountSpan.textContent = `${sign}${s.total.toLocaleString('fr-FR')}`;
+                if (s.total < 0) amountSpan.style.color = '#e53935';
+
+                const noteSpan = document.createElement('span');
+                noteSpan.className = c.note;
+                noteSpan.textContent = `Récap — ${s.label} (${s.count} ligne${s.count > 1 ? 's' : ''})`;
+
+                const dateSpan = document.createElement('span');
+                dateSpan.className = c.date;
+                dateSpan.textContent = s.status;
+                dateSpan.style.color = s.statusClass === 'tm-complete' ? '#4caf50' : '#ff9800';
+                dateSpan.style.fontWeight = '600';
+
+                row.appendChild(amountSpan);
+                row.appendChild(noteSpan);
+                row.appendChild(dateSpan);
+                list.appendChild(row);
+            });
+
+            wrapper.appendChild(list);
+            section.parentElement.insertBefore(wrapper, section);
+        });
+    }
+
+    // Formate un nombre en version compacte : 186241 -> "186K", 2500000 -> "2.5M", etc.
+    function formatCompact(n) {
+        const abs = Math.abs(n);
+        const round = (value) => (Math.round(value * 10) / 10).toString().replace('.', ',');
+        if (abs >= 1e9) return round(n / 1e9) + 'G';
+        if (abs >= 1e6) return round(n / 1e6) + 'M';
+        if (abs >= 1e3) return round(n / 1e3) + 'K';
+        return n.toString();
+    }
+
+    // Petit badge vert "+X" affiché en retour à la ligne, sous le compteur de crédits
+    // du bouton général (présent sur toutes les pages, pas seulement la page historique).
+    function renderCreditsBadge(summaries) {
+        const link = document.querySelector('a[class*="_tokens_"]');
+        if (!link) return; // pas sur cette page / pas encore rendu
+
+        const countSpan = link.querySelector('[class*="_tokensCount_"]');
+        if (!countSpan) return;
+
+        const today = summaries.find(s => s.isToday);
+        const gain = today ? today.total : 0;
+
+        let wrapper = link.querySelector('.tm-credits-wrapper');
+        if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.className = 'tm-credits-wrapper';
+
+        // Récupère la bordure/le padding actuels du compteur pour les reporter sur le
+        // wrapper, puis on les neutralise sur le span d'origine (l'inline style prime
+        // sur la classe CSS, donc pas besoin de toucher au CSS du site).
+        const computed = getComputedStyle(countSpan);
+        wrapper.style.cssText = [
+            'display:flex',
+            'flex-direction:column',
+            'align-items:center',
+            'line-height:1.2',
+            `border:${computed.border}`,
+            `border-radius:${computed.borderRadius}`,
+            `padding:${computed.padding}`
+        ].join(';');
+
+        countSpan.style.border = 'none';
+        countSpan.style.padding = '0';
+
+        countSpan.parentElement.insertBefore(wrapper, countSpan);
+        wrapper.appendChild(countSpan);
+        }
+
+        let badge = wrapper.querySelector('.tm-credits-badge');
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'tm-credits-badge';
+            badge.style.cssText = 'font-size:10px;font-weight:700;color:#4caf50;text-align:center;';
+            wrapper.appendChild(badge);
+        }
+
+        const sign = gain >= 0 ? '+' : '-';
+        badge.textContent = `${sign}${formatCompact(Math.abs(gain))}`;
+    }
+
+    async function fetchHistory() {
+        const res = await fetch('/api/shop/history', { credentials: 'include' });
+        if (!res.ok) throw new Error('API error ' + res.status);
+        const json = await res.json();
+        const json.transactions || [];
+        return transactions.map(({ id, amount, reason, created_at }) => ({
+              id,
+              amount,
+              reason,
+              created_at
+        }));
+    }
+
+    async function refreshIfNeededCreditRecapJournalier(force) {
+        const cache = readStorageJson(STORAGE_KEY_CREDIT_HISTORY, null);
+        const isStale = !cache
+        || !Array.isArray(cache.data)
+        || (Date.now() - cache.fetchedAt) > CREDIT_REFRESH_INTERVAL_MS;
+
+        if (force || isStale) {
+            try {
+                const freshTransactions = await fetchHistory();
+                const previousTransactions = (cache && Array.isArray(cache.data)) ? cache.data : [];
+                const merged = mergeTransactions(previousTransactions, freshTransactions);
+
+                console.log(
+                    `[Récap] fusion : ${previousTransactions.length} déjà stockées + ${freshTransactions.length} reçues → ${merged.length} au total`
+                );
+
+                const payload = { fetchedAt: Date.now(), data: merged };
+                writeStorageJson(STORAGE_KEY_CREDIT_HISTORY, payload);
+                return payload;
+            } catch (e) {
+                console.warn('[Récap journalier] échec du fetch API, utilisation du cache existant', e);
+                return cache; // peut être null si jamais rien n'a réussi
+            }
+        }
+        return cache;
+    }
+
+    async function runCreditRecapJournalier(force) {
+        const cache = await refreshIfNeededCreditRecapJournalier(force);
+        if (!cache) return;
+        const summaries = computeDailySummaries(cache.data);
+        renderHeader(summaries, cache.fetchedAt);       // seulement si la page historique est affichée
+        renderCreditsBadge(summaries);                  // sur toutes les pages où le bouton crédits existe
+    }
+
+   function initCreditRecapJournalier() {
+        runCreditRecapJournalier(false);
+        setInterval(() => runCreditRecapJournalier(false), CREDIT_REFRESH_INTERVAL_MS);
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') runCreditRecapJournalier(false);
+        });
+
+        let lastRunAt = 0;
+        const tryRun = () => {
+            const needsBadge = document.querySelector('a[class*="_tokens_"]') && !document.querySelector('.tm-credits-badge');
+            const needsHeader = document.querySelector('[class*="_histToggle_"]') && !document.querySelector('.tm-day-header');
+            if (needsBadge || needsHeader) {
+                const now = Date.now();
+                if (now - lastRunAt > 300) {
+                    lastRunAt = now;
+                    runCreditRecapJournalier(false);
+                }
+            }
+        };
+
+        // On observe le <body> uniquement pour détecter l'apparition tardive
+        // du bouton crédits / du tableau historique (navigation SPA). Une fois
+        // que les deux sont trouvés au moins une fois, plus besoin de surveiller
+        // tout le body : on bascule sur une simple vérification périodique légère.
+        let bothFound = false;
+        const bodyObserver = new MutationObserver(() => {
+            if (bothFound) return;
+            tryRun();
+            if (document.querySelector('.tm-credits-badge') && document.querySelector('.tm-day-header')) {
+                bothFound = true;
+                bodyObserver.disconnect();
+                // Filet de sécurité léger si jamais le site les fait disparaître plus tard
+                setInterval(tryRun, 5000);
+            }
+        });
+        bodyObserver.observe(document.body, { childList: true, subtree: true });
+    }
+
+    function mergeTransactions(oldList, newList) {
+        const byId = new Map();
+        [...oldList, ...newList].forEach(tx => byId.set(tx.id, tx));
+
+        let merged = [...byId.values()];
+        merged.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+        if (MAX_HISTORY_DAYS) {
+            const cutoff = Date.now() - MAX_HISTORY_DAYS * 24 * 60 * 60 * 1000;
+            merged = merged.filter(tx => new Date(tx.created_at).getTime() >= cutoff);
+        }
+
+        return merged;
+    }
+
+
+    /*
+    * FIN - Tr4ker - Récap journalier des crédits
+    */
+
+
     function init() {
         installQuickToggleHandler();
         installNativeReplyShortcutHandler();
@@ -23094,6 +23454,7 @@
         installYouTubePlayerHandler();
         installImagePasteHandler();
         installRouteWatcher();
+        initCreditRecapJournalier()
         document.addEventListener('click', handleStatsBoxActionClick, true);
         refreshForRoute();
         console.log(`[PimpMyShoutbox] Script actif. Raccourcis : ${formatGlobalShortcutLabel('C')} · ${formatGlobalShortcutLabel('R')} · ${formatAfkShortcutLabel()} · ${formatGlobalShortcutLabel('P')}`);
