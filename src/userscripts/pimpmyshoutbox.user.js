@@ -4549,6 +4549,10 @@
     function renderTr4kerT9MenuLinks() {
         const groups = [
             ['Navigation', TR4KER_TOPBAR_BURGER_LINKS.slice(0, 3)],
+            ['Téléchargements', [
+                { label: 'Torrents', href: 'https://tr4ker.net/torrents' },
+                { label: 'Exclusivités', href: 'https://tr4ker.net/exclusivite' }
+            ]],
             ['Compte', TR4KER_TOPBAR_BURGER_LINKS.slice(3, 6)],
             ['Communauté', TR4KER_TOPBAR_BURGER_LINKS.slice(6, 9)],
             ['Liens', TR4KER_TOPBAR_BURGER_LINKS.slice(9)]
@@ -4560,7 +4564,7 @@
 
     function renderTr4kerT9ProfileLinks(context) {
         return `
-            <a href="/profile">Profil</a>
+            <a href="/mon-compte/profil">Profil</a>
             <a href="/my-uploads">Mes torrents</a>
             <a href="/mon-compte/stats">Statistiques</a>
             <a href="${escapeHtml(context.notificationsHref)}">Notifications</a>
@@ -4617,7 +4621,7 @@
             #${TR4KER_TOPBAR_T9_BAR_ID} .tm-t4-t9-menu-button { height: 34px; padding: 0 14px; display: inline-flex; align-items: center; gap: 8px; border: 1px solid #27272a; border-radius: 9px; background: #18181b; color: #fff; cursor: pointer; }
             #${TR4KER_TOPBAR_T9_BAR_ID} .tm-t4-t9-menu-button:hover { background: #27272a; border-color: #3f3f46; }
             #${TR4KER_TOPBAR_T9_BAR_ID} .tm-t4-t9-menu-button svg { width: 16px; height: 16px; fill: currentColor; }
-            #${TR4KER_TOPBAR_T9_BAR_ID} .tm-t4-t9-menu-panel { position: absolute; top: calc(100% + 4px); left: 0; z-index: 2200; width: 800px; padding: 18px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; border: 1px solid rgba(161,161,170,.24); border-radius: 9px; background: rgba(0,0,0,.98); box-shadow: 0 18px 40px rgba(0,0,0,.52); }
+            #${TR4KER_TOPBAR_T9_BAR_ID} .tm-t4-t9-menu-panel { position: absolute; top: calc(100% + 4px); left: 0; z-index: 2200; width: 800px; padding: 18px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 18px; border: 1px solid rgba(161,161,170,.24); border-radius: 9px; background: rgba(0,0,0,.98); box-shadow: 0 18px 40px rgba(0,0,0,.52); }
             #${TR4KER_TOPBAR_T9_BAR_ID} .tm-t4-t9-menu-panel h3 { margin: 0 0 8px; color: #71717a; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
             #${TR4KER_TOPBAR_T9_BAR_ID} .tm-t4-t9-menu-panel a { display: block; padding: 6px 8px; border-radius: 5px; color: #d4d4d8; font-size: 12px; }
             #${TR4KER_TOPBAR_T9_BAR_ID} .tm-t4-t9-menu-panel a:hover { background: #18181b; color: #fff; }
@@ -4759,7 +4763,7 @@
             #${TR4KER_TOPBAR_T9_EXTRAS_ID} > .tm-t4-t9-logout { order: 8; }
             #${TR4KER_TOPBAR_T9_EXTRAS_ID} .tm-t4-t9-menu-button { height: 34px; padding: 0 14px; display: inline-flex; align-items: center; gap: 8px; border: 1px solid #27272a; border-radius: 9px; background: #18181b; color: #fff; cursor: pointer; font: inherit; }
             #${TR4KER_TOPBAR_T9_EXTRAS_ID} .tm-t4-t9-menu-button svg { width: 16px; height: 16px; fill: currentColor; }
-            #${TR4KER_TOPBAR_T9_EXTRAS_ID} .tm-t4-t9-menu-panel { position: absolute; top: calc(100% + 4px); left: 0; z-index: 2200; width: 800px; padding: 18px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; border: 1px solid rgba(161,161,170,.24); border-radius: 9px; background: rgba(0,0,0,.98); box-shadow: 0 18px 40px rgba(0,0,0,.52); }
+            #${TR4KER_TOPBAR_T9_EXTRAS_ID} .tm-t4-t9-menu-panel { position: absolute; top: calc(100% + 4px); left: 0; z-index: 2200; width: 800px; padding: 18px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 18px; border: 1px solid rgba(161,161,170,.24); border-radius: 9px; background: rgba(0,0,0,.98); box-shadow: 0 18px 40px rgba(0,0,0,.52); }
             #${TR4KER_TOPBAR_T9_EXTRAS_ID} .tm-t4-t9-menu-panel h3 { margin: 0 0 8px; color: #71717a; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
             #${TR4KER_TOPBAR_T9_EXTRAS_ID} .tm-t4-t9-menu-panel a { display: block; padding: 6px 8px; border-radius: 5px; color: #d4d4d8; font-size: 12px; text-decoration: none; }
             #${TR4KER_TOPBAR_T9_EXTRAS_ID} .tm-t4-t9-menu-panel a:hover { background: #18181b; color: #fff; }
