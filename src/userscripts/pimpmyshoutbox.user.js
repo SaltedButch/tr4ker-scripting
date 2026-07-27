@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    http://tampermonkey.net/
-// @version      3.0.95
+// @version      3.0.96
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -964,6 +964,28 @@
 
     function isHomePage() {
         return false;
+    }
+
+    function isWikiPath() {
+        return isTr4kerPage() && (location.pathname === '/wiki' || location.pathname.startsWith('/wiki/'));
+    }
+
+    function getWikiEditorInput() {
+        if (!isWikiPath()) return null;
+
+        return Array.from(document.querySelectorAll('textarea[placeholder]')).find((textarea) => (
+            textarea instanceof HTMLTextAreaElement &&
+            /contenu\s+de\s+l[’']article/i.test(textarea.getAttribute('placeholder') || '') &&
+            isChatInputCandidate(textarea)
+        )) || null;
+    }
+
+    function isWikiEditorPage() {
+        return getWikiEditorInput() instanceof HTMLTextAreaElement;
+    }
+
+    function isToolbarSupportedPage() {
+        return isSupportedPage() || isWikiEditorPage();
     }
 
     function isSupportedPage() {
@@ -17077,7 +17099,7 @@
     }
 
     function openSavedPhrasesMenuFromShortcut() {
-        if (!isSupportedPage()) return false;
+        if (!isToolbarSupportedPage()) return false;
         if (!savedPhrasesEnabled || savedPhrases.length === 0) return false;
 
         const textInput = getChatInput();
@@ -17098,6 +17120,9 @@
 
     function getChatInput() {
         let input = null;
+
+        const wikiEditorInput = getWikiEditorInput();
+        if (wikiEditorInput instanceof HTMLElement) return wikiEditorInput;
 
         if (isTr4kerPage()) {
             input = document.querySelector(TR4KER_CHAT_INPUT_SELECTOR);
@@ -17153,6 +17178,18 @@
                 inputWrapper: null,
                 directWrapper: null,
                 fallbackArea: null
+            };
+        }
+
+        if (input === getWikiEditorInput()) {
+            const directWrapper = input.parentElement instanceof HTMLElement ? input.parentElement : null;
+            return {
+                input,
+                controlsRow: null,
+                mountParent: directWrapper,
+                inputWrapper: null,
+                directWrapper,
+                fallbackArea: directWrapper
             };
         }
 
@@ -17520,7 +17557,7 @@
     }
 
     function shouldUseChatInputToolbarRail() {
-        return isSupportedPage() && (
+        return isToolbarSupportedPage() && (
             getQuickAccessEmojiRecords(1).length > 0 ||
             klipyGifsEnabled ||
             t9EmojEnabled ||
@@ -18533,7 +18570,7 @@
     }
 
     function injectEmojiQuickAccessToolbar() {
-        if (!isSupportedPage()) return;
+        if (!isToolbarSupportedPage()) return;
 
         const quickAccessRecords = getQuickAccessEmojiRecords();
         if (quickAccessRecords.length === 0) {
@@ -18561,7 +18598,7 @@
     }
 
     function refreshEmojiQuickAccessToolbar() {
-        if (!isSupportedPage()) return;
+        if (!isToolbarSupportedPage()) return;
 
         if (emojiQuickAccessLimit <= 0) {
             removeEmojiQuickAccessToolbar();
@@ -19030,7 +19067,7 @@
      * @returns {void}
      */
     function injectSavedPhrasesToolbar() {
-        if (!isSupportedPage()) return;
+        if (!isToolbarSupportedPage()) return;
         if (!savedPhrasesEnabled) {
             removeSavedPhrasesToolbar();
             return;
@@ -20039,7 +20076,7 @@
      * @returns {void}
      */
     function injectKlipyGifToolbar() {
-        if (!isSupportedPage()) return;
+        if (!isToolbarSupportedPage()) return;
         if (!klipyGifsEnabled) {
             removeKlipyGifToolbar();
             return;
@@ -20422,7 +20459,7 @@
     }
 
     function injectT9EmojToolbar() {
-        if (!isSupportedPage() || !t9EmojEnabled) {
+        if (!isToolbarSupportedPage() || !t9EmojEnabled) {
             removeT9EmojToolbar();
             return;
         }
@@ -21284,7 +21321,7 @@
     }
 
     function injectImageUploadToolbar() {
-        if (!isSupportedPage()) return;
+        if (!isToolbarSupportedPage()) return;
         if (!imageHostingEnabled) {
             removeImageUploadToolbar();
             return;
@@ -21340,7 +21377,7 @@
         imagePasteHandlerInstalled = true;
 
         document.addEventListener('paste', (event) => {
-            if (!imageHostingEnabled || !isSupportedPage()) return;
+            if (!imageHostingEnabled || !isToolbarSupportedPage()) return;
 
             const target = event.target;
             if (!(target instanceof HTMLElement)) return;
@@ -23584,6 +23621,16 @@
 
             refreshReactionQuickAccessButtons();
             renderAfkPanel();
+        } else if (isWikiEditorPage()) {
+            // L'éditeur Wiki possède déjà sa propre barre Markdown. On ne
+            // déplace aucun de ses contrôles natifs : le rail est simplement
+            // ancré au-dessus du textarea de contenu.
+            injectEmojiQuickAccessToolbar();
+            injectSavedPhrasesToolbar();
+            injectKlipyGifToolbar();
+            injectT9EmojToolbar();
+            injectImageUploadToolbar();
+            applyChatInputToolbarAlignmentState();
         } else {
             applyMessageActionsPositionState();
             applyHomeChatPopoverState();
@@ -23662,7 +23709,7 @@
                 syncHomepageCollapseUi();
             } else if (isHomePage() && getHomepageChatContainer() && !observer) {
                 refreshForRoute();
-            } else if (isSupportedPage()) {
+            } else if (isToolbarSupportedPage()) {
                 const emojiWrapper = document.getElementById(EMOJI_QUICK_ACCESS_WRAPPER_ID);
                 if (
                     (emojiQuickAccessLimit <= 0 || getQuickAccessEmojiRecords(1).length === 0) &&
@@ -23846,7 +23893,7 @@
         }
 
         if (isSavedPhrasesShortcut) {
-            if (!isSupportedPage()) return;
+            if (!isToolbarSupportedPage()) return;
             if (imageViewerOpen || modalOpen) return;
             e.preventDefault();
 
