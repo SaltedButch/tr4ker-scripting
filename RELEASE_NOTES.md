@@ -10,8 +10,6 @@ Ce fichier suit l'état fonctionnel du userscript à partir de la version actuel
 
 ## Version en préparation
 
-- Ajout du picker activable « T9 Emoj », alimenté par le manifeste `/emochat` de la gateway et mis en cache localement pendant une heure.
-- Le picker GIF KLIPY passe par la gateway Cloudflare dédiée : la clé API n’est plus embarquée dans le userscript et chaque installation envoie son identifiant anonyme de limitation.
 - Renommage du userscript en `PimpMyShoutbox` ; le fichier publié devient `pimpmyshoutbox.user.js`.
 - Ajout d’un mode manuel pour choisir soi-même les emojis et réactions depuis les pickers natifs, avec réordonnancement dans les paramètres, en alternative au classement automatique par compteur.
 - Ajout de couleurs de pseudos réglables par grade Tr4ker, avec une liste de grades fixe et centralisée dans le code pour les futures évolutions.
