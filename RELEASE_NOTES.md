@@ -10,6 +10,8 @@ Ce fichier suit l'état fonctionnel du userscript à partir de la version actuel
 
 ## Version en préparation
 
+- Le panneau Communication à gauche (canaux, tickets et messages privés) peut maintenant être redimensionné à la souris, replié via une flèche et restauré avec ses dimensions mémorisées.
+- La barre d’outils au-dessus de la saisie conserve désormais une hauteur fixe lorsque le textarea du chat passe sur plusieurs lignes.
 - Renommage du userscript en `PimpMyShoutbox` ; le fichier publié devient `pimpmyshoutbox.user.js`.
 - Ajout d’un mode manuel pour choisir soi-même les emojis et réactions depuis les pickers natifs, avec réordonnancement dans les paramètres, en alternative au classement automatique par compteur.
 - Ajout de couleurs de pseudos réglables par grade Tr4ker, avec une liste de grades fixe et centralisée dans le code pour les futures évolutions.
