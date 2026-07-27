@@ -10,6 +10,7 @@ Ce fichier suit l'état fonctionnel du userscript à partir de la version actuel
 
 ## Version en préparation
 
+- La limite de saisie du chat et des réponses rapides passe à 3 000 caractères ; elle ne s’applique pas à l’éditeur d’articles Wiki.
 - Le rail d’outils est disponible dans l’éditeur d’articles Wiki : emojis rapides, réponses enregistrées, GIF Klipy, T9 Emoj et Up-Img s’insèrent dans le textarea Markdown sans modifier la barre de formatage native.
 - Le panneau Communication à gauche (canaux, tickets et messages privés) peut maintenant être redimensionné à la souris, replié via une flèche et restauré avec ses dimensions mémorisées.
 - La barre d’outils au-dessus de la saisie conserve désormais une hauteur fixe lorsque le textarea du chat passe sur plusieurs lignes.

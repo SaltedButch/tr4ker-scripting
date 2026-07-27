@@ -503,7 +503,8 @@
     const MAX_RECENT_MENTION_SOUND_RECORDS = 40;
     const MAX_AFK_READ_ACTIVITY_RECORDS = 50;
     const MAX_AFK_AUTO_REPLY_MESSAGE_LENGTH = 300;
-    const MAX_SAVED_PHRASE_LENGTH = 1000;
+    const MAX_CHAT_MESSAGE_LENGTH = 3000;
+    const MAX_SAVED_PHRASE_LENGTH = MAX_CHAT_MESSAGE_LENGTH;
     const MAX_VISIBLE_SAVED_PHRASES_IN_MENU = 5;
     const SAVED_PHRASES_EXPORT_VERSION = 1;
     const SAVED_PHRASES_REPLY_CONTEXT_MAX_AGE_MS = 5 * 60 * 1000;
@@ -17218,6 +17219,8 @@
         const input = context?.input;
         const railHost = getChatInputToolbarRailHost(context);
 
+        syncChatInputCharacterLimit(input);
+
         if (isTr4kerPage()) {
             ensureChatInputToolbarStyle();
         }
@@ -17991,18 +17994,20 @@
     }
 
     function getChatInputMaxLength(input) {
-        if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
-            const attributeMaxLength = Number(input.getAttribute('maxlength'));
-            if (Number.isFinite(attributeMaxLength) && attributeMaxLength > 0) {
-                return attributeMaxLength;
-            }
+        // Le Wiki est un éditeur d'article : les limites de saisie du chat ne
+        // doivent jamais empêcher l'insertion de contenu Markdown.
+        if (input === getWikiEditorInput()) return 0;
 
-            if (input.maxLength > 0) {
-                return input.maxLength;
-            }
-        }
+        return MAX_CHAT_MESSAGE_LENGTH;
+    }
 
-        return MAX_SAVED_PHRASE_LENGTH;
+    function syncChatInputCharacterLimit(input = getChatInput()) {
+        if (!(input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement)) return;
+        if (input === getWikiEditorInput()) return;
+
+        // On relève aussi la contrainte HTML éventuelle afin que la saisie
+        // manuelle suive la même limite que les insertions du script.
+        input.maxLength = MAX_CHAT_MESSAGE_LENGTH;
     }
 
     function getChatInputRawValue(input = getChatInput()) {
@@ -23597,6 +23602,7 @@
             applyHomeChatPopoverState();
             applyNativeChatInputPopoverState();
             syncChatSidebarControls();
+            syncChatInputCharacterLimit();
             injectEmojiQuickAccessToolbar();
             injectSavedPhrasesToolbar();
             injectKlipyGifToolbar();
@@ -23736,6 +23742,7 @@
 
                 const textInput = getChatInput();
                 if (textInput) {
+                    syncChatInputCharacterLimit(textInput);
                     const mountContext = getChatInputToolbarMountContext(textInput);
                     const toolbarHost = getChatInputToolbarRailHost(mountContext) || mountContext.mountParent;
                     const currentEmojiWrapper = document.getElementById(EMOJI_QUICK_ACCESS_WRAPPER_ID);
