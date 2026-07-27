@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    https://github.com/SaltedButch/tr4ker-scripting
-// @version      3.0.93
+// @version      3.0.94
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addElement
-// @connect      api.klipy.com
+// @connect      klipy-api-gateway.tr4ker-klipy-emoj-gateway-customer593.workers.dev
 // @connect      api.imgbb.com
 // @connect      ibb.co
 // @connect      www.youtube.com
