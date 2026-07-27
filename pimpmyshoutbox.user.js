@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    https://github.com/SaltedButch/tr4ker-scripting
-// @version      3.0.94
+// @version      3.0.95
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -100,6 +100,8 @@
     const STORAGE_KEY_MANUAL_REACTION_FAVORITES = 'tm_t4_manual_reaction_favorites';
     const STORAGE_KEY_CHAT_INPUT_TOOLBAR_INLINE = 'tm_t4_chat_input_toolbar_inline';
     const STORAGE_KEY_CHAT_INPUT_TOOLBAR_ALIGN_RIGHT = 'tm_t4_chat_input_toolbar_align_right';
+    const STORAGE_KEY_CHAT_SIDEBAR_WIDTH = 'tm_t4_chat_sidebar_width';
+    const STORAGE_KEY_CHAT_SIDEBAR_COLLAPSED = 'tm_t4_chat_sidebar_collapsed';
     const STORAGE_KEY_IMAGE_HOSTING_ENABLED = 'tm_t4_image_hosting_enabled';
     const STORAGE_KEY_IMGBB_API_KEY = 'tm_t4_imgbb_api_key';
     const STORAGE_KEY_IMAGE_HOSTING_EXPIRATION_SECONDS = 'tm_t4_image_hosting_expiration_seconds';
@@ -180,6 +182,8 @@
         STORAGE_KEY_MANUAL_REACTION_FAVORITES,
         STORAGE_KEY_CHAT_INPUT_TOOLBAR_INLINE,
         STORAGE_KEY_CHAT_INPUT_TOOLBAR_ALIGN_RIGHT,
+        STORAGE_KEY_CHAT_SIDEBAR_WIDTH,
+        STORAGE_KEY_CHAT_SIDEBAR_COLLAPSED,
         STORAGE_KEY_IMAGE_HOSTING_ENABLED,
         STORAGE_KEY_IMGBB_API_KEY,
         STORAGE_KEY_IMAGE_HOSTING_EXPIRATION_SECONDS,
@@ -409,6 +413,8 @@
         STORAGE_KEY_MANUAL_REACTION_FAVORITES,
         STORAGE_KEY_CHAT_INPUT_TOOLBAR_INLINE,
         STORAGE_KEY_CHAT_INPUT_TOOLBAR_ALIGN_RIGHT,
+        STORAGE_KEY_CHAT_SIDEBAR_WIDTH,
+        STORAGE_KEY_CHAT_SIDEBAR_COLLAPSED,
         STORAGE_KEY_IMAGE_HOSTING_ENABLED,
         STORAGE_KEY_IMAGE_HOSTING_EXPIRATION_SECONDS,
         STORAGE_KEY_CREDIT_RECAP_ENABLED,
@@ -420,6 +426,8 @@
     const MODAL_ID = 'tm-torr9-chat-modal';
     const OVERLAY_ID = 'tm-torr9-chat-overlay';
     const TOAST_ID = 'tm-torr9-chat-toast';
+    const CHAT_SIDEBAR_RESIZER_ID = 'tm-t4-chat-sidebar-resizer';
+    const CHAT_SIDEBAR_TOGGLE_ID = 'tm-t4-chat-sidebar-toggle';
     const IMAGE_PREVIEW_ID = 'tm-torr9-image-preview';
     const IMAGE_VIEWER_MODAL_ID = 'tm-torr9-image-viewer-modal';
     const IMAGE_VIEWER_OVERLAY_ID = 'tm-torr9-image-viewer-overlay';
@@ -487,6 +495,9 @@
     const MAX_CHAT_FONT_SCALE = 1.7;
     const DEFAULT_CHAT_SCROLLBAR_THICKNESS = 18;
     const DEFAULT_CHAT_SCROLLBAR_THUMB_BORDER = 4;
+    const DEFAULT_CHAT_SIDEBAR_WIDTH = 336;
+    const MIN_CHAT_SIDEBAR_WIDTH = 220;
+    const MAX_CHAT_SIDEBAR_WIDTH = 560;
     const STATS_DISPLAY_MODE_EXPANDED = 'expanded';
     const STATS_DISPLAY_MODE_COMPACT = 'compact';
     const STATS_DISPLAY_MODE_MINI = 'mini';
@@ -760,6 +771,8 @@
     let manualReactionFavorites = loadManualReactionFavorites();
     let chatInputToolbarInline = loadChatInputToolbarInline();
     let chatInputToolbarAlignRight = loadChatInputToolbarAlignRight();
+    let chatSidebarWidth = loadChatSidebarWidth();
+    let chatSidebarCollapsed = loadChatSidebarCollapsed();
     let imageHostingEnabled = loadImageHostingEnabled();
     let imgbbApiKey = loadImgBbApiKey();
     let imageHostingExpirationSeconds = loadImageHostingExpirationSeconds();
@@ -786,6 +799,7 @@
     let imagePasteHandlerInstalled = false;
     let pendingImageUploadFiles = [];
     let klipyGifSearchDebounceTimer = null;
+    let chatSidebarResizeState = null;
     let klipyGifRequestSerial = 0;
     let savedPhrasesStorageNeedsRepair = false;
     let savedPhrasesReplyContext = null;
@@ -2363,6 +2377,28 @@
         writeStorageBoolean(STORAGE_KEY_CHAT_INPUT_TOOLBAR_ALIGN_RIGHT, chatInputToolbarAlignRight);
     }
 
+    function normalizeChatSidebarWidth(value) {
+        return clamp(Number.parseInt(String(value ?? ''), 10) || DEFAULT_CHAT_SIDEBAR_WIDTH, MIN_CHAT_SIDEBAR_WIDTH, MAX_CHAT_SIDEBAR_WIDTH);
+    }
+
+    function loadChatSidebarWidth() {
+        return normalizeChatSidebarWidth(readStorageItem(STORAGE_KEY_CHAT_SIDEBAR_WIDTH));
+    }
+
+    function saveChatSidebarWidth(value) {
+        chatSidebarWidth = normalizeChatSidebarWidth(value);
+        writeStorageItem(STORAGE_KEY_CHAT_SIDEBAR_WIDTH, String(chatSidebarWidth));
+    }
+
+    function loadChatSidebarCollapsed() {
+        return readStorageBoolean(STORAGE_KEY_CHAT_SIDEBAR_COLLAPSED, false);
+    }
+
+    function saveChatSidebarCollapsed(value) {
+        chatSidebarCollapsed = !!value;
+        writeStorageBoolean(STORAGE_KEY_CHAT_SIDEBAR_COLLAPSED, chatSidebarCollapsed);
+    }
+
     function loadImageHostingEnabled() {
         return readStorageBoolean(STORAGE_KEY_IMAGE_HOSTING_ENABLED, false);
     }
@@ -3272,6 +3308,8 @@
         manualReactionFavorites = loadManualReactionFavorites();
         chatInputToolbarInline = loadChatInputToolbarInline();
         chatInputToolbarAlignRight = loadChatInputToolbarAlignRight();
+        chatSidebarWidth = loadChatSidebarWidth();
+        chatSidebarCollapsed = loadChatSidebarCollapsed();
         imageHostingEnabled = loadImageHostingEnabled();
         imgbbApiKey = loadImgBbApiKey();
         imageHostingExpirationSeconds = loadImageHostingExpirationSeconds();
@@ -3312,6 +3350,7 @@
         applyHomeChatPopoverState();
         applyNativeChatInputPopoverState();
         applyChatInputToolbarAlignmentState();
+        syncChatSidebarControls();
 
         injectEmojiQuickAccessToolbar();
 
@@ -17222,16 +17261,10 @@
     }
 
     function getChatInputToolbarReservedHeightPx() {
-        if (!isTr4kerPage()) return CHAT_INPUT_TOOLBAR_RESERVED_HEIGHT_PX;
-
-        const input = getChatInput();
-        const inputHeight = input instanceof HTMLElement
-            ? Math.round(input.getBoundingClientRect().height)
-            : 0;
-        return Math.max(
-            CHAT_INPUT_TOOLBAR_RESERVED_HEIGHT_PX,
-            inputHeight + CHAT_INPUT_TOOLBAR_DOCKED_GAP_PX + 2
-        );
+        // La rail doit garder son propre emplacement fixe : la hauteur du
+        // textarea peut grandir sur plusieurs lignes sans étirer la zone des
+        // boutons placée juste au-dessus.
+        return CHAT_INPUT_TOOLBAR_RESERVED_HEIGHT_PX;
     }
 
     function getChatInputToolbarRail(mountParent) {
@@ -17364,10 +17397,10 @@
         }
 
         const isTr4kerDockedToolbar = isTr4kerPage() && !chatInputToolbarInline;
-        const inputHeight = context?.input instanceof HTMLElement
-            ? Math.round(context.input.getBoundingClientRect().height)
-            : 0;
-        const dockedToolbarHeight = Math.max(32, inputHeight || 42);
+        const dockedToolbarHeight = Math.max(
+            32,
+            CHAT_INPUT_TOOLBAR_RESERVED_HEIGHT_PX - CHAT_INPUT_TOOLBAR_DOCKED_GAP_PX
+        );
         const reservedToolbarHeight = getChatInputToolbarReservedHeightPx();
 
         rail.style.position = 'absolute';
@@ -23255,6 +23288,227 @@
         });
     }
 
+    function getChatSidebarLayout() {
+        if (!isChatPage()) return null;
+
+        const sidebar = Array.from(document.querySelectorAll('aside')).find((candidate) => {
+            const parent = candidate.parentElement;
+            if (!(parent instanceof HTMLElement) || !candidate.querySelector('button[aria-label="Retour"]')) return false;
+            return Array.from(parent.children).some((child) => (
+                child instanceof HTMLElement && Array.from(child.classList).some((className) => className.includes('chatArea'))
+            ));
+        });
+        if (!(sidebar instanceof HTMLElement) || !(sidebar.parentElement instanceof HTMLElement)) return null;
+
+        const chatArea = Array.from(sidebar.parentElement.children).find((child) => (
+            child instanceof HTMLElement && Array.from(child.classList).some((className) => className.includes('chatArea'))
+        ));
+        if (!(chatArea instanceof HTMLElement)) return null;
+
+        return { sidebar, chatArea };
+    }
+
+    function clearChatSidebarResizeCursor() {
+        document.body?.style.removeProperty('user-select');
+        document.body?.style.removeProperty('cursor');
+    }
+
+    function finishChatSidebarResize() {
+        if (!chatSidebarResizeState) return;
+
+        const { sidebar, onPointerMove, onPointerUp } = chatSidebarResizeState;
+        document.removeEventListener('pointermove', onPointerMove, true);
+        document.removeEventListener('pointerup', onPointerUp, true);
+        document.removeEventListener('pointercancel', onPointerUp, true);
+        clearChatSidebarResizeCursor();
+        chatSidebarResizeState = null;
+
+        if (sidebar instanceof HTMLElement) {
+            saveChatSidebarWidth(chatSidebarWidth);
+        }
+    }
+
+    function positionChatSidebarControls(layout = getChatSidebarLayout()) {
+        const resizer = document.getElementById(CHAT_SIDEBAR_RESIZER_ID);
+        const toggle = document.getElementById(CHAT_SIDEBAR_TOGGLE_ID);
+        if (!(resizer instanceof HTMLElement) || !(toggle instanceof HTMLButtonElement) || !layout) return;
+
+        const sidebarRect = layout.sidebar.getBoundingClientRect();
+        const isCollapsed = chatSidebarCollapsed;
+        const controlTop = clamp(
+            sidebarRect.top + sidebarRect.height / 2 - 13,
+            8,
+            Math.max(8, window.innerHeight - 34)
+        );
+
+        resizer.style.display = isCollapsed ? 'none' : 'block';
+        resizer.style.left = `${sidebarRect.right}px`;
+        resizer.style.top = `${sidebarRect.top}px`;
+        resizer.style.height = `${Math.max(0, sidebarRect.height)}px`;
+
+        toggle.style.left = `${isCollapsed ? Math.max(6, sidebarRect.left + 6) : sidebarRect.right + 8}px`;
+        toggle.style.top = `${controlTop}px`;
+        toggle.title = isCollapsed ? 'Afficher les canaux et messages privés' : 'Masquer les canaux et messages privés';
+        toggle.setAttribute('aria-label', toggle.title);
+        toggle.innerHTML = `<span class="material-symbols-outlined" style="font-size:18px;line-height:1;">${isCollapsed ? 'chevron_right' : 'chevron_left'}</span>`;
+    }
+
+    function applyChatSidebarLayout() {
+        const layout = getChatSidebarLayout();
+        if (!layout || window.innerWidth < 768) {
+            removeChatSidebarControls();
+            return;
+        }
+
+        const width = chatSidebarCollapsed ? 0 : normalizeChatSidebarWidth(chatSidebarWidth);
+        layout.sidebar.dataset.tmChatSidebarManaged = '1';
+        layout.chatArea.dataset.tmChatSidebarManaged = '1';
+        layout.sidebar.style.setProperty('width', `${width}px`, 'important');
+        layout.sidebar.style.setProperty('min-width', `${width}px`, 'important');
+        layout.sidebar.style.setProperty('flex', `0 0 ${width}px`, 'important');
+        layout.sidebar.style.setProperty('overflow-x', 'hidden', 'important');
+        layout.sidebar.style.setProperty('overflow-y', chatSidebarCollapsed ? 'hidden' : 'auto', 'important');
+        layout.sidebar.style.setProperty('transition', 'width 160ms ease, min-width 160ms ease, flex-basis 160ms ease', 'important');
+        layout.chatArea.style.setProperty('min-width', '0', 'important');
+
+        if (chatSidebarCollapsed) {
+            layout.sidebar.style.setProperty('border-right-width', '0', 'important');
+        } else {
+            layout.sidebar.style.removeProperty('border-right-width');
+        }
+
+        ensureChatSidebarControls(layout);
+        positionChatSidebarControls(layout);
+    }
+
+    function updateChatSidebarWidthFromPointer(clientX) {
+        if (!chatSidebarResizeState) return;
+
+        const nextWidth = clamp(
+            chatSidebarResizeState.startWidth + (clientX - chatSidebarResizeState.startX),
+            MIN_CHAT_SIDEBAR_WIDTH,
+            MAX_CHAT_SIDEBAR_WIDTH
+        );
+        chatSidebarWidth = Math.round(nextWidth);
+        applyChatSidebarLayout();
+    }
+
+    function startChatSidebarResize(event) {
+        if (event.button !== 0 || chatSidebarCollapsed) return;
+        const layout = getChatSidebarLayout();
+        if (!layout) return;
+
+        event.preventDefault();
+        finishChatSidebarResize();
+        const onPointerMove = (moveEvent) => {
+            updateChatSidebarWidthFromPointer(moveEvent.clientX);
+        };
+        const onPointerUp = () => finishChatSidebarResize();
+        chatSidebarResizeState = {
+            sidebar: layout.sidebar,
+            startX: event.clientX,
+            startWidth: normalizeChatSidebarWidth(chatSidebarWidth),
+            onPointerMove,
+            onPointerUp
+        };
+        document.body?.style.setProperty('user-select', 'none', 'important');
+        document.body?.style.setProperty('cursor', 'col-resize', 'important');
+        document.addEventListener('pointermove', onPointerMove, true);
+        document.addEventListener('pointerup', onPointerUp, true);
+        document.addEventListener('pointercancel', onPointerUp, true);
+    }
+
+    function toggleChatSidebarCollapsed() {
+        finishChatSidebarResize();
+        saveChatSidebarCollapsed(!chatSidebarCollapsed);
+        applyChatSidebarLayout();
+    }
+
+    function ensureChatSidebarControls(layout) {
+        if (!document.body) return;
+
+        let resizer = document.getElementById(CHAT_SIDEBAR_RESIZER_ID);
+        if (!(resizer instanceof HTMLElement)) {
+            resizer = document.createElement('div');
+            resizer.id = CHAT_SIDEBAR_RESIZER_ID;
+            resizer.title = 'Glisser pour redimensionner les canaux et messages privés';
+            resizer.setAttribute('role', 'separator');
+            resizer.setAttribute('aria-orientation', 'vertical');
+            resizer.style.position = 'fixed';
+            resizer.style.width = '6px';
+            resizer.style.zIndex = '2100';
+            resizer.style.background = 'transparent';
+            resizer.style.borderLeft = '1px solid rgba(255,255,255,0.10)';
+            resizer.style.cursor = 'col-resize';
+            resizer.style.touchAction = 'none';
+            resizer.addEventListener('mouseenter', () => {
+                resizer.style.background = 'rgba(255,255,255,0.06)';
+                resizer.style.borderLeftColor = 'rgba(255,255,255,0.42)';
+            });
+            resizer.addEventListener('mouseleave', () => {
+                resizer.style.background = 'transparent';
+                resizer.style.borderLeftColor = 'rgba(255,255,255,0.10)';
+            });
+            resizer.addEventListener('pointerdown', startChatSidebarResize);
+            document.body.appendChild(resizer);
+        }
+
+        let toggle = document.getElementById(CHAT_SIDEBAR_TOGGLE_ID);
+        if (!(toggle instanceof HTMLButtonElement)) {
+            toggle = document.createElement('button');
+            toggle.id = CHAT_SIDEBAR_TOGGLE_ID;
+            toggle.type = 'button';
+            toggle.style.position = 'fixed';
+            toggle.style.display = 'inline-flex';
+            toggle.style.alignItems = 'center';
+            toggle.style.justifyContent = 'center';
+            toggle.style.width = '22px';
+            toggle.style.height = '26px';
+            toggle.style.padding = '0';
+            toggle.style.border = '1px solid rgba(255,255,255,0.12)';
+            toggle.style.borderRadius = '4px';
+            toggle.style.background = 'rgba(24,24,27,0.76)';
+            toggle.style.color = '#d4d4d8';
+            toggle.style.boxShadow = 'none';
+            toggle.style.cursor = 'pointer';
+            toggle.style.zIndex = '2101';
+            toggle.style.transition = 'background 120ms ease, color 120ms ease';
+            toggle.addEventListener('mouseenter', () => {
+                toggle.style.background = 'rgba(63,63,70,0.94)';
+                toggle.style.color = '#fff';
+            });
+            toggle.addEventListener('mouseleave', () => {
+                toggle.style.background = 'rgba(24,24,27,0.76)';
+                toggle.style.color = '#d4d4d8';
+            });
+            toggle.addEventListener('click', toggleChatSidebarCollapsed);
+            document.body.appendChild(toggle);
+        }
+
+        positionChatSidebarControls(layout);
+    }
+
+    function removeChatSidebarControls() {
+        finishChatSidebarResize();
+        document.getElementById(CHAT_SIDEBAR_RESIZER_ID)?.remove();
+        document.getElementById(CHAT_SIDEBAR_TOGGLE_ID)?.remove();
+        document.querySelectorAll('[data-tm-chat-sidebar-managed="1"]').forEach((element) => {
+            if (!(element instanceof HTMLElement)) return;
+            element.style.removeProperty('width');
+            element.style.removeProperty('min-width');
+            element.style.removeProperty('flex');
+            element.style.removeProperty('overflow-x');
+            element.style.removeProperty('overflow-y');
+            element.style.removeProperty('transition');
+            element.style.removeProperty('border-right-width');
+            element.removeAttribute('data-tm-chat-sidebar-managed');
+        });
+    }
+
+    function syncChatSidebarControls() {
+        applyChatSidebarLayout();
+    }
+
     function refreshForRoute() {
         const currentChatContextKey = getCurrentChatContextKey();
 
@@ -23296,6 +23550,7 @@
                 removeKlipyGifToolbar();
                 removeT9EmojToolbar();
                 removeImageUploadToolbar();
+                removeChatSidebarControls();
                 stopObserver();
                 return;
             }
@@ -23307,6 +23562,7 @@
             applyMessageActionsPositionState();
             applyHomeChatPopoverState();
             applyNativeChatInputPopoverState();
+            syncChatSidebarControls();
             injectEmojiQuickAccessToolbar();
             injectSavedPhrasesToolbar();
             injectKlipyGifToolbar();
@@ -23335,6 +23591,7 @@
             applyMessageActionsPositionState();
             applyHomeChatPopoverState();
             applyNativeChatInputPopoverState();
+            removeChatSidebarControls();
             stopObserver();
             removeEmojiQuickAccessToolbar();
             removeMessageReactionQuickAccessButtons();
@@ -23367,6 +23624,7 @@
 
             if (isChatPage()) {
                 applyChatPageScrollbarState();
+                syncChatSidebarControls();
             }
 
             if (location.href !== lastUrl || currentPageType !== lastPageType) {
@@ -23381,6 +23639,7 @@
                 injectKlipyGifToolbar();
                 injectT9EmojToolbar();
                 injectImageUploadToolbar();
+                syncChatSidebarControls();
                 applyChatInputToolbarAlignmentState();
                 syncNativeChatInputActionButtons();
                 if (isAfkEnabledForCurrentContext()) {
@@ -23400,6 +23659,7 @@
                 removeKlipyGifToolbar();
                 removeT9EmojToolbar();
                 removeImageUploadToolbar();
+                removeChatSidebarControls();
                 stopObserver();
             } else if (isHomePage() && needsHomepageCollapseUiRefresh()) {
                 syncHomepageCollapseUi();
@@ -23518,6 +23778,8 @@
             if (t9EmojMenu instanceof HTMLElement && t9EmojMenu.dataset.tmOpen === '1') {
                 positionT9EmojMenu(t9EmojMenu);
             }
+
+            syncChatSidebarControls();
 
             const afkPanel = document.getElementById(AFK_PANEL_ID);
             if (afkPanel instanceof HTMLElement) {
