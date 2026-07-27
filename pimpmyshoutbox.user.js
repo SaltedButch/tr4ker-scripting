@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    https://github.com/SaltedButch/tr4ker-scripting
-// @version      3.0.93
+// @version      3.0.94
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addElement
-// @connect      api.klipy.com
+// @connect      klipy-api-gateway.tr4ker-klipy-emoj-gateway-customer593.workers.dev
 // @connect      api.imgbb.com
 // @connect      ibb.co
 // @connect      www.youtube.com
@@ -89,6 +89,8 @@
     const STORAGE_KEY_SAVED_PHRASES_ENABLED = 'tm_t4_saved_phrases_enabled';
     const STORAGE_KEY_SAVED_PHRASES_REPLACE_INPUT = 'tm_t4_saved_phrases_replace_input';
     const STORAGE_KEY_KLIPY_GIFS_ENABLED = 'tm_t4_klipy_gifs_enabled';
+    const STORAGE_KEY_T9_EMOJ_ENABLED = 'tm_t4_t9_emoj_enabled';
+    const STORAGE_KEY_T9_EMOJ_MANIFEST_CACHE = 'tm_t4_t9_emoj_manifest_cache';
     const STORAGE_KEY_EMOJI_USAGE_COUNTS = 'tm_t4_emoji_usage_counts';
     const STORAGE_KEY_REACTION_USAGE_COUNTS = 'tm_t4_reaction_usage_counts';
     const STORAGE_KEY_EMOJI_QUICK_ACCESS_LIMIT = 'tm_t4_emoji_quick_access_limit';
@@ -168,6 +170,7 @@
         STORAGE_KEY_SAVED_PHRASES_ENABLED,
         STORAGE_KEY_SAVED_PHRASES_REPLACE_INPUT,
         STORAGE_KEY_KLIPY_GIFS_ENABLED,
+        STORAGE_KEY_T9_EMOJ_ENABLED,
         STORAGE_KEY_EMOJI_USAGE_COUNTS,
         STORAGE_KEY_REACTION_USAGE_COUNTS,
         STORAGE_KEY_EMOJI_QUICK_ACCESS_LIMIT,
@@ -396,6 +399,7 @@
         STORAGE_KEY_SAVED_PHRASES_ENABLED,
         STORAGE_KEY_SAVED_PHRASES_REPLACE_INPUT,
         STORAGE_KEY_KLIPY_GIFS_ENABLED,
+        STORAGE_KEY_T9_EMOJ_ENABLED,
         STORAGE_KEY_EMOJI_USAGE_COUNTS,
         STORAGE_KEY_REACTION_USAGE_COUNTS,
         STORAGE_KEY_EMOJI_QUICK_ACCESS_LIMIT,
@@ -425,6 +429,7 @@
     const HOME_COLLAPSE_BUTTON_ID = 'tm-home-chat-collapse-toggle';
     const PHRASES_MENU_WRAPPER_ID = 'tm-torr9-phrases-menu-wrapper';
     const GIF_MENU_WRAPPER_ID = 'tm-torr9-klipy-gif-wrapper';
+    const T9_EMOJ_MENU_WRAPPER_ID = 'tm-torr9-t9-emoj-wrapper';
     const IMAGE_UPLOAD_MENU_WRAPPER_ID = 'tm-torr9-image-upload-wrapper';
     const EMOJI_QUICK_ACCESS_WRAPPER_ID = 'tm-torr9-emoji-quick-access-wrapper';
     const MODAL_SCROLLBAR_STYLE_ID = 'tm-torr9-modal-scrollbar-style';
@@ -495,14 +500,14 @@
     const SAVED_PHRASES_EXPORT_VERSION = 1;
     const SAVED_PHRASES_REPLY_CONTEXT_MAX_AGE_MS = 5 * 60 * 1000;
     const DEFAULT_KLIPY_GIFS_ENABLED = true;
-    const KLIPY_API_BASE_URL = 'https://api.klipy.com/v2';
-    // Test key provided locally for development. Replace it before any public rollout.
-    const KLIPY_API_KEY = 'msjEFIejxUS9DvPCk5NAvbnF4HK1hfVEz8zpgFAoo5kpjkSGGIqIJYJ4WGx2cRhJ';
-    const KLIPY_CLIENT_KEY = 'tr4ker-shoutbox-userscript';
+    const DEFAULT_T9_EMOJ_ENABLED = false;
+    const KLIPY_GATEWAY_BASE_URL = 'https://klipy-api-gateway.tr4ker-klipy-emoj-gateway-customer593.workers.dev';
+    const STORAGE_KEY_KLIPY_GATEWAY_CLIENT_ID = 'tm_t4_klipy_gateway_client_id';
     const KLIPY_MAX_RESULTS_PER_PAGE = 10;
     const KLIPY_SEARCH_MIN_LENGTH = 2;
     const KLIPY_SEARCH_DEBOUNCE_MS = 280;
     const KLIPY_CACHE_MAX_ENTRIES = 24;
+    const T9_EMOJ_CACHE_TTL_MS = 60 * 60 * 1000;
     const KLIPY_OFFICIAL_POWERED_BY_LOGO_DATA_URI = 'data:image/svg+xml,' + encodeURIComponent(String.raw`
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Generator: Adobe Illustrator 28.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
@@ -741,6 +746,7 @@
     let savedPhrasesEnabled = loadSavedPhrasesEnabled();
     let savedPhrasesReplaceInput = loadSavedPhrasesReplaceInput();
     let klipyGifsEnabled = loadKlipyGifsEnabled();
+    let t9EmojEnabled = loadT9EmojEnabled();
     let creditRecapEnabled = loadCreditRecapEnabled();
     let creditRecapRefreshIntervalId = null;
     let creditRecapBodyObserver = null;
@@ -775,6 +781,7 @@
     let reactionQuickAccessRefreshRoot = null;
     let savedPhrasesToolbarEventsInstalled = false;
     let klipyGifToolbarEventsInstalled = false;
+    let t9EmojToolbarEventsInstalled = false;
     let imageUploadToolbarEventsInstalled = false;
     let imagePasteHandlerInstalled = false;
     let pendingImageUploadFiles = [];
@@ -803,6 +810,7 @@
     const mentionBlinkStates = new WeakMap();
     const mentionSoundNotifiedMessages = new WeakSet();
     const klipyGifResponseCache = new Map();
+    let t9EmojManifestRequest = null;
     const youtubeVideoTitleCache = new Map();
     const afkSeenMessageKeys = new Set();
 
@@ -1276,6 +1284,15 @@
     function saveKlipyGifsEnabled(value) {
         klipyGifsEnabled = !!value;
         writeStorageBoolean(STORAGE_KEY_KLIPY_GIFS_ENABLED, klipyGifsEnabled);
+    }
+
+    function loadT9EmojEnabled() {
+        return readStorageBoolean(STORAGE_KEY_T9_EMOJ_ENABLED, DEFAULT_T9_EMOJ_ENABLED);
+    }
+
+    function saveT9EmojEnabled(value) {
+        t9EmojEnabled = !!value;
+        writeStorageBoolean(STORAGE_KEY_T9_EMOJ_ENABLED, t9EmojEnabled);
     }
 
     function loadCreditRecapEnabled() {
@@ -3246,6 +3263,7 @@
         savedPhrasesEnabled = loadSavedPhrasesEnabled();
         savedPhrasesReplaceInput = loadSavedPhrasesReplaceInput();
         klipyGifsEnabled = loadKlipyGifsEnabled();
+        t9EmojEnabled = loadT9EmojEnabled();
         creditRecapEnabled = loadCreditRecapEnabled();
         emojiQuickAccessLimit = loadEmojiQuickAccessLimit();
         reactionQuickAccessLimit = loadReactionQuickAccessLimit();
@@ -3307,6 +3325,12 @@
             injectKlipyGifToolbar();
         } else {
             removeKlipyGifToolbar();
+        }
+
+        if (t9EmojEnabled) {
+            injectT9EmojToolbar();
+        } else {
+            removeT9EmojToolbar();
         }
 
         if (imageHostingEnabled) {
@@ -8175,30 +8199,24 @@
     }
 
     function getKlipyApiLocale() {
-        const rawLocale = String(navigator.language || navigator.userLanguage || 'fr-FR').trim();
-        if (!rawLocale) return 'fr_FR';
-
-        const normalizedParts = rawLocale.replace('_', '-').split('-').filter(Boolean);
-        const language = String(normalizedParts[0] || 'fr')
-            .toLowerCase()
-            .replace(/[^a-z]/g, '')
-            .slice(0, 2);
-        const region = String(normalizedParts[1] || 'FR')
-            .toUpperCase()
-            .replace(/[^A-Z]/g, '')
-            .slice(0, 2);
-
-        if (!language || !region) {
-            return 'fr_FR';
-        }
-
-        return `${language}_${region}`;
+        // La gateway expose volontairement uniquement les variantes françaises.
+        return 'fr_FR';
     }
 
-    function buildKlipyApiUrl(endpoint, params = {}) {
-        const url = new URL(`${KLIPY_API_BASE_URL}/${String(endpoint || '').replace(/^\/+/, '')}`);
-        url.searchParams.set('key', KLIPY_API_KEY);
-        url.searchParams.set('client_key', KLIPY_CLIENT_KEY);
+    function getKlipyGatewayClientId() {
+        const existingId = String(readStorageItem(STORAGE_KEY_KLIPY_GATEWAY_CLIENT_ID) || '').trim();
+        if (/^[A-Za-z0-9_-]{8,128}$/.test(existingId)) return existingId;
+
+        const generatedId = typeof globalThis.crypto?.randomUUID === 'function'
+            ? globalThis.crypto.randomUUID()
+            : `tm_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 16)}`;
+
+        writeStorageItem(STORAGE_KEY_KLIPY_GATEWAY_CLIENT_ID, generatedId);
+        return generatedId;
+    }
+
+    function buildKlipyGatewayUrl(endpoint, params = {}) {
+        const url = new URL(`${KLIPY_GATEWAY_BASE_URL}/${String(endpoint || '').replace(/^\/+/, '')}`);
 
         Object.entries(params).forEach(([paramName, paramValue]) => {
             if (paramValue === undefined || paramValue === null || paramValue === '') return;
@@ -8264,7 +8282,7 @@
      */
     async function fetchKlipyGifFeed({ query = '', pos = '' } = {}) {
         const normalizedQuery = String(query || '').trim();
-        const endpoint = normalizedQuery ? 'search' : 'featured';
+        const endpoint = normalizedQuery ? 'search' : 'trending';
         const locale = getKlipyApiLocale();
         const cacheKey = JSON.stringify([endpoint, normalizedQuery.toLocaleLowerCase('fr'), String(pos || ''), locale]);
 
@@ -8272,16 +8290,17 @@
             return klipyGifResponseCache.get(cacheKey);
         }
 
-        const response = await requestExternal(buildKlipyApiUrl(endpoint, {
+        const response = await requestExternal(buildKlipyGatewayUrl(endpoint, {
             q: normalizedQuery,
             pos,
             limit: KLIPY_MAX_RESULTS_PER_PAGE,
-            media_filter: 'gif,tinygif',
+            media_filter: 'gif',
             locale
         }), {
             method: 'GET',
             headers: {
-                Accept: 'application/json'
+                Accept: 'application/json',
+                'X-Client-ID': getKlipyGatewayClientId()
             },
             credentials: 'omit',
             timeout: 20000
@@ -11451,6 +11470,7 @@
             toggleBtn: modal.querySelector('#tm-user-toggle'),
             phrasesEnabledToggle: modal.querySelector('#tm-phrases-enabled-toggle'),
             klipyGifsToggle: modal.querySelector('#tm-klipy-gifs-toggle'),
+            t9EmojToggle: modal.querySelector('#tm-t9-emoj-toggle'),
             creditRecapToggle: modal.querySelector('#tm-credit-recap-toggle'),
             imageHostingEnabledToggle: modal.querySelector('#tm-image-hosting-enabled-toggle'),
             imageHostingExpanded: modal.querySelector('#tm-image-hosting-expanded'),
@@ -12940,6 +12960,19 @@
             controls.setFeedback('Bouton GIF KLIPY désactivé.');
         });
 
+        elements.t9EmojToggle?.addEventListener('change', () => {
+            saveT9EmojEnabled(elements.t9EmojToggle.checked);
+
+            if (t9EmojEnabled) {
+                injectT9EmojToolbar();
+                controls.setFeedback('Bouton T9 Emoj activé.');
+                return;
+            }
+
+            removeT9EmojToolbar();
+            controls.setFeedback('Bouton T9 Emoj désactivé.');
+        });
+
         elements.creditRecapToggle?.addEventListener('change', () => {
             saveCreditRecapEnabled(elements.creditRecapToggle.checked);
             syncCreditRecapFeatureState();
@@ -13740,6 +13773,23 @@
 
                 <div style="margin-top:10px;font-size:12px;color:#a1a1aa;line-height:1.5;">
                     Permet d’utiliser un picker GIF directement depuis le chat.
+                </div>
+            </div>
+        `;
+    }
+
+    function renderSettingsT9EmojCard(settingsCardStyle, settingsCheckboxLabelStyle) {
+        return `
+            <div style="${settingsCardStyle}">
+                <div style="font-size:13px;font-weight:700;margin-bottom:10px;">T9 Emoj</div>
+
+                <label style="${settingsCheckboxLabelStyle}">
+                    <input id="tm-t9-emoj-toggle" type="checkbox" ${t9EmojEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#a78bfa')}">
+                    <span>Activer le bouton T9 Emoj</span>
+                </label>
+
+                <div style="margin-top:10px;font-size:12px;color:#a1a1aa;line-height:1.5;">
+                    Propose les émoticônes de la gateway dans le chat. Leur liste est mise en cache localement pendant une heure.
                 </div>
             </div>
         `;
@@ -14590,6 +14640,7 @@
                 ${renderSettingsConfigCard(styles.settingsCardStyle)}
                 ${renderSettingsCreditRecapCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)}
                 ${renderSettingsGifCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)}
+                ${renderSettingsT9EmojCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)}
                 ${renderSettingsImageHostingCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)}
                 ${renderSettingsEmojiQuickAccessCard(styles.settingsCardStyle)}
                 ${renderSettingsBlacklistCard(styles.settingsCardStyle)}
@@ -17412,6 +17463,10 @@
         syncChatInputToolbarReservedSpace();
         applyKlipyGifMenuAlignmentState();
         applyImageUploadMenuAlignmentState();
+        const t9EmojMenu = getT9EmojMenu();
+        if (t9EmojMenu instanceof HTMLElement && t9EmojMenu.dataset.tmOpen === '1') {
+            positionT9EmojMenu(t9EmojMenu);
+        }
         scheduleMovedNativeChatInputActionPopoversSync();
     }
 
@@ -17438,6 +17493,7 @@
         return isSupportedPage() && (
             getQuickAccessEmojiRecords(1).length > 0 ||
             klipyGifsEnabled ||
+            t9EmojEnabled ||
             imageHostingEnabled ||
             (savedPhrasesEnabled && savedPhrases.length > 0)
         );
@@ -19894,6 +19950,7 @@
             closeSavedPhrasesMenu();
             closeImageUploadMenu();
             closeKlipyGifMenu();
+            closeT9EmojMenu();
             showKlipyGifMenu(menu);
 
             if (menu.dataset.tmKlipyLoaded !== '1') {
@@ -19974,6 +20031,406 @@
 
         initializeKlipyGifToolbarWrapper(wrapper);
         syncKlipyGifToolbarMountState(textInput, getKlipyGifMenu());
+    }
+
+    // T9 Emoj picker - manifeste gateway et cache client
+    function normalizeT9EmojManifestItem(value) {
+        if (!value || typeof value !== 'object') return null;
+
+        const id = String(value.id || '').trim();
+        const filename = String(value.filename || '').trim();
+        const format = String(value.format || '').toLowerCase();
+        const url = String(value.url || '').trim();
+        if (!id || !filename || !/^[^/\\\u0000-\u001F]+\.(?:png|gif)$/i.test(filename) || !['png', 'gif'].includes(format)) {
+            return null;
+        }
+
+        try {
+            const parsedUrl = new URL(url);
+            const gatewayUrl = new URL(KLIPY_GATEWAY_BASE_URL);
+            if (
+                parsedUrl.origin !== gatewayUrl.origin ||
+                !parsedUrl.pathname.startsWith('/emochat/') ||
+                decodeURIComponent(parsedUrl.pathname.slice('/emochat/'.length)) !== filename
+            ) {
+                return null;
+            }
+        } catch (e) {
+            return null;
+        }
+
+        return { id, filename, format, url };
+    }
+
+    function normalizeT9EmojManifestItems(value) {
+        if (!Array.isArray(value)) return [];
+
+        const seenIds = new Set();
+        return value
+            .map(normalizeT9EmojManifestItem)
+            .filter((item) => {
+                if (!item || seenIds.has(item.id)) return false;
+                seenIds.add(item.id);
+                return true;
+            })
+            .sort((left, right) => left.filename.localeCompare(right.filename, 'fr'));
+    }
+
+    function loadT9EmojManifestCache() {
+        const cached = readStorageJson(STORAGE_KEY_T9_EMOJ_MANIFEST_CACHE, null);
+        if (!cached || typeof cached !== 'object' || Number(cached.expiresAt) <= Date.now()) return [];
+        return normalizeT9EmojManifestItems(cached.items);
+    }
+
+    function saveT9EmojManifestCache(items) {
+        writeStorageJson(STORAGE_KEY_T9_EMOJ_MANIFEST_CACHE, {
+            expiresAt: Date.now() + T9_EMOJ_CACHE_TTL_MS,
+            items: normalizeT9EmojManifestItems(items)
+        });
+    }
+
+    async function fetchT9EmojManifest() {
+        const cachedItems = loadT9EmojManifestCache();
+        if (cachedItems.length > 0) return cachedItems;
+        if (t9EmojManifestRequest) return t9EmojManifestRequest;
+
+        t9EmojManifestRequest = (async () => {
+            const response = await requestExternal(buildKlipyGatewayUrl('emochat'), {
+                method: 'GET',
+                headers: {
+                    Accept: 'application/json',
+                    'X-Client-ID': getKlipyGatewayClientId()
+                },
+                credentials: 'omit',
+                timeout: 20000
+            });
+
+            let payload = null;
+            try {
+                payload = await response.json();
+            } catch (e) {}
+
+            if (!response.ok) {
+                throw new Error(payload?.error?.message || payload?.message || `HTTP ${response.status}`);
+            }
+
+            const items = normalizeT9EmojManifestItems(payload?.items);
+            if (items.length === 0) throw new Error('Aucune émoticône valide reçue.');
+            saveT9EmojManifestCache(items);
+            return items;
+        })();
+
+        try {
+            return await t9EmojManifestRequest;
+        } finally {
+            t9EmojManifestRequest = null;
+        }
+    }
+
+    function getT9EmojMenu() {
+        const menu = document.querySelector('[data-tm-t9-emoj-menu="1"]');
+        return menu instanceof HTMLElement ? menu : null;
+    }
+
+    function positionT9EmojMenu(menu) {
+        if (!(menu instanceof HTMLElement)) return;
+        const anchor = document.getElementById(T9_EMOJ_MENU_WRAPPER_ID);
+        if (!(anchor instanceof HTMLElement)) return;
+
+        if (isChatPage() && document.body instanceof HTMLElement) {
+            if (menu.parentElement !== document.body) document.body.appendChild(menu);
+            menu.style.position = 'fixed';
+            menu.style.right = 'auto';
+            menu.style.bottom = 'auto';
+            menu.style.left = '-9999px';
+            menu.style.top = '-9999px';
+            menu.style.zIndex = '1600';
+
+            const anchorRect = anchor.getBoundingClientRect();
+            const menuRect = menu.getBoundingClientRect();
+            if (anchorRect.width <= 0 || menuRect.width <= 0 || menuRect.height <= 0) return;
+
+            const maxLeft = Math.max(8, window.innerWidth - menuRect.width - 8);
+            const maxTop = Math.max(8, window.innerHeight - menuRect.height - 8);
+            menu.style.left = `${chatInputToolbarAlignRight
+                ? clamp(anchorRect.right - menuRect.width, 8, maxLeft)
+                : clamp(anchorRect.left, 8, maxLeft)}px`;
+            menu.style.top = `${clamp(anchorRect.top - menuRect.height - 8, 8, maxTop)}px`;
+            menu.style.transformOrigin = chatInputToolbarAlignRight ? 'bottom right' : 'bottom left';
+            return;
+        }
+
+        if (menu.parentElement !== anchor) anchor.appendChild(menu);
+        menu.style.position = 'absolute';
+        menu.style.top = 'auto';
+        menu.style.bottom = 'calc(100% + 8px)';
+        menu.style.zIndex = '1500';
+        menu.style.left = chatInputToolbarAlignRight ? 'auto' : '0';
+        menu.style.right = chatInputToolbarAlignRight ? '0' : 'auto';
+        menu.style.transformOrigin = chatInputToolbarAlignRight ? 'bottom right' : 'bottom left';
+    }
+
+    function showT9EmojMenu(menu) {
+        if (!(menu instanceof HTMLElement)) return;
+        menu.style.display = 'flex';
+        menu.dataset.tmOpen = '1';
+        positionT9EmojMenu(menu);
+        void menu.offsetWidth;
+        menu.style.opacity = '1';
+        menu.style.transform = 'translateY(0) scale(1)';
+    }
+
+    function hideT9EmojMenu(menu) {
+        if (!(menu instanceof HTMLElement)) return;
+        menu.dataset.tmOpen = '0';
+        menu.style.opacity = '0';
+        menu.style.transform = 'translateY(10px) scale(0.95)';
+        window.setTimeout(() => {
+            if (menu.dataset.tmOpen !== '1') menu.style.display = 'none';
+        }, 180);
+    }
+
+    function closeT9EmojMenu() {
+        const menu = getT9EmojMenu();
+        if (menu) hideT9EmojMenu(menu);
+    }
+
+    function getT9EmojMenuElements(menu) {
+        return {
+            searchInput: menu?.querySelector('[data-tm-t9-emoj-search="1"]'),
+            status: menu?.querySelector('[data-tm-t9-emoj-status="1"]'),
+            results: menu?.querySelector('[data-tm-t9-emoj-results="1"]')
+        };
+    }
+
+    function setT9EmojMenuStatus(menu, message, isError = false) {
+        const { status } = getT9EmojMenuElements(menu);
+        if (!(status instanceof HTMLElement)) return;
+        status.textContent = message;
+        status.style.color = isError ? '#fca5a5' : '#cbd5f5';
+    }
+
+    function renderT9EmojResults(menu, items, filter = '') {
+        const { results } = getT9EmojMenuElements(menu);
+        if (!(results instanceof HTMLElement)) return;
+        results.innerHTML = '';
+
+        const query = String(filter || '').trim().toLocaleLowerCase('fr');
+        const visibleItems = items.filter((item) => (
+            !query || item.id.toLocaleLowerCase('fr').includes(query) || item.filename.toLocaleLowerCase('fr').includes(query)
+        ));
+
+        if (visibleItems.length === 0) {
+            const empty = document.createElement('div');
+            empty.textContent = 'Aucune émoticône trouvée.';
+            empty.style.gridColumn = '1 / -1';
+            empty.style.padding = '12px';
+            empty.style.textAlign = 'center';
+            empty.style.color = '#94a3b8';
+            empty.style.fontSize = '11px';
+            results.appendChild(empty);
+            return;
+        }
+
+        visibleItems.forEach((item) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.title = item.id;
+            button.setAttribute('aria-label', `Insérer ${item.id}`);
+            button.style.display = 'flex';
+            button.style.alignItems = 'center';
+            button.style.justifyContent = 'center';
+            button.style.aspectRatio = '1';
+            button.style.padding = '5px';
+            button.style.border = '1px solid rgba(255,255,255,0.08)';
+            button.style.borderRadius = '10px';
+            button.style.background = 'rgba(15,23,42,0.75)';
+            button.style.cursor = 'pointer';
+
+            const image = document.createElement('img');
+            image.src = item.url;
+            image.alt = item.id;
+            image.loading = 'lazy';
+            image.style.width = '100%';
+            image.style.height = '100%';
+            image.style.objectFit = 'contain';
+            image.style.maxHeight = '42px';
+            button.appendChild(image);
+
+            button.addEventListener('click', () => {
+                const insertion = insertImageIntoChatInput(getChatInput(), item.url);
+                if (!insertion.ok) {
+                    showToast(insertion.message, true);
+                    return;
+                }
+                hideT9EmojMenu(menu);
+            });
+            results.appendChild(button);
+        });
+    }
+
+    async function loadT9EmojPicker(menu) {
+        if (!(menu instanceof HTMLElement)) return;
+        const { searchInput } = getT9EmojMenuElements(menu);
+        setT9EmojMenuStatus(menu, 'Chargement des émoticônes…');
+
+        try {
+            const items = await fetchT9EmojManifest();
+            if (menu.dataset.tmOpen !== '1') return;
+            renderT9EmojResults(menu, items, searchInput instanceof HTMLInputElement ? searchInput.value : '');
+            menu.dataset.tmT9EmojLoaded = '1';
+            menu.dataset.tmT9EmojCount = String(items.length);
+            setT9EmojMenuStatus(menu, `${items.length} émoticônes disponibles — cache local : 1 heure.`);
+            positionT9EmojMenu(menu);
+        } catch (error) {
+            setT9EmojMenuStatus(menu, `Erreur T9 Emoj : ${error instanceof Error ? error.message : 'chargement impossible.'}`, true);
+        }
+    }
+
+    function createT9EmojMenu() {
+        const menu = document.createElement('div');
+        menu.setAttribute('data-tm-t9-emoj-menu', '1');
+        menu.dataset.tmOpen = '0';
+        menu.style.display = 'none';
+        menu.style.width = 'min(420px, calc(100vw - 28px))';
+        menu.style.maxHeight = 'min(70vh, 520px)';
+        menu.style.padding = '10px';
+        menu.style.background = 'rgba(17,24,39,0.94)';
+        menu.style.backdropFilter = 'blur(16px)';
+        menu.style.border = '1px solid rgba(255,255,255,0.08)';
+        menu.style.borderRadius = '16px';
+        menu.style.boxShadow = '0 18px 45px rgba(0,0,0,0.48)';
+        menu.style.flexDirection = 'column';
+        menu.style.gap = '10px';
+        menu.style.opacity = '0';
+        menu.style.transform = 'translateY(10px) scale(0.95)';
+        menu.style.transition = 'opacity .18s ease, transform .18s ease';
+
+        const header = document.createElement('div');
+        header.textContent = 'T9 Emoj';
+        header.style.fontSize = '12px';
+        header.style.fontWeight = '700';
+        header.style.color = '#f8fafc';
+
+        const searchInput = document.createElement('input');
+        searchInput.type = 'search';
+        searchInput.placeholder = 'Rechercher une émoticône';
+        searchInput.setAttribute('aria-label', 'Rechercher une émoticône T9');
+        searchInput.setAttribute('data-tm-t9-emoj-search', '1');
+        searchInput.style.padding = '9px 11px';
+        searchInput.style.background = 'rgba(15,23,42,.75)';
+        searchInput.style.color = '#f8fafc';
+        searchInput.style.border = '1px solid rgba(255,255,255,.08)';
+        searchInput.style.borderRadius = '10px';
+
+        const status = document.createElement('div');
+        status.setAttribute('data-tm-t9-emoj-status', '1');
+        status.style.fontSize = '11px';
+        status.style.color = '#cbd5f5';
+
+        const results = document.createElement('div');
+        results.setAttribute('data-tm-t9-emoj-results', '1');
+        results.style.display = 'grid';
+        results.style.gridTemplateColumns = 'repeat(6, minmax(0, 1fr))';
+        results.style.gap = '7px';
+        results.style.overflowY = 'auto';
+        results.style.paddingRight = '2px';
+
+        searchInput.addEventListener('input', () => {
+            const cachedItems = loadT9EmojManifestCache();
+            renderT9EmojResults(menu, cachedItems, searchInput.value);
+            const query = searchInput.value.trim().toLocaleLowerCase('fr');
+            const visibleCount = cachedItems.filter((item) => (
+                !query || item.id.toLocaleLowerCase('fr').includes(query) || item.filename.toLocaleLowerCase('fr').includes(query)
+            )).length;
+            setT9EmojMenuStatus(menu, `${visibleCount} émoticône(s).`);
+        });
+        searchInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') hideT9EmojMenu(menu);
+        });
+        menu.addEventListener('click', (event) => event.stopPropagation());
+
+        menu.append(header, searchInput, status, results);
+        return { menu, searchInput };
+    }
+
+    function getOrCreateT9EmojToolbarWrapper(rail) {
+        let wrapper = document.getElementById(T9_EMOJ_MENU_WRAPPER_ID);
+        if (!wrapper) {
+            wrapper = document.createElement('div');
+            wrapper.id = T9_EMOJ_MENU_WRAPPER_ID;
+            wrapper.style.display = 'flex';
+            wrapper.style.position = 'relative';
+            wrapper.style.zIndex = '280';
+            wrapper.style.overflow = 'visible';
+            wrapper.style.pointerEvents = 'auto';
+        }
+        if (wrapper.parentElement !== rail) rail.appendChild(wrapper);
+        return wrapper;
+    }
+
+    function installT9EmojToolbarGlobalHandlers() {
+        if (t9EmojToolbarEventsInstalled) return;
+        t9EmojToolbarEventsInstalled = true;
+        document.addEventListener('click', (event) => {
+            const menu = getT9EmojMenu();
+            const wrapper = document.getElementById(T9_EMOJ_MENU_WRAPPER_ID);
+            if (event.target instanceof Node && (wrapper?.contains(event.target) || menu?.contains(event.target))) return;
+            closeT9EmojMenu();
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') closeT9EmojMenu();
+        }, true);
+        window.addEventListener('blur', closeT9EmojMenu);
+    }
+
+    function removeT9EmojToolbar() {
+        getT9EmojMenu()?.remove();
+        document.getElementById(T9_EMOJ_MENU_WRAPPER_ID)?.remove();
+        syncNativeChatInputActionButtons();
+        syncChatInputToolbarReservedSpace();
+    }
+
+    function injectT9EmojToolbar() {
+        if (!isSupportedPage() || !t9EmojEnabled) {
+            removeT9EmojToolbar();
+            return;
+        }
+        const textInput = getChatInput();
+        if (!textInput) return;
+        const rail = getOrCreateChatInputToolbarRail(getChatInputToolbarMountContext(textInput));
+        if (!(rail instanceof HTMLElement)) return;
+
+        installT9EmojToolbarGlobalHandlers();
+        const wrapper = getOrCreateT9EmojToolbarWrapper(rail);
+        if (wrapper.dataset.tmInitialized === '1') return;
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = 'T9 Emoj';
+        button.title = 'Ouvrir le picker T9 Emoj';
+        button.setAttribute('aria-label', 'Ouvrir le picker T9 Emoj');
+        button.style.cssText = 'border:1px solid rgba(196,181,253,.35);background:linear-gradient(135deg,rgba(109,40,217,.72),rgba(79,70,229,.72));color:#f5f3ff;font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px;cursor:pointer;';
+        const { menu, searchInput } = createT9EmojMenu();
+        button.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (menu.dataset.tmOpen === '1') {
+                hideT9EmojMenu(menu);
+                return;
+            }
+            closeSavedPhrasesMenu();
+            closeImageUploadMenu();
+            closeKlipyGifMenu();
+            showT9EmojMenu(menu);
+            if (menu.dataset.tmT9EmojLoaded !== '1') loadT9EmojPicker(menu);
+            searchInput.focus();
+        });
+
+        wrapper.append(button, menu);
+        wrapper.dataset.tmInitialized = '1';
+        syncChatInputToolbarReservedSpace(textInput);
+        syncNativeChatInputActionButtons(textInput);
     }
 
     function getImageUploadMenu() {
@@ -22837,6 +23294,7 @@
                 removeMessageReactionQuickAccessButtons();
                 removeSavedPhrasesToolbar();
                 removeKlipyGifToolbar();
+                removeT9EmojToolbar();
                 removeImageUploadToolbar();
                 stopObserver();
                 return;
@@ -22852,6 +23310,7 @@
             injectEmojiQuickAccessToolbar();
             injectSavedPhrasesToolbar();
             injectKlipyGifToolbar();
+            injectT9EmojToolbar();
             injectImageUploadToolbar();
             applyChatInputToolbarAlignmentState();
             syncNativeChatInputActionButtons();
@@ -22881,6 +23340,7 @@
             removeMessageReactionQuickAccessButtons();
             removeSavedPhrasesToolbar();
             removeKlipyGifToolbar();
+            removeT9EmojToolbar();
             removeImageUploadToolbar();
             removeStatsBox();
             closeSettingsModal();
@@ -22919,6 +23379,7 @@
                 injectEmojiQuickAccessToolbar();
                 injectSavedPhrasesToolbar();
                 injectKlipyGifToolbar();
+                injectT9EmojToolbar();
                 injectImageUploadToolbar();
                 applyChatInputToolbarAlignmentState();
                 syncNativeChatInputActionButtons();
@@ -22937,6 +23398,7 @@
                 removeMessageReactionQuickAccessButtons();
                 removeSavedPhrasesToolbar();
                 removeKlipyGifToolbar();
+                removeT9EmojToolbar();
                 removeImageUploadToolbar();
                 stopObserver();
             } else if (isHomePage() && needsHomepageCollapseUiRefresh()) {
@@ -22960,6 +23422,10 @@
                     removeKlipyGifToolbar();
                 }
 
+                if (!t9EmojEnabled) {
+                    removeT9EmojToolbar();
+                }
+
                 if (!imageHostingEnabled) {
                     removeImageUploadToolbar();
                 }
@@ -22971,6 +23437,7 @@
                     const currentEmojiWrapper = document.getElementById(EMOJI_QUICK_ACCESS_WRAPPER_ID);
                     const phrasesWrapper = document.getElementById(PHRASES_MENU_WRAPPER_ID);
                     const gifWrapper = document.getElementById(GIF_MENU_WRAPPER_ID);
+                    const t9EmojWrapper = document.getElementById(T9_EMOJ_MENU_WRAPPER_ID);
                     const imageUploadWrapper = document.getElementById(IMAGE_UPLOAD_MENU_WRAPPER_ID);
                     let toolbarNeedsSync = !isChatInputToolbarLayoutStable(mountContext);
 
@@ -22996,6 +23463,11 @@
 
                     if (klipyGifsEnabled && toolbarHost && (!gifWrapper || !toolbarHost.contains(gifWrapper))) {
                         injectKlipyGifToolbar();
+                        toolbarNeedsSync = true;
+                    }
+
+                    if (t9EmojEnabled && toolbarHost && (!t9EmojWrapper || !toolbarHost.contains(t9EmojWrapper))) {
+                        injectT9EmojToolbar();
                         toolbarNeedsSync = true;
                     }
 
@@ -23040,6 +23512,11 @@
             const gifMenu = getKlipyGifMenu();
             if (gifMenu instanceof HTMLElement && gifMenu.dataset.tmOpen === '1') {
                 positionKlipyGifMenu(gifMenu);
+            }
+
+            const t9EmojMenu = getT9EmojMenu();
+            if (t9EmojMenu instanceof HTMLElement && t9EmojMenu.dataset.tmOpen === '1') {
+                positionT9EmojMenu(t9EmojMenu);
             }
 
             const afkPanel = document.getElementById(AFK_PANEL_ID);
