@@ -656,6 +656,7 @@
     let lastMentionSoundRecord = loadLastMentionSoundRecord();
     let recentMentionSoundRecords = loadRecentMentionSoundRecords(lastMentionSoundRecord);
     let lastMentionSoundAt = lastMentionSoundRecord?.notifiedAt || 0;
+    let mentionSoundCooldownUntil = 0;
     let lastChatContextKey = 'other';
     let longPressReactionState = null;
     let nativeEmojiPickerContext = null;
@@ -3531,7 +3532,9 @@
             soundScope,
             soundStyle: normalizeMentionSoundStyle(value.soundStyle),
             soundCustomUrl: normalizeMentionSoundCustomUrl(value.soundCustomUrl),
-            soundCooldownSeconds: clamp(Number(value.soundCooldownSeconds) || 0, 0, 300)
+            soundCooldownSeconds: Number.isFinite(Number(value.soundCooldownSeconds))
+                ? clamp(Number(value.soundCooldownSeconds), 0, 300)
+                : DEFAULT_MENTION_SOUND_COOLDOWN_SECONDS
         };
     }
 
@@ -9268,22 +9271,47 @@
         saveCrossChannelMentionChannelIds([...selectedChannelIds]);
     }
 
+    function reserveMentionSoundCooldown() {
+        const cooldownSeconds = parseMentionSoundCooldownInput(
+            mentionSettings.soundCooldownSeconds,
+            DEFAULT_MENTION_SOUND_COOLDOWN_SECONDS
+        );
+        const cooldownMs = cooldownSeconds * 1000;
+        const now = Date.now();
+        const previousLastMentionSoundAt = lastMentionSoundAt;
+        const nextAllowedAt = Math.max(
+            mentionSoundCooldownUntil,
+            previousLastMentionSoundAt + cooldownMs
+        );
+        if (cooldownMs > 0 && now < nextAllowedAt) {
+            return {
+                allowed: false,
+                cooldownSeconds,
+                now,
+                previousLastMentionSoundAt,
+                remainingMs: nextAllowedAt - now
+            };
+        }
+
+        lastMentionSoundAt = now;
+        mentionSoundCooldownUntil = now + cooldownMs;
+        return {
+            allowed: true,
+            cooldownSeconds,
+            now,
+            previousLastMentionSoundAt,
+            remainingMs: 0
+        };
+    }
+
     function maybePlayCrossChannelMentionSound() {
         if (!isMentionSoundScopeEnabled()) return;
 
-        const cooldownMs = parseMentionSoundCooldownInput(
-            mentionSettings.soundCooldownSeconds,
-            DEFAULT_MENTION_SOUND_COOLDOWN_SECONDS
-        ) * 1000;
-        const now = Date.now();
-        if (cooldownMs > 0 && now - lastMentionSoundAt < cooldownMs) return;
+        const reservation = reserveMentionSoundCooldown();
+        if (!reservation.allowed) return;
 
-        const previousLastMentionSoundAt = lastMentionSoundAt;
-        lastMentionSoundAt = now;
         void playMentionNotificationSound(mentionSettings.soundStyle, mentionSettings.soundCustomUrl).then((played) => {
-            if (!played && lastMentionSoundAt === now) {
-                lastMentionSoundAt = previousLastMentionSoundAt;
-            }
+            if (!played) logMentionDebug('cross-channel sound: playback unavailable, cooldown preserved');
         });
     }
 
@@ -10819,19 +10847,16 @@
 
         mentionSoundNotifiedMessages.add(messageEl);
 
-        const cooldownSeconds = parseMentionSoundCooldownInput(
-            mentionSettings.soundCooldownSeconds,
-            DEFAULT_MENTION_SOUND_COOLDOWN_SECONDS
-        );
-        const now = Date.now();
+        const cooldownReservation = reserveMentionSoundCooldown();
+        const { cooldownSeconds, now, previousLastMentionSoundAt } = cooldownReservation;
 
-        if (cooldownSeconds > 0 && now - lastMentionSoundAt < cooldownSeconds * 1000) {
+        if (!cooldownReservation.allowed) {
             logMentionDebug('skip: cooldown active', {
                 signature,
                 cooldownSeconds,
                 now,
                 lastMentionSoundAt,
-                remainingMs: Math.max(0, cooldownSeconds * 1000 - (now - lastMentionSoundAt))
+                remainingMs: cooldownReservation.remainingMs
             });
             if (signature) {
                 saveLastMentionSoundRecord({
@@ -10850,7 +10875,6 @@
             return;
         }
 
-        const previousLastMentionSoundAt = lastMentionSoundAt;
         if (signature) {
             logMentionDebug('record: pre-play', {
                 signature,
@@ -10871,7 +10895,6 @@
             });
         }
 
-        lastMentionSoundAt = now;
         void playMentionNotificationSound(mentionSettings.soundStyle, mentionSettings.soundCustomUrl).then((played) => {
             if (!played) {
                 logMentionDebug('play result: failed', {
@@ -10879,9 +10902,6 @@
                     attemptedAt: now,
                     previousLastMentionSoundAt
                 });
-                if (lastMentionSoundAt === now) {
-                    lastMentionSoundAt = previousLastMentionSoundAt;
-                }
                 return;
             }
             if (!signature) return;
