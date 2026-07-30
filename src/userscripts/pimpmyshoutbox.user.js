@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    http://tampermonkey.net/
-// @version      3.0.97
+// @version      3.0.98
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -380,7 +380,10 @@
     const KLIPY_SEARCH_MIN_LENGTH = 2;
     const KLIPY_SEARCH_DEBOUNCE_MS = 280;
     const KLIPY_CACHE_MAX_ENTRIES = 24;
-    const T9_EMOJ_CACHE_TTL_MS = 60 * 60 * 1000;
+    const T9_EMOJ_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+    const T9_EMOJ_MEDIA_CACHE_DB_NAME = 'tm_t4_t9_emoj_media_cache';
+    const T9_EMOJ_MEDIA_CACHE_STORE_NAME = 'media';
+    const T9_EMOJ_MEDIA_CACHE_MAX_BYTES = 24 * 1024 * 1024;
     const KLIPY_OFFICIAL_POWERED_BY_LOGO_DATA_URI = 'data:image/svg+xml,' + encodeURIComponent(String.raw`
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Generator: Adobe Illustrator 28.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
@@ -694,6 +697,11 @@
     const mentionSoundNotifiedMessages = new WeakSet();
     const klipyGifResponseCache = new Map();
     let t9EmojManifestRequest = null;
+    let t9EmojMediaCacheDbPromise = null;
+    let t9EmojMediaCachePreloadPromise = null;
+    const t9EmojMediaObjectUrls = new Map();
+    const t9EmojMediaCacheRecords = new Map();
+    const t9EmojMediaRequests = new Map();
     const youtubeVideoTitleCache = new Map();
     const afkSeenMessageKeys = new Set();
 
@@ -19557,6 +19565,203 @@
     }
 
     // T9 Emoj picker - manifeste gateway et cache client
+    function openT9EmojMediaCacheDb() {
+        if (t9EmojMediaCacheDbPromise) return t9EmojMediaCacheDbPromise;
+        if (!('indexedDB' in window)) return Promise.resolve(null);
+
+        t9EmojMediaCacheDbPromise = new Promise((resolve) => {
+            let request = null;
+            try {
+                request = indexedDB.open(T9_EMOJ_MEDIA_CACHE_DB_NAME, 1);
+            } catch (e) {
+                resolve(null);
+                return;
+            }
+
+            request.onupgradeneeded = () => {
+                const database = request.result;
+                if (!database.objectStoreNames.contains(T9_EMOJ_MEDIA_CACHE_STORE_NAME)) {
+                    database.createObjectStore(T9_EMOJ_MEDIA_CACHE_STORE_NAME, { keyPath: 'id' });
+                }
+            };
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => resolve(null);
+            request.onblocked = () => resolve(null);
+        });
+
+        return t9EmojMediaCacheDbPromise;
+    }
+
+    function warmT9EmojMediaCache() {
+        if (t9EmojMediaCachePreloadPromise) return t9EmojMediaCachePreloadPromise;
+
+        t9EmojMediaCachePreloadPromise = openT9EmojMediaCacheDb().then((database) => {
+            if (!database) return;
+
+            return new Promise((resolve) => {
+                const transaction = database.transaction(T9_EMOJ_MEDIA_CACHE_STORE_NAME, 'readwrite');
+                const store = transaction.objectStore(T9_EMOJ_MEDIA_CACHE_STORE_NAME);
+                const request = store.getAll();
+                request.onsuccess = () => {
+                    const now = Date.now();
+                    (Array.isArray(request.result) ? request.result : []).forEach((record) => {
+                        const isUsable = record && record.blob instanceof Blob && record.expiresAt > now && record.id && record.url;
+                        if (isUsable) {
+                            t9EmojMediaCacheRecords.set(record.id, record);
+                        } else if (record?.id) {
+                            store.delete(record.id);
+                        }
+                    });
+                };
+                transaction.oncomplete = () => resolve();
+                transaction.onerror = () => resolve();
+                transaction.onabort = () => resolve();
+            });
+        }).catch(() => {});
+
+        return t9EmojMediaCachePreloadPromise;
+    }
+
+    async function getT9EmojMediaCacheRecord(item) {
+        const database = await openT9EmojMediaCacheDb();
+        if (!database) return null;
+
+        return new Promise((resolve) => {
+            const transaction = database.transaction(T9_EMOJ_MEDIA_CACHE_STORE_NAME, 'readwrite');
+            const store = transaction.objectStore(T9_EMOJ_MEDIA_CACHE_STORE_NAME);
+            const request = store.get(item.id);
+            request.onsuccess = () => {
+                const record = request.result;
+                const isUsable = record &&
+                    record.url === item.url &&
+                    record.blob instanceof Blob &&
+                    record.expiresAt > Date.now();
+                if (!isUsable) {
+                    if (record) store.delete(item.id);
+                    t9EmojMediaCacheRecords.delete(item.id);
+                    resolve(null);
+                    return;
+                }
+
+                record.lastAccessAt = Date.now();
+                store.put(record);
+                t9EmojMediaCacheRecords.set(item.id, record);
+                resolve(record);
+            };
+            request.onerror = () => resolve(null);
+            transaction.onerror = () => resolve(null);
+        });
+    }
+
+    async function saveT9EmojMediaCacheRecord(item, blob) {
+        const database = await openT9EmojMediaCacheDb();
+        if (!database || !(blob instanceof Blob) || blob.size <= 0 || blob.size > T9_EMOJ_MEDIA_CACHE_MAX_BYTES) return;
+
+        await new Promise((resolve) => {
+            const transaction = database.transaction(T9_EMOJ_MEDIA_CACHE_STORE_NAME, 'readwrite');
+            const store = transaction.objectStore(T9_EMOJ_MEDIA_CACHE_STORE_NAME);
+            const now = Date.now();
+            store.put({
+                id: item.id,
+                url: item.url,
+                blob,
+                size: blob.size,
+                expiresAt: now + T9_EMOJ_CACHE_TTL_MS,
+                lastAccessAt: now
+            });
+            t9EmojMediaCacheRecords.set(item.id, {
+                id: item.id,
+                url: item.url,
+                blob,
+                size: blob.size,
+                expiresAt: now + T9_EMOJ_CACHE_TTL_MS,
+                lastAccessAt: now
+            });
+
+            const recordsRequest = store.getAll();
+            recordsRequest.onsuccess = () => {
+                const records = Array.isArray(recordsRequest.result) ? recordsRequest.result : [];
+                let totalBytes = records.reduce((total, record) => total + Math.max(0, Number(record?.size) || 0), 0);
+                records
+                    .sort((left, right) => (Number(left?.lastAccessAt) || 0) - (Number(right?.lastAccessAt) || 0))
+                    .forEach((record) => {
+                        const expired = !record?.expiresAt || Number(record.expiresAt) <= now;
+                        if (!expired && totalBytes <= T9_EMOJ_MEDIA_CACHE_MAX_BYTES) return;
+                        if (record?.id === item.id && !expired) return;
+                        store.delete(record.id);
+                        t9EmojMediaCacheRecords.delete(record.id);
+                        totalBytes -= Math.max(0, Number(record?.size) || 0);
+                    });
+            };
+            transaction.oncomplete = () => resolve();
+            transaction.onerror = () => resolve();
+            transaction.onabort = () => resolve();
+        });
+    }
+
+    function createT9EmojMediaObjectUrl(item, blob) {
+        const existingUrl = t9EmojMediaObjectUrls.get(item.id);
+        if (existingUrl) return existingUrl;
+
+        const objectUrl = URL.createObjectURL(blob);
+        t9EmojMediaObjectUrls.set(item.id, objectUrl);
+        return objectUrl;
+    }
+
+    function clearT9EmojMediaObjectUrls() {
+        t9EmojMediaObjectUrls.forEach((objectUrl) => URL.revokeObjectURL(objectUrl));
+        t9EmojMediaObjectUrls.clear();
+    }
+
+    function getCachedT9EmojMediaUrl(item) {
+        const inMemoryUrl = t9EmojMediaObjectUrls.get(item.id);
+        if (inMemoryUrl) return inMemoryUrl;
+
+        const record = t9EmojMediaCacheRecords.get(item.id);
+        if (!record || record.url !== item.url || !(record.blob instanceof Blob) || record.expiresAt <= Date.now()) return '';
+        return createT9EmojMediaObjectUrl(item, record.blob);
+    }
+
+    async function cacheT9EmojMedia(item) {
+        const cachedUrl = getCachedT9EmojMediaUrl(item);
+        if (cachedUrl) return cachedUrl;
+        if (t9EmojMediaRequests.has(item.id)) return t9EmojMediaRequests.get(item.id);
+
+        const request = (async () => {
+            const cachedRecord = await getT9EmojMediaCacheRecord(item);
+            if (cachedRecord) return createT9EmojMediaObjectUrl(item, cachedRecord.blob);
+
+            const arrayBuffer = await requestExternalArrayBuffer(item.url, {
+                method: 'GET',
+                headers: { 'X-Client-ID': getKlipyGatewayClientId() },
+                credentials: 'omit',
+                timeout: 30000
+            });
+            const blob = new Blob([arrayBuffer], { type: item.format === 'gif' ? 'image/gif' : 'image/png' });
+            await saveT9EmojMediaCacheRecord(item, blob);
+            return createT9EmojMediaObjectUrl(item, blob);
+        })();
+
+        t9EmojMediaRequests.set(item.id, request);
+        try {
+            return await request;
+        } finally {
+            t9EmojMediaRequests.delete(item.id);
+        }
+    }
+
+    function loadT9EmojMediaIntoImage(image, item) {
+        if (!(image instanceof HTMLImageElement)) return;
+        const cachedUrl = getCachedT9EmojMediaUrl(item);
+        if (cachedUrl) {
+            image.src = cachedUrl;
+            return;
+        }
+
+        image.src = item.url;
+        void cacheT9EmojMedia(item);
+    }
+
     function normalizeT9EmojManifestItem(value) {
         if (!value || typeof value !== 'object') return null;
 
@@ -19771,14 +19976,15 @@
             button.style.cursor = 'pointer';
 
             const image = document.createElement('img');
-            image.src = item.url;
             image.alt = item.id;
-            image.loading = 'lazy';
+            image.decoding = 'async';
             image.style.width = '100%';
             image.style.height = '100%';
             image.style.objectFit = 'contain';
             image.style.maxHeight = '42px';
+            image.style.background = 'rgba(255,255,255,0.025)';
             button.appendChild(image);
+            loadT9EmojMediaIntoImage(image, item);
 
             button.addEventListener('click', () => {
                 const insertion = insertImageIntoChatInput(getChatInput(), item.url);
@@ -19803,7 +20009,7 @@
             renderT9EmojResults(menu, items, searchInput instanceof HTMLInputElement ? searchInput.value : '');
             menu.dataset.tmT9EmojLoaded = '1';
             menu.dataset.tmT9EmojCount = String(items.length);
-            setT9EmojMenuStatus(menu, `${items.length} émoticônes disponibles — cache local : 1 heure.`);
+            setT9EmojMenuStatus(menu, `${items.length} émoticônes disponibles — cache local : 30 jours.`);
             positionT9EmojMenu(menu);
         } catch (error) {
             setT9EmojMenuStatus(menu, `Erreur T9 Emoj : ${error instanceof Error ? error.message : 'chargement impossible.'}`, true);
@@ -19908,6 +20114,7 @@
     }
 
     function removeT9EmojToolbar() {
+        clearT9EmojMediaObjectUrls();
         getT9EmojMenu()?.remove();
         document.getElementById(T9_EMOJ_MENU_WRAPPER_ID)?.remove();
         syncNativeChatInputActionButtons();
@@ -19919,6 +20126,7 @@
             removeT9EmojToolbar();
             return;
         }
+        void warmT9EmojMediaCache();
         const textInput = getChatInput();
         if (!textInput) return;
         const rail = getOrCreateChatInputToolbarRail(getChatInputToolbarMountContext(textInput));
