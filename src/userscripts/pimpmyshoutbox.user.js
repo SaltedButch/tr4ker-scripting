@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    http://tampermonkey.net/
-// @version      3.0.95
+// @version      3.0.98
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -31,18 +31,16 @@
     const TR4KER_CHAT_INPUT_SELECTOR = 'textarea[placeholder^="Message dans"]';
     const TR4KER_MESSAGE_SELECTOR = '[data-msg-id]';
     const TR4KER_MESSAGE_ROOT_SELECTOR = '[class*="messageList"]';
-    const STORAGE_KEY_POS_HOME = 'tm_t4_stats_box_position_home';
     const STORAGE_KEY_POS_CHAT = 'tm_t4_stats_box_position_chat';
-    const STORAGE_KEY_SIZE_HOME = 'tm_t4_stats_box_size_home';
     const STORAGE_KEY_SIZE_CHAT = 'tm_t4_stats_box_size_chat';
-    const STORAGE_KEY_STATS_COLLAPSED_HOME = 'tm_t4_stats_box_collapsed_home';
     const STORAGE_KEY_STATS_COLLAPSED_CHAT = 'tm_t4_stats_box_collapsed_chat';
-    const STORAGE_KEY_STATS_HIDDEN_HOME = 'tm_t4_stats_box_hidden_home';
     const STORAGE_KEY_STATS_HIDDEN_CHAT = 'tm_t4_stats_box_hidden_chat';
+    const STORAGE_KEY_SETTINGS_BUBBLE_ENABLED = 'tm_t4_settings_bubble_enabled';
     const STORAGE_KEY_DEBUG = 'tm_t4_debug_mode';
-    const STORAGE_KEY_HOME_COLLAPSED = 'tm_t4_home_chat_collapsed';
     const STORAGE_KEY_HIGHLIGHTED_USERS = 'tm_highlighted_shout_users_t4';
     const STORAGE_KEY_MENTION_SETTINGS = 'tm_t4_mention_highlight_settings';
+    const STORAGE_KEY_CROSS_CHANNEL_MENTION_ENABLED = 'tm_t4_cross_channel_mention_enabled';
+    const STORAGE_KEY_CROSS_CHANNEL_MENTION_CHANNELS = 'tm_t4_cross_channel_mention_channels';
     const STORAGE_KEY_LAST_MENTION_SOUND_NOTIFICATION = 'tm_t4_last_mention_sound_notification';
     const STORAGE_KEY_RECENT_MENTION_SOUND_NOTIFICATIONS = 'tm_t4_recent_mention_sound_notifications';
     const STORAGE_KEY_CHAT_FONT_SCALE = 'tm_t4_chat_font_scale';
@@ -110,139 +108,8 @@
     const STORAGE_KEY_GRADE_PSEUDONYM_COLORS = 'tm_t4_grade_pseudonym_colors';
     const STORAGE_KEY_GRADE_PSEUDONYM_EFFECTS = 'tm_t4_grade_pseudonym_effects';
     const SESSION_STORAGE_KEY_AFK_TAB_ID = 'tm_t4_afk_tab_id';
-    const STORAGE_KEY_MIGRATION_DONE = 'tm_t4_storage_migration_v1';
     const STORAGE_KEY_CREDIT_RECAP_ENABLED = 'tm_t4_credit_recap_enabled';
     const STORAGE_KEY_CREDIT_HISTORY = 'tm_t4_shop_history_cache_v1';
-    const STORAGE_KEYS_TO_MIGRATE = [
-        STORAGE_KEY_USERS,
-        STORAGE_KEY_POS_HOME,
-        STORAGE_KEY_POS_CHAT,
-        STORAGE_KEY_SIZE_HOME,
-        STORAGE_KEY_SIZE_CHAT,
-        STORAGE_KEY_STATS_COLLAPSED_HOME,
-        STORAGE_KEY_STATS_COLLAPSED_CHAT,
-        STORAGE_KEY_STATS_HIDDEN_HOME,
-        STORAGE_KEY_STATS_HIDDEN_CHAT,
-        STORAGE_KEY_DEBUG,
-        STORAGE_KEY_HOME_COLLAPSED,
-        STORAGE_KEY_HIGHLIGHTED_USERS,
-        STORAGE_KEY_MENTION_SETTINGS,
-        STORAGE_KEY_LAST_MENTION_SOUND_NOTIFICATION,
-        STORAGE_KEY_RECENT_MENTION_SOUND_NOTIFICATIONS,
-        STORAGE_KEY_CHAT_FONT_SCALE,
-        STORAGE_KEY_CHAT_SCROLLBAR_ENABLED,
-        STORAGE_KEY_CUSTOM_BACKGROUND_ENABLED,
-        STORAGE_KEY_CUSTOM_BACKGROUND_COLOR,
-        STORAGE_KEY_MESSAGE_ACTIONS_LEFT_ENABLED,
-        STORAGE_KEY_TOPBAR_STATS_ENABLED,
-        STORAGE_KEY_TOPBAR_STATS_ALL_SITE,
-        STORAGE_KEY_TOPBAR_STATS_SHOW_CREDITS,
-        STORAGE_KEY_TOPBAR_STATS_SHOW_BUFFER,
-        STORAGE_KEY_TOPBAR_STATS_SHOW_TOTAL_UPLOAD,
-        STORAGE_KEY_TOPBAR_STATS_SHOW_TOTAL_DOWNLOAD,
-        STORAGE_KEY_TOPBAR_STATS_SHOW_PERIODIC_SECTION,
-        STORAGE_KEY_TOPBAR_STATS_MODE,
-        STORAGE_KEY_TOPBAR_STATS_SHOW_GLOBAL_RATIO,
-        STORAGE_KEY_TOPBAR_STATS_SHOW_24H,
-        STORAGE_KEY_TOPBAR_STATS_SHOW_7D,
-        STORAGE_KEY_TOPBAR_STATS_SHOW_30D,
-        STORAGE_KEY_MATRIX_GLOBAL_UPLOAD,
-        STORAGE_KEY_MATRIX_GLOBAL_DOWNLOAD,
-        STORAGE_KEY_MATRIX_TICKER_ENABLED,
-        STORAGE_KEY_MATRIX_TICKER_SPEED,
-        STORAGE_KEY_MATRIX_TICKER_PAUSE_HOVER,
-        STORAGE_KEY_MATRIX_PERIOD_24H_RATIO,
-        STORAGE_KEY_MATRIX_PERIOD_24H_UPLOAD,
-        STORAGE_KEY_MATRIX_PERIOD_24H_DOWNLOAD,
-        STORAGE_KEY_MATRIX_PERIOD_7D_RATIO,
-        STORAGE_KEY_MATRIX_PERIOD_7D_UPLOAD,
-        STORAGE_KEY_MATRIX_PERIOD_7D_DOWNLOAD,
-        STORAGE_KEY_MATRIX_PERIOD_30D_RATIO,
-        STORAGE_KEY_MATRIX_PERIOD_30D_UPLOAD,
-        STORAGE_KEY_MATRIX_PERIOD_30D_DOWNLOAD,
-        STORAGE_KEY_MATRIX_CAROUSEL_INTERVAL,
-        STORAGE_KEY_MATRIX_CAROUSEL_PAUSE_HOVER,
-        STORAGE_KEY_TOPBAR_BURGER_ENABLED,
-        STORAGE_KEY_LINKIFY_URLS,
-        STORAGE_KEY_EMBED_URL_IMAGES,
-        STORAGE_KEY_SAVED_PHRASES,
-        STORAGE_KEY_SAVED_PHRASES_ENABLED,
-        STORAGE_KEY_SAVED_PHRASES_REPLACE_INPUT,
-        STORAGE_KEY_KLIPY_GIFS_ENABLED,
-        STORAGE_KEY_T9_EMOJ_ENABLED,
-        STORAGE_KEY_EMOJI_USAGE_COUNTS,
-        STORAGE_KEY_REACTION_USAGE_COUNTS,
-        STORAGE_KEY_EMOJI_QUICK_ACCESS_LIMIT,
-        STORAGE_KEY_REACTION_QUICK_ACCESS_LIMIT,
-        STORAGE_KEY_QUICK_ACCESS_MODE,
-        STORAGE_KEY_MANUAL_EMOJI_FAVORITES,
-        STORAGE_KEY_MANUAL_REACTION_FAVORITES,
-        STORAGE_KEY_CHAT_INPUT_TOOLBAR_INLINE,
-        STORAGE_KEY_CHAT_INPUT_TOOLBAR_ALIGN_RIGHT,
-        STORAGE_KEY_CHAT_SIDEBAR_WIDTH,
-        STORAGE_KEY_CHAT_SIDEBAR_COLLAPSED,
-        STORAGE_KEY_IMAGE_HOSTING_ENABLED,
-        STORAGE_KEY_IMGBB_API_KEY,
-        STORAGE_KEY_IMAGE_HOSTING_EXPIRATION_SECONDS,
-        STORAGE_KEY_IMAGE_CATALOG,
-        STORAGE_KEY_AFK_STATE,
-        STORAGE_KEY_AFK_ACTIVITY,
-        STORAGE_KEY_AFK_PANEL_POSITION,
-        STORAGE_KEY_AFK_PANEL_HIDDEN,
-        STORAGE_KEY_GRADE_PSEUDONYM_COLORS,
-        STORAGE_KEY_GRADE_PSEUDONYM_EFFECTS
-    ];
-
-    /**
-     * Migre une seule fois les réglages enregistrés sous les anciennes clés
-     * Torr9 vers les clés Tr4ker `t4`, puis nettoie les anciennes entrées.
-     */
-    function migrateLegacyStorageKeys() {
-        try {
-            if (localStorage.getItem(STORAGE_KEY_MIGRATION_DONE) === '1') return;
-
-            STORAGE_KEYS_TO_MIGRATE.forEach((newKey) => {
-                const legacyKey = newKey.replace(/t4/g, 'torr9');
-                if (legacyKey === newKey) return;
-
-                const currentValue = localStorage.getItem(newKey);
-                const legacyValue = localStorage.getItem(legacyKey);
-
-                if (currentValue === null && legacyValue !== null) {
-                    localStorage.setItem(newKey, legacyValue);
-                }
-
-                if (localStorage.getItem(newKey) !== null) {
-                    localStorage.removeItem(legacyKey);
-                }
-            });
-
-            const legacySessionKey = SESSION_STORAGE_KEY_AFK_TAB_ID.replace(/t4/g, 'torr9');
-            const currentSessionValue = sessionStorage.getItem(SESSION_STORAGE_KEY_AFK_TAB_ID);
-            const legacySessionValue = sessionStorage.getItem(legacySessionKey);
-            if (currentSessionValue === null && legacySessionValue !== null) {
-                sessionStorage.setItem(SESSION_STORAGE_KEY_AFK_TAB_ID, legacySessionValue);
-            }
-            if (sessionStorage.getItem(SESSION_STORAGE_KEY_AFK_TAB_ID) !== null) {
-                sessionStorage.removeItem(legacySessionKey);
-            }
-
-            localStorage.setItem(STORAGE_KEY_MIGRATION_DONE, '1');
-        } catch (error) {
-            console.warn('[PimpMyShoutbox] Migration des réglages impossible.', error);
-        }
-    }
-
-    migrateLegacyStorageKeys();
-
-    // Option retirée : le footer historique n'existe plus sur Tr4ker.
-    try {
-        localStorage.removeItem('tm_t4_hide_chat_footer_enabled');
-        localStorage.removeItem('tm_torr9_hide_chat_footer_enabled');
-    } catch (error) {
-        // Le script reste fonctionnel lorsque le stockage est indisponible.
-    }
-
     /**
      * Effectue une requête externe hors du contexte réseau de la page.
      * Tr4ker applique une CSP qui bloque les fetch cross-origin du userscript;
@@ -348,18 +215,16 @@
     const SCRIPT_CONFIG_EXPORT_VERSION = 1;
     const SCRIPT_CONFIG_STORAGE_KEYS = [
         STORAGE_KEY_USERS,
-        STORAGE_KEY_POS_HOME,
         STORAGE_KEY_POS_CHAT,
-        STORAGE_KEY_SIZE_HOME,
         STORAGE_KEY_SIZE_CHAT,
-        STORAGE_KEY_STATS_COLLAPSED_HOME,
         STORAGE_KEY_STATS_COLLAPSED_CHAT,
-        STORAGE_KEY_STATS_HIDDEN_HOME,
         STORAGE_KEY_STATS_HIDDEN_CHAT,
+        STORAGE_KEY_SETTINGS_BUBBLE_ENABLED,
         STORAGE_KEY_DEBUG,
-        STORAGE_KEY_HOME_COLLAPSED,
         STORAGE_KEY_HIGHLIGHTED_USERS,
         STORAGE_KEY_MENTION_SETTINGS,
+        STORAGE_KEY_CROSS_CHANNEL_MENTION_ENABLED,
+        STORAGE_KEY_CROSS_CHANNEL_MENTION_CHANNELS,
         STORAGE_KEY_CHAT_FONT_SCALE,
         STORAGE_KEY_CHAT_SCROLLBAR_ENABLED,
         STORAGE_KEY_CUSTOM_BACKGROUND_ENABLED,
@@ -419,26 +284,26 @@
         STORAGE_KEY_GRADE_PSEUDONYM_COLORS,
         STORAGE_KEY_GRADE_PSEUDONYM_EFFECTS
     ];
-    const PANEL_ID = 'tm-torr9-chat-stats';
-    const MODAL_ID = 'tm-torr9-chat-modal';
-    const OVERLAY_ID = 'tm-torr9-chat-overlay';
-    const TOAST_ID = 'tm-torr9-chat-toast';
+    const PANEL_ID = 'tm-t4-chat-stats';
+    const MODAL_ID = 'tm-t4-chat-modal';
+    const OVERLAY_ID = 'tm-t4-chat-overlay';
+    const TOAST_ID = 'tm-t4-chat-toast';
+    const SETTINGS_BUBBLE_ID = 'tm-t4-settings-bubble';
     const CHAT_SIDEBAR_RESIZER_ID = 'tm-t4-chat-sidebar-resizer';
     const CHAT_SIDEBAR_TOGGLE_ID = 'tm-t4-chat-sidebar-toggle';
-    const IMAGE_PREVIEW_ID = 'tm-torr9-image-preview';
-    const IMAGE_VIEWER_MODAL_ID = 'tm-torr9-image-viewer-modal';
-    const IMAGE_VIEWER_OVERLAY_ID = 'tm-torr9-image-viewer-overlay';
+    const IMAGE_PREVIEW_ID = 'tm-t4-image-preview';
+    const IMAGE_VIEWER_MODAL_ID = 'tm-t4-image-viewer-modal';
+    const IMAGE_VIEWER_OVERLAY_ID = 'tm-t4-image-viewer-overlay';
     const IMAGE_CATALOG_DELETE_CONFIRMATION_ID = 'tm-t4-image-catalog-delete-confirmation';
-    const YOUTUBE_PLAYER_ID = 'tm-torr9-youtube-player';
-    const AFK_PANEL_ID = 'tm-torr9-afk-panel';
-    const HOME_COLLAPSE_BUTTON_ID = 'tm-home-chat-collapse-toggle';
-    const PHRASES_MENU_WRAPPER_ID = 'tm-torr9-phrases-menu-wrapper';
-    const GIF_MENU_WRAPPER_ID = 'tm-torr9-klipy-gif-wrapper';
-    const T9_EMOJ_MENU_WRAPPER_ID = 'tm-torr9-t9-emoj-wrapper';
-    const IMAGE_UPLOAD_MENU_WRAPPER_ID = 'tm-torr9-image-upload-wrapper';
-    const EMOJI_QUICK_ACCESS_WRAPPER_ID = 'tm-torr9-emoji-quick-access-wrapper';
-    const MODAL_SCROLLBAR_STYLE_ID = 'tm-torr9-modal-scrollbar-style';
-    const CHAT_SCROLLBAR_STYLE_ID = 'tm-torr9-chat-scrollbar-style';
+    const YOUTUBE_PLAYER_ID = 'tm-t4-youtube-player';
+    const AFK_PANEL_ID = 'tm-t4-afk-panel';
+    const PHRASES_MENU_WRAPPER_ID = 'tm-t4-phrases-menu-wrapper';
+    const GIF_MENU_WRAPPER_ID = 'tm-t4-klipy-gif-wrapper';
+    const T9_EMOJ_MENU_WRAPPER_ID = 'tm-t4-t9-emoj-wrapper';
+    const IMAGE_UPLOAD_MENU_WRAPPER_ID = 'tm-t4-image-upload-wrapper';
+    const EMOJI_QUICK_ACCESS_WRAPPER_ID = 'tm-t4-emoji-quick-access-wrapper';
+    const MODAL_SCROLLBAR_STYLE_ID = 'tm-t4-modal-scrollbar-style';
+    const CHAT_SCROLLBAR_STYLE_ID = 'tm-t4-chat-scrollbar-style';
     const DEFAULT_YOUTUBE_PLAYER_TITLE = 'Player YouTube';
     const DEFAULT_YOUTUBE_PLAYER_WIDTH_PX = 420;
     const DEFAULT_YOUTUBE_PLAYER_HEIGHT_PX = 260;
@@ -486,7 +351,6 @@
     const DEFAULT_MENTION_SOUND_STYLE = 'ping';
     const DEFAULT_MENTION_SOUND_CUSTOM_URL = '';
     const DEFAULT_MENTION_SOUND_COOLDOWN_SECONDS = 8;
-    const ALLOWED_CHAT_CHANNELS = new Set(['general', 'aide', 'bug report', 'bug reports']);
     const DEFAULT_CHAT_FONT_SCALE = 1;
     const MIN_CHAT_FONT_SCALE = 0.85;
     const MAX_CHAT_FONT_SCALE = 1.7;
@@ -503,7 +367,8 @@
     const MAX_RECENT_MENTION_SOUND_RECORDS = 40;
     const MAX_AFK_READ_ACTIVITY_RECORDS = 50;
     const MAX_AFK_AUTO_REPLY_MESSAGE_LENGTH = 300;
-    const MAX_SAVED_PHRASE_LENGTH = 1000;
+    const MAX_CHAT_MESSAGE_LENGTH = 4000;
+    const MAX_SAVED_PHRASE_LENGTH = MAX_CHAT_MESSAGE_LENGTH;
     const MAX_VISIBLE_SAVED_PHRASES_IN_MENU = 5;
     const SAVED_PHRASES_EXPORT_VERSION = 1;
     const SAVED_PHRASES_REPLY_CONTEXT_MAX_AGE_MS = 5 * 60 * 1000;
@@ -515,7 +380,10 @@
     const KLIPY_SEARCH_MIN_LENGTH = 2;
     const KLIPY_SEARCH_DEBOUNCE_MS = 280;
     const KLIPY_CACHE_MAX_ENTRIES = 24;
-    const T9_EMOJ_CACHE_TTL_MS = 60 * 60 * 1000;
+    const T9_EMOJ_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+    const T9_EMOJ_MEDIA_CACHE_DB_NAME = 'tm_t4_t9_emoj_media_cache';
+    const T9_EMOJ_MEDIA_CACHE_STORE_NAME = 'media';
+    const T9_EMOJ_MEDIA_CACHE_MAX_BYTES = 24 * 1024 * 1024;
     const KLIPY_OFFICIAL_POWERED_BY_LOGO_DATA_URI = 'data:image/svg+xml,' + encodeURIComponent(String.raw`
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Generator: Adobe Illustrator 28.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
@@ -610,13 +478,12 @@
     const QUICK_ACCESS_MODE_MANUAL = 'manual';
     const QUICK_ACCESS_MODES = new Set([QUICK_ACCESS_MODE_AUTO, QUICK_ACCESS_MODE_MANUAL]);
     const MAX_MANUAL_QUICK_ACCESS_FAVORITES = 24;
-    const MENTION_STYLE_ID = 'tm-torr9-mention-style';
-    const LINKIFIED_URL_STYLE_ID = 'tm-torr9-linkified-url-style';
-    const EMBEDDED_IMAGE_STYLE_ID = 'tm-torr9-embedded-image-style';
-    const YOUTUBE_LINK_ACTION_STYLE_ID = 'tm-torr9-youtube-link-action-style';
-    const MESSAGE_ACTIONS_POSITION_STYLE_ID = 'tm-torr9-message-actions-position-style';
-    const HOME_CHAT_POPOVER_STYLE_ID = 'tm-torr9-home-chat-popover-style';
-    const NATIVE_CHAT_INPUT_POPOVER_STYLE_ID = 'tm-torr9-native-chat-input-popover-style';
+    const MENTION_STYLE_ID = 'tm-t4-mention-style';
+    const LINKIFIED_URL_STYLE_ID = 'tm-t4-linkified-url-style';
+    const EMBEDDED_IMAGE_STYLE_ID = 'tm-t4-embedded-image-style';
+    const YOUTUBE_LINK_ACTION_STYLE_ID = 'tm-t4-youtube-link-action-style';
+    const MESSAGE_ACTIONS_POSITION_STYLE_ID = 'tm-t4-message-actions-position-style';
+    const NATIVE_CHAT_INPUT_POPOVER_STYLE_ID = 'tm-t4-native-chat-input-popover-style';
     const TR4KER_TOPBAR_STATS_STYLE_ID = 'tm-t4-topbar-stats-style';
     const TR4KER_TOPBAR_STATS_STYLE_VERSION = '3.0.87';
     const TR4KER_TOPBAR_STATS_WIDGET_ID = 'tm-t4-topbar-stats-widget';
@@ -659,8 +526,6 @@
     const MESSAGE_REACTION_QUICK_ACCESS_GROUP_ATTR = 'data-tm-message-reaction-quick-access-group';
     const MESSAGE_REACTION_QUICK_ACCESS_BUTTON_ATTR = 'data-tm-message-reaction-quick-access-button';
     const MANUAL_QUICK_ACCESS_PICKER_MARKER_ATTR = 'data-tm-manual-quick-access-picker-marker';
-    const HOME_CHAT_POPOVER_SURFACE_ATTR = 'data-tm-home-chat-popover-surface';
-    const HOME_CHAT_POPOVER_PARENT_ATTR = 'data-tm-home-chat-popover-parent';
     const NATIVE_CHAT_INPUT_ACTION_HOST_ATTR = 'data-tm-native-chat-input-action-host';
     const NATIVE_CHAT_INPUT_ACTION_SOURCE_ATTR = 'data-tm-native-chat-input-action-source';
     const NATIVE_CHAT_INPUT_ACTION_PLACEHOLDER_ATTR = 'data-tm-native-chat-input-action-placeholder';
@@ -702,10 +567,19 @@
     let youtubePlayerTitleRequestSerial = 0;
     let hoveredMessageImage = null;
     let debugMode = loadDebugMode();
-    let homeChatCollapsed = loadHomeChatCollapsed();
     let statsDisplayMode = loadStatsDisplayMode();
     let statsHidden = loadStatsHidden();
+    let settingsBubbleEnabled = loadSettingsBubbleEnabled();
     let statsUpdateFrame = null;
+    let crossChannelMentionEnabled = loadCrossChannelMentionEnabled();
+    let crossChannelMentionChannelIds = loadCrossChannelMentionChannelIds();
+    let crossChannelMentionSocket = null;
+    let crossChannelMentionReconnectTimer = null;
+    let crossChannelMentionReconnectDelay = 1000;
+    let crossChannelMentionChannelsFetchedAt = 0;
+    let crossChannelMentionChannelsRequest = null;
+    const crossChannelMentionChannels = new Map();
+    const crossChannelMentionSeenMessageIds = new Set();
     let tr4kerTopbarStatsData = null;
     let tr4kerTopbarStatsFetchedAt = 0;
     let tr4kerTopbarStatsRequest = null;
@@ -714,6 +588,7 @@
     let tr4kerTopbarUserRequest = null;
     let tr4kerAdultModeRequest = null;
     let tr4kerTopbarStatsViewportHandlerInstalled = false;
+    let tr4kerT9TopbarOutsideClickHandlerInstalled = false;
     let tr4kerTopbarStatsPeriodIndex = 0;
     let tr4kerTopbarStatsPeriodCycleTimer = null;
     let toastHideTimer = null;
@@ -781,6 +656,7 @@
     let lastMentionSoundRecord = loadLastMentionSoundRecord();
     let recentMentionSoundRecords = loadRecentMentionSoundRecords(lastMentionSoundRecord);
     let lastMentionSoundAt = lastMentionSoundRecord?.notifiedAt || 0;
+    let mentionSoundCooldownUntil = 0;
     let lastChatContextKey = 'other';
     let longPressReactionState = null;
     let nativeEmojiPickerContext = null;
@@ -822,6 +698,11 @@
     const mentionSoundNotifiedMessages = new WeakSet();
     const klipyGifResponseCache = new Map();
     let t9EmojManifestRequest = null;
+    let t9EmojMediaCacheDbPromise = null;
+    let t9EmojMediaCachePreloadPromise = null;
+    const t9EmojMediaObjectUrls = new Map();
+    const t9EmojMediaCacheRecords = new Map();
+    const t9EmojMediaRequests = new Map();
     const youtubeVideoTitleCache = new Map();
     const afkSeenMessageKeys = new Set();
 
@@ -962,26 +843,42 @@
         );
     }
 
-    function isHomePage() {
-        return false;
+    function isWikiPath() {
+        return isTr4kerPage() && (location.pathname === '/wiki' || location.pathname.startsWith('/wiki/'));
+    }
+
+    function getWikiEditorInput() {
+        if (!isWikiPath()) return null;
+
+        return Array.from(document.querySelectorAll('textarea[placeholder]')).find((textarea) => (
+            textarea instanceof HTMLTextAreaElement &&
+            /contenu\s+de\s+l[’']article/i.test(textarea.getAttribute('placeholder') || '') &&
+            isChatInputCandidate(textarea)
+        )) || null;
+    }
+
+    function isWikiEditorPage() {
+        return getWikiEditorInput() instanceof HTMLTextAreaElement;
+    }
+
+    function isToolbarSupportedPage() {
+        return isSupportedPage() || isWikiEditorPage();
     }
 
     function isSupportedPage() {
-        return isChatPage() || isHomePage();
+        return isChatPage();
     }
 
     function getCurrentPageType() {
         if (isChatPage()) return 'chat';
-        if (isHomePage()) return 'home';
         return 'other';
     }
 
     function getCurrentPageLabel() {
-        return 'Tr4ker · Communication';
+        return isChatPage() ? 'Tr4ker · Communication' : 'Tr4ker · Configuration';
     }
 
     function getCurrentContextLabel() {
-        if (isHomePage()) return 'Accueil';
         if (!isChatPage()) return 'Autre';
 
         const context = getCurrentChatContext();
@@ -991,19 +888,19 @@
     }
 
     function getPositionStorageKey() {
-        return isChatPage() ? STORAGE_KEY_POS_CHAT : STORAGE_KEY_POS_HOME;
+        return STORAGE_KEY_POS_CHAT;
     }
 
     function getStatsBoxSizeStorageKey() {
-        return isChatPage() ? STORAGE_KEY_SIZE_CHAT : STORAGE_KEY_SIZE_HOME;
+        return STORAGE_KEY_SIZE_CHAT;
     }
 
     function getStatsCollapsedStorageKey() {
-        return isChatPage() ? STORAGE_KEY_STATS_COLLAPSED_CHAT : STORAGE_KEY_STATS_COLLAPSED_HOME;
+        return STORAGE_KEY_STATS_COLLAPSED_CHAT;
     }
 
     function getStatsHiddenStorageKey() {
-        return isChatPage() ? STORAGE_KEY_STATS_HIDDEN_CHAT : STORAGE_KEY_STATS_HIDDEN_HOME;
+        return STORAGE_KEY_STATS_HIDDEN_CHAT;
     }
 
     /**
@@ -2233,16 +2130,9 @@
     function getReactionPickerCandidateButtons(picker) {
         if (!(picker instanceof HTMLElement)) return [];
 
-        if (isTr4kerPage()) {
-            return Array.from(picker.querySelectorAll('button')).filter((button) => (
-                button instanceof HTMLButtonElement &&
-                !button.disabled &&
-                findReactionUsageButtonFromTarget(button) === button
-            ));
-        }
-
-        return Array.from(picker.querySelectorAll('div.grid button')).filter((button) => (
+        return Array.from(picker.querySelectorAll('button')).filter((button) => (
             button instanceof HTMLButtonElement &&
+            !button.disabled &&
             findReactionUsageButtonFromTarget(button) === button
         ));
     }
@@ -3089,7 +2979,7 @@
             const exportDate = new Date().toISOString().slice(0, 10);
 
             link.href = url;
-            link.download = `torr9-reponses-rapides-${exportDate}.json`;
+            link.download = `tr4ker-reponses-rapides-${exportDate}.json`;
             link.style.display = 'none';
 
             document.body?.appendChild(link);
@@ -3266,10 +3156,13 @@
 
     function reloadScriptConfigurationFromStorage() {
         debugMode = loadDebugMode();
-        homeChatCollapsed = loadHomeChatCollapsed();
         statsDisplayMode = loadStatsDisplayMode();
         statsHidden = loadStatsHidden();
+        settingsBubbleEnabled = loadSettingsBubbleEnabled();
         mentionSettings = loadMentionSettings();
+        crossChannelMentionEnabled = loadCrossChannelMentionEnabled();
+        crossChannelMentionChannelIds = loadCrossChannelMentionChannelIds();
+        syncCrossChannelMentionSocket();
         chatFontScale = loadChatFontScale();
         chatScrollbarEnabled = loadChatScrollbarEnabled();
         customBackgroundEnabled = loadCustomBackgroundEnabled();
@@ -3337,14 +3230,12 @@
 
     function applyReloadedScriptConfiguration() {
         applyCustomBackgroundColor();
-        syncHomepageCollapseUi(true);
         applyStatsBoxDisplayModeState();
         applyBoxPosition(loadPosition());
         constrainStatsBoxToViewport(false, false);
         applyStatsBoxVisibilityState();
         applyChatPageScrollbarState();
         applyMessageActionsPositionState();
-        applyHomeChatPopoverState();
         applyNativeChatInputPopoverState();
         applyChatInputToolbarAlignmentState();
         syncChatSidebarControls();
@@ -3388,16 +3279,8 @@
             return { ok: false, message: 'Format JSON invalide pour la configuration du script.' };
         }
 
-        let importedLegacyKeyCount = 0;
         SCRIPT_CONFIG_STORAGE_KEYS.forEach((storageKey) => {
-            const legacyStorageKey = storageKey.replace(/t4/g, 'torr9');
-            const rawValue = typeof importedStorage[storageKey] === 'string'
-                ? importedStorage[storageKey]
-                : importedStorage[legacyStorageKey];
-
-            if (typeof importedStorage[storageKey] !== 'string' && typeof rawValue === 'string') {
-                importedLegacyKeyCount += 1;
-            }
+            const rawValue = importedStorage[storageKey];
 
             if (typeof rawValue === 'string') {
                 writeStorageItem(storageKey, rawValue);
@@ -3424,9 +3307,7 @@
 
         return {
             ok: true,
-            message: importedLegacyKeyCount > 0
-                ? `Configuration Torr9 importée (${importedLegacyKeyCount} réglage${importedLegacyKeyCount > 1 ? 's' : ''} migré${importedLegacyKeyCount > 1 ? 's' : ''}).`
-                : 'Configuration du script importée.'
+            message: 'Configuration du script importée.'
         };
     }
 
@@ -3543,15 +3424,6 @@
         writeStorageBoolean(STORAGE_KEY_DEBUG, debugMode);
     }
 
-    function loadHomeChatCollapsed() {
-        return readStorageBoolean(STORAGE_KEY_HOME_COLLAPSED, false);
-    }
-
-    function saveHomeChatCollapsed(value) {
-        homeChatCollapsed = !!value;
-        writeStorageBoolean(STORAGE_KEY_HOME_COLLAPSED, homeChatCollapsed);
-    }
-
     function normalizeStatsDisplayMode(value) {
         const rawValue = String(value || '').trim().toLowerCase();
 
@@ -3582,6 +3454,40 @@
     function saveStatsHidden(value) {
         statsHidden = !!value;
         writeStorageBoolean(getStatsHiddenStorageKey(), statsHidden);
+    }
+
+    function loadSettingsBubbleEnabled() {
+        return readStorageBoolean(STORAGE_KEY_SETTINGS_BUBBLE_ENABLED, false);
+    }
+
+    function saveSettingsBubbleEnabled(value) {
+        settingsBubbleEnabled = !!value;
+        writeStorageBoolean(STORAGE_KEY_SETTINGS_BUBBLE_ENABLED, settingsBubbleEnabled);
+    }
+
+    function loadCrossChannelMentionEnabled() {
+        return readStorageBoolean(STORAGE_KEY_CROSS_CHANNEL_MENTION_ENABLED, false);
+    }
+
+    function saveCrossChannelMentionEnabled(value) {
+        crossChannelMentionEnabled = !!value;
+        writeStorageBoolean(STORAGE_KEY_CROSS_CHANNEL_MENTION_ENABLED, crossChannelMentionEnabled);
+    }
+
+    function loadCrossChannelMentionChannelIds() {
+        const value = readStorageJson(STORAGE_KEY_CROSS_CHANNEL_MENTION_CHANNELS, null);
+        if (!Array.isArray(value)) return null;
+
+        return [...new Set(value.map((id) => String(id || '').trim()).filter(Boolean))];
+    }
+
+    function saveCrossChannelMentionChannelIds(channelIds) {
+        crossChannelMentionChannelIds = [...new Set(
+            (Array.isArray(channelIds) ? channelIds : [])
+                .map((id) => String(id || '').trim())
+                .filter(Boolean)
+        )];
+        writeStorageJson(STORAGE_KEY_CROSS_CHANNEL_MENTION_CHANNELS, crossChannelMentionChannelIds);
     }
 
     function getDefaultMentionSettings() {
@@ -3626,7 +3532,9 @@
             soundScope,
             soundStyle: normalizeMentionSoundStyle(value.soundStyle),
             soundCustomUrl: normalizeMentionSoundCustomUrl(value.soundCustomUrl),
-            soundCooldownSeconds: clamp(Number(value.soundCooldownSeconds) || 0, 0, 300)
+            soundCooldownSeconds: Number.isFinite(Number(value.soundCooldownSeconds))
+                ? clamp(Number(value.soundCooldownSeconds), 0, 300)
+                : DEFAULT_MENTION_SOUND_COOLDOWN_SECONDS
         };
     }
 
@@ -4278,59 +4186,13 @@
         document.documentElement.removeAttribute('data-tm-message-actions-left');
     }
 
-    function ensureHomeChatPopoverStyle() {
-        if (document.getElementById(HOME_CHAT_POPOVER_STYLE_ID)) return;
-        if (!document.head) return;
-
-        const style = document.createElement('style');
-        style.id = HOME_CHAT_POPOVER_STYLE_ID;
-        style.textContent = `
-            [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] {
-                position: relative !important;
-                overflow: visible !important;
-                z-index: 1 !important;
-                isolation: isolate;
-            }
-
-            [${HOME_CHAT_POPOVER_PARENT_ATTR}="1"] {
-                overflow: visible !important;
-            }
-
-            [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] [${CHAT_INPUT_TOOLBAR_RAIL_ATTR}="1"] {
-                z-index: 180 !important;
-                overflow: visible !important;
-            }
-
-            [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] #${PHRASES_MENU_WRAPPER_ID},
-            [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] #${GIF_MENU_WRAPPER_ID},
-            [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] #${IMAGE_UPLOAD_MENU_WRAPPER_ID},
-            [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] [${NATIVE_CHAT_INPUT_ACTION_HOST_ATTR}="1"],
-            [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] [${NATIVE_CHAT_INPUT_ACTION_SOURCE_ATTR}="1"] {
-                z-index: 220 !important;
-                overflow: visible !important;
-            }
-
-            [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] #${PHRASES_MENU_WRAPPER_ID} [data-tm-saved-phrases-menu="1"],
-            [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] #${GIF_MENU_WRAPPER_ID} [data-tm-klipy-gif-menu="1"],
-            [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] #${IMAGE_UPLOAD_MENU_WRAPPER_ID} [data-tm-image-upload-menu="1"],
-            [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] [${NATIVE_CHAT_INPUT_ACTION_SOURCE_ATTR}="1"] > .absolute.bottom-12,
-            [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] [${NATIVE_CHAT_INPUT_ACTION_SOURCE_ATTR}="1"] > .fixed.bottom-12,
-            [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] [${NATIVE_CHAT_INPUT_ACTION_SOURCE_ATTR}="1"] > .absolute.bottom-24,
-            [${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"] [${NATIVE_CHAT_INPUT_ACTION_SOURCE_ATTR}="1"] > .fixed.bottom-24 {
-                z-index: 1400 !important;
-            }
-        `;
-
-        document.head.appendChild(style);
-    }
-
     function ensureChatInputToolbarStyle() {
         if (document.getElementById(CHAT_INPUT_TOOLBAR_STYLE_ID)) return;
         if (!document.head) return;
 
-        const toolbarHeight = isTr4kerPage() ? 42 : 32;
-        const toolbarPadding = isTr4kerPage() ? '7px 8px' : '3px 6px';
-        const toolbarButtonHeight = isTr4kerPage() ? 28 : 24;
+        const toolbarHeight = 42;
+        const toolbarPadding = '7px 8px';
+        const toolbarButtonHeight = 28;
         const style = document.createElement('style');
         style.id = CHAT_INPUT_TOOLBAR_STYLE_ID;
         style.textContent = `
@@ -4448,34 +4310,6 @@
         `;
 
         document.head.appendChild(style);
-    }
-
-    function applyHomeChatPopoverState() {
-        ensureHomeChatPopoverStyle();
-
-        document.querySelectorAll(`[${HOME_CHAT_POPOVER_SURFACE_ATTR}="1"]`).forEach((element) => {
-            if (element instanceof HTMLElement) {
-                element.removeAttribute(HOME_CHAT_POPOVER_SURFACE_ATTR);
-            }
-        });
-
-        document.querySelectorAll(`[${HOME_CHAT_POPOVER_PARENT_ATTR}="1"]`).forEach((element) => {
-            if (element instanceof HTMLElement) {
-                element.removeAttribute(HOME_CHAT_POPOVER_PARENT_ATTR);
-            }
-        });
-
-        if (!isHomePage() || homeChatCollapsed) return;
-
-        const homeContainer = getHomepageChatContainer();
-        if (!(homeContainer instanceof HTMLElement)) return;
-
-        homeContainer.setAttribute(HOME_CHAT_POPOVER_SURFACE_ATTR, '1');
-
-        let ancestor = homeContainer.parentElement;
-        for (let depth = 0; ancestor && depth < 3; depth += 1, ancestor = ancestor.parentElement) {
-            ancestor.setAttribute(HOME_CHAT_POPOVER_PARENT_ATTR, '1');
-        }
     }
 
     function ensureNativeChatInputPopoverStyle() {
@@ -4720,14 +4554,41 @@
         document.head.appendChild(style);
     }
 
+    function closeTr4kerT9TopbarMenus(scope = document) {
+        if (!scope || typeof scope.querySelectorAll !== 'function') return;
+        scope.querySelectorAll('[data-tm-t9-menu-panel], [data-tm-t9-profile-panel]').forEach((panel) => {
+            panel.setAttribute('hidden', '');
+        });
+        scope.querySelectorAll('[data-tm-t9-menu-toggle], [data-tm-t9-profile-toggle]').forEach((toggle) => {
+            toggle.setAttribute('aria-expanded', 'false');
+        });
+    }
+
+    function installTr4kerT9TopbarOutsideClickHandler() {
+        if (tr4kerT9TopbarOutsideClickHandlerInstalled) return;
+        tr4kerT9TopbarOutsideClickHandlerInstalled = true;
+
+        document.addEventListener('click', (event) => {
+            const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+            if (target?.closest('[data-tm-topbar-template="t9"]')) return;
+            closeTr4kerT9TopbarMenus();
+        }, true);
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') closeTr4kerT9TopbarMenus();
+        }, true);
+    }
+
     function installTr4kerT9TopbarHandlers(bar, nativeLogout) {
         if (!(bar instanceof HTMLElement) || bar.dataset.tmHandlers === '1') return;
         bar.dataset.tmHandlers = '1';
+        installTr4kerT9TopbarOutsideClickHandler();
         const menuToggle = bar.querySelector('[data-tm-t9-menu-toggle]');
         const menuPanel = bar.querySelector('[data-tm-t9-menu-panel]');
         menuToggle?.addEventListener('click', (event) => {
             event.preventDefault();
             const open = menuPanel?.hasAttribute('hidden') === true;
+            closeTr4kerT9TopbarMenus(bar);
             menuPanel?.toggleAttribute('hidden', !open);
             menuToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
         });
@@ -4736,6 +4597,7 @@
         profileToggle?.addEventListener('click', (event) => {
             event.preventDefault();
             const open = profilePanel?.hasAttribute('hidden') === true;
+            closeTr4kerT9TopbarMenus(bar);
             profilePanel?.toggleAttribute('hidden', !open);
             profileToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
         });
@@ -7697,7 +7559,8 @@
 
     function normalizeMentionSoundScope(value) {
         const raw = String(value || '').trim().toLowerCase();
-        if (raw === 'home' || raw === 'chat' || raw === 'both' || raw === 'off') return raw;
+        if (raw === 'chat' || raw === 'both') return 'chat';
+        if (raw === 'home' || raw === 'off') return 'off';
         return DEFAULT_MENTION_SOUND_SCOPE;
     }
 
@@ -7709,8 +7572,6 @@
         const normalizedScope = normalizeMentionSoundScope(scope);
 
         if (normalizedScope === 'off') return false;
-        if (normalizedScope === 'both') return isSupportedPage();
-        if (normalizedScope === 'home') return isHomePage();
         if (normalizedScope === 'chat') return isChatPage();
 
         return false;
@@ -8375,21 +8236,8 @@
         });
     }
 
-    function getHomepageChatContainer() {
-        if (isTr4kerPage()) return null;
-
-        const headers = Array.from(document.querySelectorAll('span.font-medium.text-white.text-sm'));
-        for (const span of headers) {
-            if (span.textContent.trim() === 'Chat') {
-                return span.closest('.bg-zinc-950');
-            }
-        }
-        return null;
-    }
-
     function getActiveChatRoot() {
         if (isChatPage()) return getChatPageMessagesRoot() || document.body;
-        if (isHomePage()) return getHomepageMessagesRoot();
         return null;
     }
 
@@ -8405,115 +8253,38 @@
     function getChatPageHeaderTitle() {
         if (!isChatPage()) return '';
 
-        if (isTr4kerPage()) {
-            const title = document.querySelector('[class*="convTitleGroup"] [class*="convTitleRow"], [class*="convTitleRow"]');
-            const value = String(title?.textContent || '').trim();
-            if (value && normalizeChatContextLabel(value) !== 'chat') return value;
+        const title = document.querySelector('[class*="convTitleGroup"] [class*="convTitleRow"], [class*="convTitleRow"]');
+        const value = String(title?.textContent || '').trim();
+        if (value && normalizeChatContextLabel(value) !== 'chat') return value;
 
-            const conversationId = new URLSearchParams(location.search).get('conv');
-            return conversationId ? `Conversation #${conversationId}` : 'Conversation';
-        }
-
-        const titles = Array.from(document.querySelectorAll('h2.text-sm.font-semibold.text-white.truncate'));
-        for (const title of titles) {
-            const value = String(title.textContent || '').trim();
-            if (!value) continue;
-            if (normalizeChatContextLabel(value) === 'chat') continue;
-            return value;
-        }
-
-        return '';
+        const conversationId = new URLSearchParams(location.search).get('conv');
+        return conversationId ? `Conversation #${conversationId}` : 'Conversation';
     }
 
     function getChatPageHeaderElement() {
         if (!isChatPage()) return null;
 
-        if (isTr4kerPage()) {
-            return document.querySelector('[class*="_header_1cvih"], [class*="chatArea"] [class*="header"]');
-        }
-
-        const titles = Array.from(document.querySelectorAll('h2.text-sm.font-semibold.text-white.truncate'));
-        for (const title of titles) {
-            const value = String(title.textContent || '').trim();
-            if (!value) continue;
-            if (normalizeChatContextLabel(value) === 'chat') continue;
-
-            const header = title.closest('div');
-            if (header instanceof HTMLElement) {
-                return header;
-            }
-        }
-
-        return null;
+        return document.querySelector('[class*="_header_1cvih"], [class*="chatArea"] [class*="header"]');
     }
 
     function getChatPageMessagesRoot() {
         if (!isChatPage()) return null;
 
-        if (isTr4kerPage()) {
-            const stableRoot = document.querySelector(TR4KER_MESSAGE_ROOT_SELECTOR);
-            if (stableRoot instanceof HTMLElement) return stableRoot;
+        const stableRoot = document.querySelector(TR4KER_MESSAGE_ROOT_SELECTOR);
+        if (stableRoot instanceof HTMLElement) return stableRoot;
 
-            const firstMessage = document.querySelector(TR4KER_MESSAGE_SELECTOR);
-            if (!(firstMessage instanceof HTMLElement)) return null;
+        const firstMessage = document.querySelector(TR4KER_MESSAGE_SELECTOR);
+        if (!(firstMessage instanceof HTMLElement)) return null;
 
-            let ancestor = firstMessage.parentElement;
-            while (ancestor && ancestor !== document.body) {
-                if (ancestor.querySelectorAll(TR4KER_MESSAGE_SELECTOR).length > 1) {
-                    return ancestor;
-                }
-                ancestor = ancestor.parentElement;
+        let ancestor = firstMessage.parentElement;
+        while (ancestor && ancestor !== document.body) {
+            if (ancestor.querySelectorAll(TR4KER_MESSAGE_SELECTOR).length > 1) {
+                return ancestor;
             }
-
-            return firstMessage.parentElement;
+            ancestor = ancestor.parentElement;
         }
 
-        const header = getChatPageHeaderElement();
-        const getDirectMessageCount = (scroller) => {
-            if (!(scroller instanceof HTMLElement)) return 0;
-            return scroller.querySelectorAll(':scope > .group.relative.flex.items-start').length;
-        };
-
-        const getScrollerCandidates = (scope) => {
-            if (!scope || typeof scope.querySelectorAll !== 'function') return [];
-
-            return Array.from(scope.querySelectorAll('div.flex-1.overflow-y-auto.py-2, .overflow-y-auto')).filter((scroller) => {
-                if (!(scroller instanceof HTMLElement)) return false;
-                if (scroller.closest(`#${PANEL_ID}, #${MODAL_ID}, #${OVERLAY_ID}, #${TOAST_ID}`)) return false;
-                if (!scroller.classList.contains('overflow-y-auto')) return false;
-                return getDirectMessageCount(scroller) > 0;
-            });
-        };
-
-        const pickBestScroller = (scrollers) => {
-            if (!Array.isArray(scrollers) || scrollers.length === 0) return null;
-
-            return scrollers
-                .slice()
-                .sort((a, b) =>
-                    Number(b.matches('div.flex-1.overflow-y-auto.py-2')) -
-                    Number(a.matches('div.flex-1.overflow-y-auto.py-2')) ||
-                    getDirectMessageCount(b) - getDirectMessageCount(a)
-                )[0] || null;
-        };
-
-        if (header instanceof HTMLElement) {
-            const directContainer = header.parentElement;
-            const directMatch = pickBestScroller(getScrollerCandidates(directContainer));
-            if (directMatch) return directMatch;
-
-            const panelContainer = header.closest('.bg-zinc-950');
-            const panelMatch = pickBestScroller(getScrollerCandidates(panelContainer));
-            if (panelMatch) return panelMatch;
-
-            let ancestor = directContainer?.parentElement || null;
-            for (let depth = 0; ancestor && depth < 4; depth += 1, ancestor = ancestor.parentElement) {
-                const ancestorMatch = pickBestScroller(getScrollerCandidates(ancestor));
-                if (ancestorMatch) return ancestorMatch;
-            }
-        }
-
-        return pickBestScroller(getScrollerCandidates(document));
+        return firstMessage.parentElement;
     }
 
     function logMentionDebug(message, details = null) {
@@ -8550,42 +8321,22 @@
     function getCurrentChatContext() {
         if (!isChatPage()) return null;
 
-        if (isTr4kerPage()) {
-            const title = getChatPageHeaderTitle();
-            if (isTr4kerPrivateConversation()) {
-                return {
-                    type: 'private',
-                    name: title || 'Conversation privée'
-                };
-            }
-
-            const conversationId = new URLSearchParams(location.search).get('conv');
-            return {
-                type: 'channel',
-                name: title || (conversationId ? `conversation-${conversationId}` : 'conversation')
-            };
-        }
-
-        const headerTitle = getChatPageHeaderTitle();
-        if (headerTitle) {
-            if (headerTitle.startsWith('#')) {
-                return {
-                    type: 'channel',
-                    name: headerTitle.slice(1).trim()
-                };
-            }
-
+        const title = getChatPageHeaderTitle();
+        if (isTr4kerPrivateConversation()) {
             return {
                 type: 'private',
-                name: headerTitle
+                name: title || 'Conversation privée'
             };
         }
 
-        return null;
+        const conversationId = new URLSearchParams(location.search).get('conv');
+        return {
+            type: 'channel',
+            name: title || (conversationId ? `conversation-${conversationId}` : 'conversation')
+        };
     }
 
     function getCurrentChatContextKey() {
-        if (isHomePage()) return 'home';
         if (!isChatPage()) return 'other';
 
         const context = getCurrentChatContext();
@@ -8620,31 +8371,9 @@
     }
 
     function isMentionAndHighlightContextAllowed() {
-        if (isHomePage()) return true;
         if (!isChatPage()) return false;
 
-        if (isTr4kerPage()) return !isTr4kerPrivateConversation();
-
-        const context = getCurrentChatContext();
-        if (!context) return true;
-
-        return context.type === 'channel' && ALLOWED_CHAT_CHANNELS.has(normalizeChatContextLabel(context.name));
-    }
-
-    function getHomepageChatHeader(container = null) {
-        const chatContainer = container || getHomepageChatContainer();
-        if (!(chatContainer instanceof HTMLElement)) return null;
-        return chatContainer.firstElementChild instanceof HTMLElement
-            ? chatContainer.firstElementChild
-            : null;
-    }
-
-    function getHomepageMessagesRoot(container = null) {
-        if (isTr4kerPage()) return null;
-
-        const chatContainer = container || getHomepageChatContainer();
-        if (!(chatContainer instanceof HTMLElement)) return null;
-        return chatContainer.querySelector('.custom-scrollbar');
+        return !isTr4kerPrivateConversation();
     }
 
     function applyMessageTypography(messageEl, scale = chatFontScale) {
@@ -8652,89 +8381,29 @@
 
         const safeScale = clampChatFontScale(scale);
 
-        if (isTr4kerPage()) {
-            const userButton = messageEl.querySelector('[class*="msgSender"]');
-            const textBlock = messageEl.querySelector('[class*="msgBubble"]');
-            const metaSpans = messageEl.querySelectorAll('[class*="msgMeta"] > *');
+        const userButton = messageEl.querySelector('[class*="msgSender"]');
+        const textBlock = messageEl.querySelector('[class*="msgBubble"]');
+        const metaSpans = messageEl.querySelectorAll('[class*="msgMeta"] > *');
 
-            if (userButton instanceof HTMLElement) {
-                userButton.style.fontSize = scalePixels(14, safeScale);
-                userButton.style.lineHeight = '1.35';
-            }
-            metaSpans.forEach((span) => {
-                if (span instanceof HTMLElement) span.style.fontSize = scalePixels(12, safeScale);
-            });
-            if (textBlock instanceof HTMLElement) {
-                textBlock.style.fontSize = scalePixels(14, safeScale);
-                textBlock.style.lineHeight = safeScale >= 1.2 ? '1.6' : '1.5';
-            }
-            applyTr4kerPseudonymGradeColor(messageEl);
-            return;
+        if (userButton instanceof HTMLElement) {
+            userButton.style.fontSize = scalePixels(14, safeScale);
+            userButton.style.lineHeight = '1.35';
         }
-
-        if (isChatPage()) {
-            const userButton = messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-baseline button[type="button"]');
-            const textBlock = messageEl.querySelector(':scope > .flex-1.min-w-0 > .text-sm.text-gray-200.break-words');
-            const metaSpans = messageEl.querySelectorAll(':scope > .flex-1.min-w-0 > .flex.items-baseline span');
-
-            if (userButton instanceof HTMLElement) {
-                userButton.style.fontSize = scalePixels(14, safeScale);
-                userButton.style.lineHeight = '1.35';
-            }
-
-            metaSpans.forEach((span) => {
-                if (span instanceof HTMLElement) {
-                    span.style.fontSize = scalePixels(12, safeScale);
-                    span.style.lineHeight = '1.35';
-                }
-            });
-
-            if (textBlock instanceof HTMLElement) {
-                textBlock.style.fontSize = scalePixels(14, safeScale);
-                textBlock.style.lineHeight = safeScale >= 1.2 ? '1.6' : '1.5';
-            }
-
-            return;
+        metaSpans.forEach((span) => {
+            if (span instanceof HTMLElement) span.style.fontSize = scalePixels(12, safeScale);
+        });
+        if (textBlock instanceof HTMLElement) {
+            textBlock.style.fontSize = scalePixels(14, safeScale);
+            textBlock.style.lineHeight = safeScale >= 1.2 ? '1.6' : '1.5';
         }
+        applyTr4kerPseudonymGradeColor(messageEl);
 
-        if (isHomePage()) {
-            const userSpan = messageEl.querySelector('span.text-xs.font-bold');
-            const textBlock = messageEl.querySelector(':scope > .flex-1.min-w-0 > p.break-words.leading-snug');
-            const metaSpans = messageEl.querySelectorAll(':scope > .flex-1.min-w-0 > .flex.items-center span:not(.text-xs.font-bold)');
-
-            if (userSpan instanceof HTMLElement) {
-                userSpan.style.fontSize = scalePixels(12, safeScale);
-                userSpan.style.lineHeight = '1.35';
-            }
-
-            metaSpans.forEach((span) => {
-                if (span instanceof HTMLElement) {
-                    span.style.fontSize = scalePixels(11, safeScale);
-                    span.style.lineHeight = '1.35';
-                }
-            });
-
-            if (textBlock instanceof HTMLElement) {
-                textBlock.style.fontSize = scalePixels(13, safeScale);
-                textBlock.style.lineHeight = safeScale >= 1.2 ? '1.6' : '1.5';
-            }
-        }
     }
 
     function getMessageMetaRow(messageEl) {
         if (!(messageEl instanceof HTMLElement) || !isChatPage()) return null;
 
-        if (isTr4kerPage()) {
-            return messageEl.querySelector('[class*="msgMeta"]');
-        }
-
-        const exactMetaRow = messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-baseline.gap-2.mb-0\\.5');
-        if (exactMetaRow instanceof HTMLElement) {
-            return exactMetaRow;
-        }
-
-        const fallbackMetaRow = messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-baseline');
-        return fallbackMetaRow instanceof HTMLElement ? fallbackMetaRow : null;
+        return messageEl.querySelector('[class*="msgMeta"]');
     }
 
     function getMessageMetaAnchorElement(messageEl) {
@@ -8805,7 +8474,7 @@
             anchorEl.getClientRects().length > 0;
 
         if (!hasVisibleMetaAnchor) {
-            const actionButtonsContainer = isTr4kerPage() && messageActionsLeftEnabled
+            const actionButtonsContainer = messageActionsLeftEnabled
                 ? getMessageActionButtonsContainer(messageEl)
                 : null;
             const textAnchorRect = getTr4kerMessageTextAnchorRect(messageEl);
@@ -8871,62 +8540,14 @@
     function getUsernameFromMessage(messageEl) {
         if (!(messageEl instanceof HTMLElement)) return null;
 
-        if (isTr4kerPage()) {
-            const sender = messageEl.querySelector('[class*="msgSender"]');
-            return sender instanceof HTMLElement ? sender.textContent.trim() : null;
-        }
-
-        if (isChatPage()) {
-            const userBtn = messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-baseline button[type="button"]');
-            if (!userBtn) return null;
-            return userBtn.textContent.trim();
-        }
-
-        if (isHomePage()) {
-            const userSpan = messageEl.querySelector('span.text-xs.font-bold');
-            if (!userSpan) return null;
-            return userSpan.textContent.trim();
-        }
-
-        return null;
+        const sender = messageEl.querySelector('[class*="msgSender"]');
+        return sender instanceof HTMLElement ? sender.textContent.trim() : null;
     }
 
     function isChatMessage(el) {
         if (!(el instanceof HTMLElement)) return false;
 
-        if (isTr4kerPage()) {
-            return el.matches(TR4KER_MESSAGE_SELECTOR) && !!el.querySelector('[class*="msgBubble"]');
-        }
-
-        // On ne veut matcher que le conteneur principal du message,
-        // pas les div internes.
-        const isMessageContainer =
-              el.classList.contains('group') &&
-              el.classList.contains('relative') &&
-              el.classList.contains('flex') &&
-              el.classList.contains('items-start');
-
-        if (!isMessageContainer) return false;
-
-        if (isChatPage()) {
-            const hasTextBlock = !!el.querySelector(':scope > .flex-1.min-w-0 > .text-sm.text-gray-200.break-words');
-            const hasHeaderWithUser = !!el.querySelector(':scope > .flex-1.min-w-0 > .flex.items-baseline button[type="button"]');
-            const hasAvatarSlot = !!el.querySelector(':scope > .flex-shrink-0.w-7, :scope > .flex-shrink-0.w-7.md\\:w-9');
-
-            // Ici on accepte :
-            // - message complet (avatar + pseudo + texte)
-            // - message de suite (slot avatar vide + texte)
-            return hasTextBlock && hasAvatarSlot;
-        }
-
-        if (isHomePage()) {
-            const hasTextBlock = !!el.querySelector(':scope > .flex-1.min-w-0 > p.break-words.leading-snug');
-            const hasAvatarSlot = !!el.querySelector(':scope > .flex-shrink-0.w-6');
-
-            return hasTextBlock && hasAvatarSlot;
-        }
-
-        return false;
+        return el.matches(TR4KER_MESSAGE_SELECTOR) && !!el.querySelector('[class*="msgBubble"]');
     }
 
     function incrementBlockedCount(username, messageEl) {
@@ -9108,7 +8729,7 @@
         if (toast) toast.remove();
     }
 
-    function showToast(message, isError = false) {
+    function showToast(message, isError = false, durationMs = 2200) {
         const toast = getOrCreateToast();
         if (!toast) return;
 
@@ -9123,7 +8744,7 @@
             toast.style.opacity = '0';
             toast.style.transform = 'translate(-50%, 12px)';
             toastHideTimer = null;
-        }, 2200);
+        }, Math.max(500, Number(durationMs) || 2200));
     }
 
     function getPlatformShortcutModifierLabel() {
@@ -9564,6 +9185,214 @@
             messageText,
             replyContextText
         };
+    }
+
+    function messageTextMentionsUsername(messageText, watchedUsername = mentionSettings.username) {
+        const normalizedWatchedUsername = normalizeMentionComparableText(watchedUsername).replace(/^@+/, '');
+        const normalizedMessageText = normalizeMentionComparableText(messageText);
+        if (!normalizedWatchedUsername || !normalizedMessageText) return false;
+
+        const mentionRegex = new RegExp(
+            `(^|[^\\p{L}\\p{N}_])@${escapeRegExp(normalizedWatchedUsername)}(?=$|[^\\p{L}\\p{N}_])`,
+            'u'
+        );
+        return mentionRegex.test(normalizedMessageText);
+    }
+
+    function rememberCrossChannelMentionMessage(messageId) {
+        const key = String(messageId || '').trim();
+        if (!key || crossChannelMentionSeenMessageIds.has(key)) return false;
+
+        crossChannelMentionSeenMessageIds.add(key);
+        if (crossChannelMentionSeenMessageIds.size > 500) {
+            crossChannelMentionSeenMessageIds.delete(crossChannelMentionSeenMessageIds.values().next().value);
+        }
+        return true;
+    }
+
+    async function refreshCrossChannelMentionChannels(force = false) {
+        const staleAfterMs = 5 * 60 * 1000;
+        if (!isTr4kerPage()) return crossChannelMentionChannels;
+        if (!force && crossChannelMentionChannels.size > 0 && Date.now() - crossChannelMentionChannelsFetchedAt < staleAfterMs) {
+            return crossChannelMentionChannels;
+        }
+        if (crossChannelMentionChannelsRequest) return crossChannelMentionChannelsRequest;
+
+        crossChannelMentionChannelsRequest = fetch('/api/channels', { credentials: 'include' })
+            .then((response) => response.ok ? response.json() : null)
+            .then((payload) => {
+                const channels = Array.isArray(payload?.channels) ? payload.channels : [];
+                crossChannelMentionChannels.clear();
+                channels.forEach((channel) => {
+                    const id = String(channel?.id ?? '').trim();
+                    const slug = String(channel?.slug ?? '').trim();
+                    const name = String(channel?.name ?? slug).trim();
+                    if (id && slug && name) crossChannelMentionChannels.set(id, { slug, name });
+                });
+                crossChannelMentionChannelsFetchedAt = Date.now();
+                return crossChannelMentionChannels;
+            })
+            .catch(() => crossChannelMentionChannels)
+            .finally(() => {
+                crossChannelMentionChannelsRequest = null;
+            });
+
+        return crossChannelMentionChannelsRequest;
+    }
+
+    function isCurrentCrossChannelMentionChannel(channel) {
+        return isChatPage() &&
+            channel?.slug &&
+            location.pathname === `/communication/channels/${channel.slug}`;
+    }
+
+    function isCrossChannelMentionChannelEnabled(channelId) {
+        const normalizedChannelId = String(channelId || '').trim();
+        return !!normalizedChannelId && (
+            crossChannelMentionChannelIds === null ||
+            crossChannelMentionChannelIds.includes(normalizedChannelId)
+        );
+    }
+
+    function setCrossChannelMentionChannelEnabled(channelId, enabled) {
+        const normalizedChannelId = String(channelId || '').trim();
+        if (!normalizedChannelId) return;
+
+        const selectedChannelIds = new Set(
+            crossChannelMentionChannelIds === null
+                ? crossChannelMentionChannels.keys()
+                : crossChannelMentionChannelIds
+        );
+        if (enabled) {
+            selectedChannelIds.add(normalizedChannelId);
+        } else {
+            selectedChannelIds.delete(normalizedChannelId);
+        }
+        saveCrossChannelMentionChannelIds([...selectedChannelIds]);
+    }
+
+    function reserveMentionSoundCooldown() {
+        const cooldownSeconds = parseMentionSoundCooldownInput(
+            mentionSettings.soundCooldownSeconds,
+            DEFAULT_MENTION_SOUND_COOLDOWN_SECONDS
+        );
+        const cooldownMs = cooldownSeconds * 1000;
+        const now = Date.now();
+        const previousLastMentionSoundAt = lastMentionSoundAt;
+        const nextAllowedAt = Math.max(
+            mentionSoundCooldownUntil,
+            previousLastMentionSoundAt + cooldownMs
+        );
+        if (cooldownMs > 0 && now < nextAllowedAt) {
+            return {
+                allowed: false,
+                cooldownSeconds,
+                now,
+                previousLastMentionSoundAt,
+                remainingMs: nextAllowedAt - now
+            };
+        }
+
+        lastMentionSoundAt = now;
+        mentionSoundCooldownUntil = now + cooldownMs;
+        return {
+            allowed: true,
+            cooldownSeconds,
+            now,
+            previousLastMentionSoundAt,
+            remainingMs: 0
+        };
+    }
+
+    function maybePlayCrossChannelMentionSound() {
+        if (!isMentionSoundScopeEnabled()) return;
+
+        const reservation = reserveMentionSoundCooldown();
+        if (!reservation.allowed) return;
+
+        void playMentionNotificationSound(mentionSettings.soundStyle, mentionSettings.soundCustomUrl).then((played) => {
+            if (!played) logMentionDebug('cross-channel sound: playback unavailable, cooldown preserved');
+        });
+    }
+
+    async function handleCrossChannelMentionMessage(message) {
+        if (!crossChannelMentionEnabled || !mentionSettings.username || message?.type !== 'msg.received') return;
+
+        const conversationId = String(message.conv_id ?? '').trim();
+        const messageId = String(message.id ?? `${conversationId}:${message.at || ''}:${message.sender || ''}:${message.body || ''}`);
+        if (!conversationId || !messageTextMentionsUsername(message.body)) return;
+
+        const channels = await refreshCrossChannelMentionChannels();
+        const channel = channels.get(conversationId);
+        if (!channel || !isCrossChannelMentionChannelEnabled(conversationId) || isCurrentCrossChannelMentionChannel(channel)) return;
+
+        const watchedUsername = normalizeName(mentionSettings.username);
+        const sender = String(message.sender || '').trim();
+        if (normalizeName(sender) === watchedUsername || !rememberCrossChannelMentionMessage(messageId)) return;
+
+        const excerpt = String(message.body || '').replace(/\s+/g, ' ').trim().slice(0, 92);
+        showToast(`@${mentionSettings.username} mentionné${sender ? ` par ${sender}` : ''} dans #${channel.name}${excerpt ? ` : ${excerpt}` : ''}`, false, 10000);
+        maybePlayCrossChannelMentionSound();
+    }
+
+    function closeCrossChannelMentionSocket() {
+        if (crossChannelMentionReconnectTimer) {
+            clearTimeout(crossChannelMentionReconnectTimer);
+            crossChannelMentionReconnectTimer = null;
+        }
+
+        const socket = crossChannelMentionSocket;
+        crossChannelMentionSocket = null;
+        if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+            socket.close();
+        }
+    }
+
+    function syncCrossChannelMentionSocket() {
+        const shouldMonitor = isTr4kerPage() && crossChannelMentionEnabled && !!mentionSettings.username;
+        if (!shouldMonitor) {
+            closeCrossChannelMentionSocket();
+            return;
+        }
+        if (crossChannelMentionSocket && (
+            crossChannelMentionSocket.readyState === WebSocket.OPEN ||
+            crossChannelMentionSocket.readyState === WebSocket.CONNECTING
+        )) return;
+
+        void refreshCrossChannelMentionChannels();
+        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        let socket = null;
+        try {
+            socket = new WebSocket(`${protocol}//${location.host}/api/ws`);
+        } catch (e) {
+            return;
+        }
+        crossChannelMentionSocket = socket;
+
+        socket.addEventListener('open', () => {
+            if (crossChannelMentionSocket === socket) crossChannelMentionReconnectDelay = 1000;
+        });
+        socket.addEventListener('message', (event) => {
+            try {
+                const message = JSON.parse(event.data);
+                if (message?.type === 'ping') {
+                    socket.send(JSON.stringify({ type: 'pong' }));
+                    return;
+                }
+                void handleCrossChannelMentionMessage(message);
+            } catch (e) {}
+        });
+        socket.addEventListener('close', () => {
+            if (crossChannelMentionSocket !== socket) return;
+            crossChannelMentionSocket = null;
+            if (!crossChannelMentionEnabled || !mentionSettings.username) return;
+
+            crossChannelMentionReconnectTimer = window.setTimeout(() => {
+                crossChannelMentionReconnectTimer = null;
+                syncCrossChannelMentionSocket();
+            }, crossChannelMentionReconnectDelay);
+            crossChannelMentionReconnectDelay = Math.min(crossChannelMentionReconnectDelay * 2, 30000);
+        });
     }
 
     function getOrCreateAfkPanel() {
@@ -10039,7 +9868,7 @@
 
     function toggleAfkModeForCurrentContext() {
         if (!isSupportedPage()) {
-            return { ok: false, message: 'Mode AFK disponible seulement sur l’accueil ou la page chat.' };
+            return { ok: false, message: 'Mode AFK disponible seulement sur la page Communication.' };
         }
 
         const watchedUsername = getAfkWatchedUsername();
@@ -10168,7 +9997,7 @@
         const style = document.createElement('style');
         style.id = MENTION_STYLE_ID;
         style.textContent = `
-            @keyframes tm-torr9-mention-pulse {
+            @keyframes tm-t4-mention-pulse {
                 0%, 100% {
                     background: var(--tm-mention-bg-soft);
                     box-shadow:
@@ -10233,146 +10062,6 @@
         modal.setAttribute('data-tm-scrollable-modal', '1');
         modal.style.overflowY = 'scroll';
         modal.style.overflowX = 'hidden';
-    }
-
-    function updateHomeCollapseButton() {
-        const button = document.getElementById(HOME_COLLAPSE_BUTTON_ID);
-        if (!(button instanceof HTMLButtonElement)) return;
-
-        button.textContent = homeChatCollapsed ? 'Afficher' : 'Cacher';
-        button.title = homeChatCollapsed
-            ? 'Réafficher la shoutbox d’accueil'
-            : 'Masquer la shoutbox d’accueil';
-        button.setAttribute('aria-pressed', homeChatCollapsed ? 'true' : 'false');
-    }
-
-    function needsHomepageCollapseUiRefresh(container = getHomepageChatContainer()) {
-        if (!isHomePage()) return false;
-        if (!(container instanceof HTMLElement)) return false;
-
-        const header = getHomepageChatHeader(container);
-        const rightArea = header?.lastElementChild;
-        const button = document.getElementById(HOME_COLLAPSE_BUTTON_ID);
-        const expectedState = homeChatCollapsed ? '1' : '0';
-
-        return (
-            !(button instanceof HTMLButtonElement) ||
-            !(rightArea instanceof HTMLElement) ||
-            button.parentElement !== rightArea ||
-            container.dataset.tmHomeCollapsed !== expectedState
-        );
-    }
-
-    function syncHomepageCollapseUi(force = false) {
-        if (!isHomePage()) return;
-
-        const container = getHomepageChatContainer();
-        if (!(container instanceof HTMLElement)) return;
-
-        if (!force && !needsHomepageCollapseUiRefresh(container)) {
-            updateHomeCollapseButton();
-            return;
-        }
-
-        applyHomepageChatCollapsedState();
-    }
-
-    function ensureHomepageCollapseButton() {
-        if (!isHomePage()) return;
-
-        const header = getHomepageChatHeader();
-        if (!header) return;
-
-        const rightArea = header.lastElementChild;
-        if (!(rightArea instanceof HTMLElement)) return;
-
-        rightArea.style.display = 'flex';
-        rightArea.style.alignItems = 'center';
-        rightArea.style.gap = '8px';
-
-        let button = document.getElementById(HOME_COLLAPSE_BUTTON_ID);
-        if (!(button instanceof HTMLButtonElement)) {
-            button = document.createElement('button');
-            button.id = HOME_COLLAPSE_BUTTON_ID;
-            button.type = 'button';
-            button.style.border = '1px solid rgba(255,255,255,0.08)';
-            button.style.background = 'rgba(39,39,42,0.95)';
-            button.style.color = '#e4e4e7';
-            button.style.borderRadius = '999px';
-            button.style.padding = '4px 10px';
-            button.style.cursor = 'pointer';
-            button.style.fontSize = '11px';
-            button.style.fontWeight = '600';
-            button.style.lineHeight = '1.2';
-
-            button.addEventListener('click', (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                toggleHomepageChatCollapsed();
-            });
-        }
-
-        if (button.parentElement !== rightArea) {
-            rightArea.appendChild(button);
-        }
-
-        updateHomeCollapseButton();
-    }
-
-    function applyHomepageChatCollapsedState() {
-        if (!isHomePage()) return;
-
-        const container = getHomepageChatContainer();
-        if (!(container instanceof HTMLElement)) return;
-
-        ensureHomepageCollapseButton();
-
-        const sections = Array.from(container.children).slice(1);
-
-        if (homeChatCollapsed) {
-            container.dataset.tmHomeCollapsed = '1';
-            container.style.height = 'auto';
-            container.style.minHeight = '0';
-            container.style.maxHeight = 'none';
-            container.style.overflow = 'hidden';
-
-            sections.forEach((section) => {
-                if (section instanceof HTMLElement) {
-                    section.style.display = 'none';
-                }
-            });
-        } else {
-            container.dataset.tmHomeCollapsed = '0';
-            container.style.removeProperty('height');
-            container.style.removeProperty('min-height');
-            container.style.removeProperty('max-height');
-            container.style.removeProperty('overflow');
-
-            sections.forEach((section) => {
-                if (section instanceof HTMLElement) {
-                    section.style.removeProperty('display');
-                }
-            });
-        }
-
-        updateHomeCollapseButton();
-        applyHomeChatPopoverState();
-    }
-
-    function toggleHomepageChatCollapsed(forceValue = !homeChatCollapsed) {
-        saveHomeChatCollapsed(forceValue);
-        applyHomepageChatCollapsedState();
-
-        if (isHomePage()) {
-            if (homeChatCollapsed) {
-                stopObserver();
-            } else {
-                processAllMessages();
-                startObserver();
-            }
-        }
-
-        showToast(homeChatCollapsed ? 'Shoutbox d’accueil repliée.' : 'Shoutbox d’accueil réaffichée.');
     }
 
     function applyBoxPosition(position = null) {
@@ -10520,8 +10209,68 @@
     }
 
     function applyStatsBoxVisibilityState() {
-        if (!statsBox) return;
-        statsBox.style.display = statsHidden ? 'none' : 'block';
+        if (statsBox) {
+            statsBox.style.display = statsHidden ? 'none' : 'block';
+        }
+        syncSettingsBubble();
+    }
+
+    function syncSettingsBubble() {
+        const existing = document.getElementById(SETTINGS_BUBBLE_ID);
+        const shouldDisplay = isTr4kerPage() && statsHidden && settingsBubbleEnabled;
+
+        if (!shouldDisplay) {
+            existing?.remove();
+            return;
+        }
+
+        if (!document.body) return;
+
+        const bubble = existing instanceof HTMLButtonElement
+            ? existing
+            : document.createElement('button');
+
+        if (!(existing instanceof HTMLButtonElement)) {
+            bubble.id = SETTINGS_BUBBLE_ID;
+            bubble.type = 'button';
+            bubble.textContent = '⚙';
+            bubble.title = 'Ouvrir la configuration PimpMyShoutbox';
+            bubble.setAttribute('aria-label', 'Ouvrir la configuration PimpMyShoutbox');
+            bubble.style.position = 'fixed';
+            bubble.style.top = '50%';
+            bubble.style.right = '0';
+            bubble.style.zIndex = '1000001';
+            bubble.style.width = '42px';
+            bubble.style.height = '48px';
+            bubble.style.border = '1px solid rgba(255,255,255,0.16)';
+            bubble.style.borderRight = 'none';
+            bubble.style.borderRadius = '14px 0 0 14px';
+            bubble.style.background = 'rgba(24,24,27,0.96)';
+            bubble.style.boxShadow = '0 8px 24px rgba(0,0,0,0.4)';
+            bubble.style.color = '#f4f4f5';
+            bubble.style.fontSize = '22px';
+            bubble.style.cursor = 'pointer';
+            bubble.style.transform = 'translateY(-50%)';
+            bubble.style.transition = 'width 140ms ease, background 140ms ease';
+            bubble.addEventListener('mouseenter', () => {
+                bubble.style.width = '50px';
+                bubble.style.background = 'rgba(63,63,70,0.98)';
+            });
+            bubble.addEventListener('mouseleave', () => {
+                bubble.style.width = '42px';
+                bubble.style.background = 'rgba(24,24,27,0.96)';
+            });
+            bubble.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (modalOpen) {
+                    closeSettingsModal();
+                    return;
+                }
+                openSettingsModal();
+            });
+            document.body.appendChild(bubble);
+        }
     }
 
     function createStatsBox() {
@@ -10817,7 +10566,7 @@
         // La priorité empêche ces styles de neutraliser l'animation userscript.
         messageEl.style.setProperty(
             'animation',
-            'tm-torr9-mention-pulse 0.9s ease-in-out infinite',
+            'tm-t4-mention-pulse 0.9s ease-in-out infinite',
             'important'
         );
 
@@ -11098,19 +10847,16 @@
 
         mentionSoundNotifiedMessages.add(messageEl);
 
-        const cooldownSeconds = parseMentionSoundCooldownInput(
-            mentionSettings.soundCooldownSeconds,
-            DEFAULT_MENTION_SOUND_COOLDOWN_SECONDS
-        );
-        const now = Date.now();
+        const cooldownReservation = reserveMentionSoundCooldown();
+        const { cooldownSeconds, now, previousLastMentionSoundAt } = cooldownReservation;
 
-        if (cooldownSeconds > 0 && now - lastMentionSoundAt < cooldownSeconds * 1000) {
+        if (!cooldownReservation.allowed) {
             logMentionDebug('skip: cooldown active', {
                 signature,
                 cooldownSeconds,
                 now,
                 lastMentionSoundAt,
-                remainingMs: Math.max(0, cooldownSeconds * 1000 - (now - lastMentionSoundAt))
+                remainingMs: cooldownReservation.remainingMs
             });
             if (signature) {
                 saveLastMentionSoundRecord({
@@ -11129,7 +10875,6 @@
             return;
         }
 
-        const previousLastMentionSoundAt = lastMentionSoundAt;
         if (signature) {
             logMentionDebug('record: pre-play', {
                 signature,
@@ -11150,7 +10895,6 @@
             });
         }
 
-        lastMentionSoundAt = now;
         void playMentionNotificationSound(mentionSettings.soundStyle, mentionSettings.soundCustomUrl).then((played) => {
             if (!played) {
                 logMentionDebug('play result: failed', {
@@ -11158,9 +10902,6 @@
                     attemptedAt: now,
                     previousLastMentionSoundAt
                 });
-                if (lastMentionSoundAt === now) {
-                    lastMentionSoundAt = previousLastMentionSoundAt;
-                }
                 return;
             }
             if (!signature) return;
@@ -11235,8 +10976,6 @@
     }
 
     function processAllMessages() {
-        if (isHomePage() && homeChatCollapsed) return;
-
         applyChatPageScrollbarState();
 
         const root = getActiveChatRoot();
@@ -11257,8 +10996,6 @@
     }
 
     function processNode(node) {
-        if (isHomePage() && homeChatCollapsed) return;
-
         const root = getActiveChatRoot();
         if (!root) return;
         if (!(node instanceof HTMLElement)) return;
@@ -11384,6 +11121,7 @@
             soundCustomUrl,
             soundCooldownSeconds
         });
+        syncCrossChannelMentionSocket();
         processAllMessages();
         updateStatsBox();
 
@@ -11488,7 +11226,6 @@
         applyChatFontScale(loadChatFontScale());
         applyStatsBoxDisplayModeState();
         applyStatsBoxVisibilityState();
-        syncHomepageCollapseUi(true);
         applyBoxPosition(loadPosition());
         constrainStatsBoxToViewport(false, false);
         updateStatsBox();
@@ -11560,6 +11297,9 @@
             mentionPreviewText: modal.querySelector('#tm-mention-preview-text'),
             mentionKeepHighlightToggle: modal.querySelector('#tm-mention-keep-highlight-toggle'),
             mentionIncludeReplyToggle: modal.querySelector('#tm-mention-include-reply-toggle'),
+            crossChannelMentionToggle: modal.querySelector('#tm-cross-channel-mention-toggle'),
+            crossChannelMentionList: modal.querySelector('#tm-cross-channel-mention-list'),
+            crossChannelMentionSelectAllBtn: modal.querySelector('#tm-cross-channel-mention-select-all'),
             mentionSoundScopeGroup: modal.querySelector('#tm-mention-sound-scope-group'),
             mentionSoundScopeButtons: Array.from(modal.querySelectorAll('[data-tm-mention-sound-scope]')),
             mentionSoundOptions: modal.querySelector('#tm-mention-sound-options'),
@@ -11577,14 +11317,13 @@
             customBackgroundEnabledToggle: modal.querySelector('#tm-custom-background-enabled-toggle'),
             customBackgroundColorInput: modal.querySelector('#tm-custom-background-color-input'),
             customBackgroundResetBtn: modal.querySelector('#tm-custom-background-reset'),
-            linkifyUrlsToggle: modal.querySelector('#tm-linkify-urls-toggle'),
             chatScrollbarToggle: modal.querySelector('#tm-chat-scrollbar-toggle'),
             messageActionsLeftToggle: modal.querySelector('#tm-message-actions-left-toggle'),
             chatInputToolbarInlineToggle: modal.querySelector('#tm-chat-input-toolbar-inline-toggle'),
             chatInputToolbarAlignRightToggle: modal.querySelector('#tm-chat-input-toolbar-align-right-toggle'),
-            embedUrlImagesToggle: modal.querySelector('#tm-embed-url-images-toggle'),
             resetStatsLayoutBtn: modal.querySelector('#tm-reset-stats-layout'),
             hideStatsToggle: modal.querySelector('#tm-hide-stats-toggle'),
+            settingsBubbleToggle: modal.querySelector('#tm-settings-bubble-toggle'),
             matrixDashboardToggle: modal.querySelector('#tm-matrix-dashboard-toggle'),
             topbarStatsAllSiteToggle: modal.querySelector('#tm-topbar-stats-all-site-toggle'),
             matrixOnlySettings: modal.querySelector('[data-tm-matrix-only-settings]'),
@@ -11610,7 +11349,6 @@
             topbarStatsShowBufferToggle: modal.querySelector('#tm-topbar-stats-show-buffer-toggle'),
             topbarBurgerToggle: modal.querySelector('#tm-topbar-burger-toggle'),
             debugToggle: modal.querySelector('#tm-debug-toggle'),
-            homeCollapseToggle: modal.querySelector('#tm-home-collapse-toggle-setting'),
             feedback: modal.querySelector('#tm-feedback')
         };
     }
@@ -12351,6 +12089,63 @@
         });
     }
 
+    function refreshSettingsCrossChannelMentionList(elements, setFeedback = () => {}) {
+        const list = elements.crossChannelMentionList;
+        const selectAllButton = elements.crossChannelMentionSelectAllBtn;
+        if (!(list instanceof HTMLElement)) return;
+
+        list.style.display = crossChannelMentionEnabled ? 'grid' : 'none';
+        if (selectAllButton instanceof HTMLButtonElement) {
+            selectAllButton.style.display = crossChannelMentionEnabled ? 'inline-flex' : 'none';
+            selectAllButton.onclick = () => {
+                saveCrossChannelMentionChannelIds([...crossChannelMentionChannels.keys()]);
+                refreshSettingsCrossChannelMentionList(elements, setFeedback);
+                setFeedback('Tous les canaux sont maintenant surveillés.');
+            };
+        }
+        list.innerHTML = '';
+
+        if (!crossChannelMentionEnabled) return;
+        if (crossChannelMentionChannels.size === 0) {
+            list.textContent = 'Chargement des canaux disponibles…';
+            list.style.fontSize = '11px';
+            list.style.color = '#a1a1aa';
+            return;
+        }
+
+        [...crossChannelMentionChannels.entries()]
+            .sort(([, first], [, second]) => first.name.localeCompare(second.name, 'fr'))
+            .forEach(([channelId, channel]) => {
+                const label = document.createElement('label');
+                label.style.display = 'flex';
+                label.style.alignItems = 'center';
+                label.style.gap = '7px';
+                label.style.padding = '7px 8px';
+                label.style.border = '1px solid rgba(255,255,255,0.07)';
+                label.style.borderRadius = '8px';
+                label.style.background = 'rgba(255,255,255,0.025)';
+                label.style.cursor = 'pointer';
+                label.style.fontSize = '11px';
+                label.style.color = '#d4d4d8';
+
+                const input = document.createElement('input');
+                input.type = 'checkbox';
+                input.checked = isCrossChannelMentionChannelEnabled(channelId);
+                input.style.accentColor = '#22c55e';
+                input.addEventListener('change', () => {
+                    setCrossChannelMentionChannelEnabled(channelId, input.checked);
+                    setFeedback(input.checked
+                        ? `Mentions activées pour #${channel.name}.`
+                        : `Mentions désactivées pour #${channel.name}.`);
+                });
+
+                const name = document.createElement('span');
+                name.textContent = `#${channel.name}`;
+                label.append(input, name);
+                list.appendChild(label);
+            });
+    }
+
     function applyMentionSettingsToModalInputs(elements) {
         if (elements.mentionUserInput instanceof HTMLInputElement) {
             elements.mentionUserInput.value = mentionSettings.username;
@@ -12369,6 +12164,9 @@
         }
         if (elements.mentionIncludeReplyToggle instanceof HTMLInputElement) {
             elements.mentionIncludeReplyToggle.checked = mentionSettings.includeReplyContext;
+        }
+        if (elements.crossChannelMentionToggle instanceof HTMLInputElement) {
+            elements.crossChannelMentionToggle.checked = crossChannelMentionEnabled;
         }
         if (elements.mentionSoundScopeGroup instanceof HTMLElement) {
             elements.mentionSoundScopeGroup.setAttribute('data-tm-sound-scope', mentionSettings.soundScope || DEFAULT_MENTION_SOUND_SCOPE);
@@ -12465,6 +12263,7 @@
             refreshImageCatalogList: () => refreshSettingsImageCatalogList(elements, controller),
             syncImageHostingExpandedState: () => syncSettingsImageHostingExpandedState(elements),
             syncGradePseudonymColorInputs: () => syncSettingsGradePseudonymColorInputs(elements),
+            refreshCrossChannelMentionList: () => refreshSettingsCrossChannelMentionList(elements, setFeedback),
             syncFontSizeValueLabel,
             setPreviewFontScale,
             applyMentionSettingsToInputs: () => applyMentionSettingsToModalInputs(elements)
@@ -12485,6 +12284,8 @@
         controls.syncHighlightOpacityValue();
         controls.syncMentionSoundControlsState();
         controls.syncMentionOpacityPreview();
+        controls.refreshCrossChannelMentionList();
+        void refreshCrossChannelMentionChannels().then(() => controls.refreshCrossChannelMentionList());
         controls.syncGradePseudonymColorInputs();
         controls.syncFontSizeValueLabel();
     }
@@ -12565,6 +12366,18 @@
             if (event.key !== 'Enter') return;
             event.preventDefault();
             elements.mentionSaveBtn?.click();
+        });
+        elements.crossChannelMentionToggle?.addEventListener('change', () => {
+            if (!(elements.crossChannelMentionToggle instanceof HTMLInputElement)) return;
+            saveCrossChannelMentionEnabled(elements.crossChannelMentionToggle.checked);
+            syncCrossChannelMentionSocket();
+            controls.refreshCrossChannelMentionList();
+            if (crossChannelMentionEnabled) {
+                void refreshCrossChannelMentionChannels(true).then(() => controls.refreshCrossChannelMentionList());
+            }
+            controls.setFeedback(crossChannelMentionEnabled
+                ? 'Surveillance des mentions dans les autres canaux activée.'
+                : 'Surveillance des mentions dans les autres canaux désactivée.');
         });
         elements.mentionSoundCooldownInput?.addEventListener('keydown', (event) => {
             if (event.key !== 'Enter') return;
@@ -13019,14 +12832,6 @@
             );
         });
 
-        elements.linkifyUrlsToggle?.addEventListener('change', () => {
-            saveLinkifyUrlsEnabled(elements.linkifyUrlsToggle.checked);
-            processAllMessages();
-            controls.setFeedback(
-                linkifyUrlsEnabled ? 'URLs cliquables activées.' : 'URLs cliquables désactivées.'
-            );
-        });
-
         elements.chatScrollbarToggle?.addEventListener('change', () => {
             saveChatScrollbarEnabled(elements.chatScrollbarToggle.checked);
             applyChatPageScrollbarState();
@@ -13068,16 +12873,6 @@
             );
         });
 
-        elements.embedUrlImagesToggle?.addEventListener('change', () => {
-            saveEmbedUrlImagesEnabled(elements.embedUrlImagesToggle.checked);
-            processAllMessages();
-            controls.setFeedback(
-                embedUrlImagesEnabled
-                    ? 'Prévisualisation des images au survol activée.'
-                    : 'Prévisualisation des images au survol désactivée.'
-            );
-        });
-
         elements.hideStatsToggle?.addEventListener('change', () => {
             saveStatsHidden(elements.hideStatsToggle.checked);
             applyStatsBoxVisibilityState();
@@ -13085,6 +12880,16 @@
                 statsHidden
                     ? `Stats box masquée pour ${currentPageLabel}.`
                     : `Stats box affichée pour ${currentPageLabel}.`
+            );
+        });
+
+        elements.settingsBubbleToggle?.addEventListener('change', () => {
+            saveSettingsBubbleEnabled(elements.settingsBubbleToggle.checked);
+            syncSettingsBubble();
+            controls.setFeedback(
+                settingsBubbleEnabled
+                    ? 'Bulle de configuration activée lorsque la stats box est masquée.'
+                    : 'Bulle de configuration désactivée.'
             );
         });
 
@@ -13198,10 +13003,6 @@
             controls.setFeedback(debugMode ? 'Mode debug activé.' : 'Mode debug désactivé.');
         });
 
-        elements.homeCollapseToggle?.addEventListener('change', () => {
-            toggleHomepageChatCollapsed(elements.homeCollapseToggle.checked);
-            controls.setFeedback(homeChatCollapsed ? 'Shoutbox d’accueil repliée.' : 'Shoutbox d’accueil réaffichée.');
-        });
     }
 
     function bindSettingsModalEvents(modal, overlay, elements, controls, currentPageLabel) {
@@ -13356,7 +13157,7 @@
         handle.addEventListener('pointercancel', stopDragging);
     }
 
-    function renderSettingsTipsCard(isChatView, settingsFullWidthCardStyle) {
+    function renderSettingsTipsCard(settingsFullWidthCardStyle) {
         return `
             <div style="${settingsFullWidthCardStyle}">
                 <div style="font-size:13px;font-weight:700;margin-bottom:10px;">Astuces</div>
@@ -13386,7 +13187,7 @@
                     <div style="padding:10px 12px;border-radius:12px;background:rgba(14,165,233,0.12);border:1px solid rgba(56,189,248,0.24);">
                         <div style="font-size:12px;font-weight:700;color:#bae6fd;">Raccourci sur Mac</div>
                         <div style="margin-top:4px;font-size:11px;color:#7dd3fc;line-height:1.45;">
-                            Sur Mac, la touche Command (⌘) remplace Alt : utilise Ctrl+⌘+P pour le mode adulte.
+                            Sur Mac, la touche Command (⌘) remplace Alt.
                         </div>
                     </div>
 
@@ -13425,7 +13226,6 @@
                         </div>
                     </div>
 
-                    ${isChatView ? `
                     <div style="padding:10px 12px;border-radius:12px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.24);">
                         <div style="font-size:12px;font-weight:700;color:#bbf7d0;">Double-clic sur un message</div>
                         <div style="margin-top:4px;font-size:11px;color:#86efac;line-height:1.45;">
@@ -13439,33 +13239,6 @@
                             Ouvre les réactions, avec le picker repositionné à droite du pointeur.
                         </div>
                     </div>
-                    ` : `
-                    <div style="padding:10px 12px;border-radius:12px;background:rgba(63,63,70,0.6);border:1px solid rgba(255,255,255,0.08);">
-                        <div style="font-size:12px;font-weight:700;color:#f4f4f5;">Raccourcis du chat dédié</div>
-                        <div style="margin-top:4px;font-size:11px;color:#a1a1aa;line-height:1.45;">
-                            Les gestes double-clic pour répondre et clic long pour réagir ne sont actifs que sur la page chat, pas sur la shout de l’accueil.
-                        </div>
-                    </div>
-                    `}
-                </div>
-            </div>
-        `;
-    }
-
-    function renderSettingsHomeCard(homeView, settingsCardStyle, settingsCheckboxLabelStyle) {
-        if (!homeView) return '';
-
-        return `
-            <div style="${settingsCardStyle}">
-                <div style="font-size:13px;font-weight:700;margin-bottom:10px;">Page d’accueil</div>
-
-                <label style="${settingsCheckboxLabelStyle}">
-                    <input id="tm-home-collapse-toggle-setting" type="checkbox" ${homeChatCollapsed ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#22c55e')}">
-                    <span>Masquer la shoutbox</span>
-                </label>
-
-                <div style="margin-top:8px;font-size:11px;color:#71717a;line-height:1.45;">
-                    Permet de masquer la shoutbox sur la page d’accueil.
                 </div>
             </div>
         `;
@@ -13484,6 +13257,15 @@
                     <input id="tm-hide-stats-toggle" type="checkbox" ${statsHidden ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#f59e0b')}">
                     <span>Masquer complètement la stats box</span>
                 </label>
+
+                <label style="${settingsCheckboxLabelWithMarginStyle}">
+                    <input id="tm-settings-bubble-toggle" type="checkbox" ${settingsBubbleEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#60a5fa')}">
+                    <span>Garder une bulle ⚙ d’accès aux réglages</span>
+                </label>
+
+                <div style="margin-top:8px;font-size:11px;color:#71717a;line-height:1.45;">
+                    Quand la stats box est masquée, une bulle reste collée au bord droit de l’écran pour ouvrir la configuration.
+                </div>
 
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
                     <button id="tm-reset-stats-layout" style="
@@ -13668,15 +13450,6 @@
                     Change le fond principal de Tr4ker sans modifier les panneaux, messages ou couleurs de grade.
                 </div>
 
-                <label style="${styles.settingsCheckboxLabelWithMarginStyle}">
-                    <input id="tm-linkify-urls-toggle" type="checkbox" ${linkifyUrlsEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle(styles.accessibilityCheckboxAccentColor)}">
-                    <span>Rendre les URLs cliquables</span>
-                </label>
-
-                <div style="margin-top:8px;font-size:11px;color:#71717a;line-height:1.45;">
-                    Détecte les liens dans les messages et les transforme en liens cliquables.
-                </div>
-
                 ${isChatView ? `
                 <label style="${styles.settingsCheckboxLabelWithMarginStyle}">
                     <input id="tm-chat-scrollbar-toggle" type="checkbox" ${chatScrollbarEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle(styles.accessibilityCheckboxAccentColor)}">
@@ -13713,15 +13486,6 @@
 
                 <div style="margin-top:8px;font-size:11px;color:#71717a;line-height:1.45;">
                     Décoché : boutons à gauche. Coché : boutons à droite, que la barre soit au-dessus du champ ou sur la même ligne.
-                </div>
-
-                <label style="${styles.settingsCheckboxLabelWithMarginStyle}">
-                    <input id="tm-embed-url-images-toggle" type="checkbox" ${embedUrlImagesEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle(styles.accessibilityCheckboxAccentColor)}">
-                    <span>Prévisualiser les liens directs d'images au survol</span>
-                </label>
-
-                <div style="margin-top:8px;font-size:11px;color:#71717a;line-height:1.45;">
-                    Affiche un aperçu flottant uniquement pour les URLs qui pointent directement vers un fichier image.
                 </div>
 
             </details>
@@ -14465,16 +14229,6 @@
                         font-size:12px;
                         font-weight:600;
                     ">Désactivé</button>
-                    <button type="button" data-tm-mention-sound-scope="home" style="
-                        border:1px solid rgba(255,255,255,0.08);
-                        background:#27272a;
-                        color:#e4e4e7;
-                        border-radius:999px;
-                        padding:8px 12px;
-                        cursor:pointer;
-                        font-size:12px;
-                        font-weight:600;
-                    ">Accueil</button>
                     <button type="button" data-tm-mention-sound-scope="chat" style="
                         border:1px solid rgba(255,255,255,0.08);
                         background:#27272a;
@@ -14485,19 +14239,9 @@
                         font-size:12px;
                         font-weight:600;
                     ">Chat</button>
-                    <button type="button" data-tm-mention-sound-scope="both" style="
-                        border:1px solid rgba(255,255,255,0.08);
-                        background:#27272a;
-                        color:#e4e4e7;
-                        border-radius:999px;
-                        padding:8px 12px;
-                        cursor:pointer;
-                        font-size:12px;
-                        font-weight:600;
-                    ">Les deux</button>
                 </div>
                 <div style="margin-top:8px;font-size:11px;color:#71717a;line-height:1.45;">
-                    Choisis sur quelle vue le son doit se jouer. Le mode désactivé replie les réglages audio pour gagner de la place.
+                    Active le son pour les mentions détectées dans Communication, y compris celles des autres canaux si leur surveillance est activée. Le mode désactivé replie les réglages audio pour gagner de la place.
                 </div>
             </div>
 
@@ -14621,6 +14365,19 @@
                     <span>Considérer aussi les réponses citées vers @moi</span>
                 </label>
 
+                <label style="${settingsCheckboxLabelStyle} margin-top:10px;">
+                    <input id="tm-cross-channel-mention-toggle" type="checkbox" ${crossChannelMentionEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#22c55e')}">
+                    <span>Surveiller les mentions dans les autres canaux</span>
+                </label>
+                <div style="margin-top:6px;font-size:11px;color:#71717a;line-height:1.45;">
+                    Maintient une connexion temps réel Tr4ker pour t’alerter lorsqu’un autre canal te mentionne. Les messages privés et le canal déjà ouvert ne sont pas concernés.
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;">
+                    <span style="font-size:12px;color:#c4c4c8;">Canaux surveillés</span>
+                    <button id="tm-cross-channel-mention-select-all" type="button" style="border:0;background:#27272a;color:#e4e4e7;border-radius:8px;padding:6px 8px;cursor:pointer;font-size:11px;font-weight:700;">Tout sélectionner</button>
+                </div>
+                <div id="tm-cross-channel-mention-list" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:6px;margin-top:7px;"></div>
+
                 ${renderSettingsMentionSoundSection()}
 
                 <div style="display:flex;justify-content:flex-start;gap:8px;flex-wrap:wrap;margin-top:12px;">
@@ -14636,7 +14393,7 @@
                 </div>
 
                 <div style="margin-top:8px;font-size:11px;color:#71717a;line-height:1.45;">
-                    Quand un message contient @tonpseudo, il est surligné avec cette couleur. Tu peux aussi inclure les réponses citées, régler l'opacité, mettre 0 seconde pour désactiver le clignotement, choisir un son si besoin et laisser le pseudo vide pour couper la surveillance.
+                    Quand un message contient @tonpseudo, il est surligné avec cette couleur. Tu peux aussi inclure les réponses citées, régler l'opacité, mettre 0 seconde pour désactiver le clignotement, choisir un son si besoin et laisser le pseudo vide pour couper la surveillance. L’option des autres canaux utilise le même son et le même délai minimum.
                 </div>
             </div>
         `;
@@ -14659,16 +14416,15 @@
         `;
     }
 
-    function buildSettingsModalHtml(currentPageLabel, homeView, isChatView, styles) {
+    function buildSettingsModalHtml(currentPageLabel, isChatView, styles) {
         return `
             ${renderSettingsModalHeader(currentPageLabel)}
-            ${renderSettingsTipsCard(isChatView, styles.settingsFullWidthCardStyle)}
+            ${renderSettingsTipsCard(styles.settingsFullWidthCardStyle)}
 
             <div style="
                 column-count:${styles.settingsColumnCount};
                 column-gap:14px;
             ">
-                ${renderSettingsHomeCard(homeView, styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)}
                 ${renderSettingsStatsCard(currentPageLabel, styles.settingsCardStyle, styles.settingsCheckboxLabelWithMarginStyle)}
                 ${renderSettingsMatrixDashboardCard(styles.settingsCardStyle, styles.settingsCheckboxLabelWithMarginStyle)}
                 ${renderSettingsAccessibilityCard(currentPageLabel, isChatView, styles)}
@@ -16751,14 +16507,13 @@
      * @returns {void}
      */
     function openSettingsModal() {
-        if (!isSupportedPage()) return;
+        if (!isTr4kerPage()) return;
         if (modalOpen) return;
 
         modalOpen = true;
         hideImagePreview();
 
         const currentPageLabel = getCurrentPageLabel();
-        const homeView = isHomePage();
         const isChatView = isChatPage();
         const settingsColumnCount = window.innerWidth >= 780 ? 2 : 1;
         const styles = getSettingsModalStyles(settingsColumnCount);
@@ -16789,7 +16544,7 @@
         modal.style.color = '#fff';
         applyScrollableModalStyle(modal);
 
-        modal.innerHTML = buildSettingsModalHtml(currentPageLabel, homeView, isChatView, styles);
+        modal.innerHTML = buildSettingsModalHtml(currentPageLabel, isChatView, styles);
 
         document.body.appendChild(overlay);
         document.body.appendChild(modal);
@@ -16864,80 +16619,13 @@
         );
     }
 
-    function looksLikeNativeChatInputUtilityButton(button) {
-        if (!(button instanceof HTMLButtonElement)) return false;
-
-        const className = String(button.getAttribute('class') || '');
-        return (
-            className.includes('bg-zinc-900') &&
-            className.includes('border-zinc-800') &&
-            className.includes('rounded-lg') &&
-            className.includes('text-gray-400')
-        );
-    }
-
-    function getChatInputCandidateScore(element) {
-        if (!(element instanceof HTMLElement)) return Number.NEGATIVE_INFINITY;
-
-        let score = 0;
-        const label = getChatInputCandidateLabel(element);
-        if (isTr4kerPage() && element.matches(TR4KER_CHAT_INPUT_SELECTOR)) {
-            score += 1000;
-        }
-        const controlsRow = getChatInputControlsRow(element);
-
-        if (/\b(message|messages|ecrire|écrire|repondre|répondre|chat|shout)\b/.test(label)) {
-            score += 160;
-        }
-
-        if (/\b(url|lien|image|gif|emoji|recherche|search|upload|joindre|galerie)\b/.test(label)) {
-            score -= 140;
-        }
-
-        if (element instanceof HTMLTextAreaElement) {
-            score += 40;
-        }
-
-        if (element.closest('.relative.flex-1')) {
-            score += 35;
-        }
-
-        if (element.closest('form')) {
-            score += 15;
-        }
-
-        if (controlsRow instanceof HTMLElement) {
-            const rowButtons = Array.from(controlsRow.querySelectorAll('button[type="button"]'));
-
-            if (rowButtons.some((button) => isNativeChatInputSendButton(button))) {
-                score += 90;
-            }
-
-            if (rowButtons.some((button) => looksLikeNativeChatInputUtilityButton(button))) {
-                score += 35;
-            }
-        }
-
-        return score;
-    }
-
     function findChatInputWithin(root) {
         if (!(root instanceof Element) && !(root instanceof Document)) return null;
 
-        if (
-            root instanceof HTMLElement &&
-            root.matches('input[type="text"], textarea, [contenteditable="true"]') &&
-            isChatInputCandidate(root)
-        ) {
-            return root;
-        }
-
-        const candidates = Array.from(root.querySelectorAll('input[type="text"], textarea, [contenteditable="true"]'));
-        const validCandidates = candidates.filter((element) => isChatInputCandidate(element));
-
-        return validCandidates
-            .slice()
-            .sort((a, b) => getChatInputCandidateScore(b) - getChatInputCandidateScore(a))[0] || null;
+        const input = root instanceof HTMLElement && root.matches(TR4KER_CHAT_INPUT_SELECTOR)
+            ? root
+            : root.querySelector(TR4KER_CHAT_INPUT_SELECTOR);
+        return input instanceof HTMLElement && isChatInputCandidate(input) ? input : null;
     }
 
     function getSavedPhrasesMenu() {
@@ -17077,7 +16765,7 @@
     }
 
     function openSavedPhrasesMenuFromShortcut() {
-        if (!isSupportedPage()) return false;
+        if (!isToolbarSupportedPage()) return false;
         if (!savedPhrasesEnabled || savedPhrases.length === 0) return false;
 
         const textInput = getChatInput();
@@ -17099,49 +16787,11 @@
     function getChatInput() {
         let input = null;
 
-        if (isTr4kerPage()) {
-            input = document.querySelector(TR4KER_CHAT_INPUT_SELECTOR);
-            if (input instanceof HTMLElement && isChatInputCandidate(input)) return input;
-            input = null;
-        }
+        const wikiEditorInput = getWikiEditorInput();
+        if (wikiEditorInput instanceof HTMLElement) return wikiEditorInput;
 
-        if (isChatPage()) {
-            const header = getChatPageHeaderElement();
-            if (header && header.parentElement) {
-                input = findChatInputWithin(header.parentElement);
-            }
-            if (!input) {
-                const scroller = getChatPageMessagesRoot();
-                if (scroller && scroller.parentElement && scroller.parentElement.nextElementSibling) {
-                    input = findChatInputWithin(scroller.parentElement.nextElementSibling);
-                }
-            }
-        } else if (isHomePage()) {
-            const homeContainer = getHomepageChatContainer();
-            if (homeContainer) {
-                input = findChatInputWithin(homeContainer);
-            }
-        }
-
-        if (!input) {
-            const darkContainers = Array.from(document.querySelectorAll('.bg-zinc-950'));
-            input = darkContainers
-                .map((container) => findChatInputWithin(container))
-                .find(Boolean) || null;
-        }
-
-        if (!input) {
-            const allInputs = Array.from(document.querySelectorAll('input[type="text"], textarea, [contenteditable="true"]'));
-            const validInputs = allInputs
-                .filter((element) => isChatInputCandidate(element))
-                .filter((element) => !element.closest('nav, header, [role="navigation"], .navbar'));
-
-            input = validInputs
-                .slice()
-                .sort((a, b) => getChatInputCandidateScore(b) - getChatInputCandidateScore(a))[0] || null;
-        }
-
-        return input;
+        input = document.querySelector(TR4KER_CHAT_INPUT_SELECTOR);
+        return input instanceof HTMLElement && isChatInputCandidate(input) ? input : null;
     }
 
     function getChatInputToolbarMountContext(input = getChatInput()) {
@@ -17153,6 +16803,18 @@
                 inputWrapper: null,
                 directWrapper: null,
                 fallbackArea: null
+            };
+        }
+
+        if (input === getWikiEditorInput()) {
+            const directWrapper = input.parentElement instanceof HTMLElement ? input.parentElement : null;
+            return {
+                input,
+                controlsRow: null,
+                mountParent: directWrapper,
+                inputWrapper: null,
+                directWrapper,
+                fallbackArea: directWrapper
             };
         }
 
@@ -17181,9 +16843,9 @@
         const input = context?.input;
         const railHost = getChatInputToolbarRailHost(context);
 
-        if (isTr4kerPage()) {
-            ensureChatInputToolbarStyle();
-        }
+        syncChatInputCharacterLimit(input);
+
+        ensureChatInputToolbarStyle();
 
         if (
             input instanceof HTMLElement &&
@@ -17246,7 +16908,7 @@
         // The non-inline Tr4ker rail sits above the entire input row.  Keeping
         // it on the text wrapper would reserve space only for the textarea and
         // leave the site-native image button behind it.
-        if (isTr4kerPage() && context?.controlsRow instanceof HTMLElement) {
+        if (context?.controlsRow instanceof HTMLElement) {
             return context.controlsRow;
         }
 
@@ -17327,7 +16989,7 @@
         if (!(railHost instanceof HTMLElement)) return;
         // The Tr4ker mobile conversation drawer must remain above the custom
         // rail. A local stacking level is sufficient for the input toolbar.
-        const railStackZIndex = isTr4kerPage() ? '1' : (isChatPage() ? '260' : '50');
+        const railStackZIndex = '1';
 
         rail.style.display = 'flex';
         rail.style.alignItems = 'center';
@@ -17393,7 +17055,7 @@
             inlineInputHost.style.removeProperty('max-width');
         }
 
-        const isTr4kerDockedToolbar = isTr4kerPage() && !chatInputToolbarInline;
+        const isTr4kerDockedToolbar = !chatInputToolbarInline;
         const dockedToolbarHeight = Math.max(
             32,
             CHAT_INPUT_TOOLBAR_RESERVED_HEIGHT_PX - CHAT_INPUT_TOOLBAR_DOCKED_GAP_PX
@@ -17497,7 +17159,6 @@
         if (t9EmojMenu instanceof HTMLElement && t9EmojMenu.dataset.tmOpen === '1') {
             positionT9EmojMenu(t9EmojMenu);
         }
-        scheduleMovedNativeChatInputActionPopoversSync();
     }
 
     function scheduleChatInputToolbarResync(frameCount = 4) {
@@ -17520,7 +17181,7 @@
     }
 
     function shouldUseChatInputToolbarRail() {
-        return isSupportedPage() && (
+        return isToolbarSupportedPage() && (
             getQuickAccessEmojiRecords(1).length > 0 ||
             klipyGifsEnabled ||
             t9EmojEnabled ||
@@ -17537,10 +17198,6 @@
 
         const railHost = getChatInputToolbarRailHost(context);
         if (!(railHost instanceof HTMLElement) || rail.parentElement !== railHost) {
-            return false;
-        }
-
-        if (getNativeChatInputActionButtons(context?.input).length > 0) {
             return false;
         }
 
@@ -17574,22 +17231,8 @@
     function getChatInputControlsRow(input = getChatInput()) {
         if (!(input instanceof HTMLElement)) return null;
 
-        if (isTr4kerPage()) {
-            const inputArea = input.closest('[class*="inputArea"]');
-            if (inputArea instanceof HTMLElement) return inputArea;
-        }
-
-        const inputWrapper = input.closest('.relative.flex-1');
-        if (inputWrapper instanceof HTMLElement && inputWrapper.parentElement instanceof HTMLElement) {
-            return inputWrapper.parentElement;
-        }
-
-        const directWrapper = input.parentElement;
-        if (directWrapper instanceof HTMLElement && directWrapper.parentElement instanceof HTMLElement) {
-            return directWrapper.parentElement;
-        }
-
-        return null;
+        const inputArea = input.closest('[class*="inputArea"]');
+        return inputArea instanceof HTMLElement ? inputArea : null;
     }
 
     function getNativeChatInputActionSearchRoot(input = getChatInput()) {
@@ -17626,76 +17269,8 @@
         const label = getNativeChatInputActionLabel(button);
         const isEmojiButton = /\b(emoji|emojis|smile|smiley|sticker)\b/.test(label);
         const isImageButton = /\b(image|images|img|photo|picture|upload|insere|insérer|inserer|joindre|galerie)\b/.test(label);
-        const looksNativeUtilityButton = looksLikeNativeChatInputUtilityButton(button);
-
         if (isNativeChatInputSendButton(button)) return false;
-        if (isTr4kerPage()) return isEmojiButton || isImageButton;
-        if (!looksNativeUtilityButton) return false;
-        return isEmojiButton || isImageButton || !!button.querySelector('svg');
-    }
-
-    function getChatInputActionContainers(input = getChatInput()) {
-        const controlsRow = getChatInputControlsRow(input);
-        if (!(controlsRow instanceof HTMLElement)) return [];
-
-        const inputWrapper =
-            (input instanceof HTMLElement && input.closest('.relative.flex-1')) ||
-            (input instanceof HTMLElement && input.parentElement instanceof HTMLElement ? input.parentElement : null);
-
-        return Array.from(controlsRow.children).filter((child) => {
-            if (!(child instanceof HTMLElement)) return false;
-            if (child.getAttribute(CHAT_INPUT_TOOLBAR_RAIL_ATTR) === '1') return false;
-            if (child.getAttribute(NATIVE_CHAT_INPUT_ACTION_HOST_ATTR) === '1') return false;
-            if (child.id === PHRASES_MENU_WRAPPER_ID || child.id === GIF_MENU_WRAPPER_ID || child.id === IMAGE_UPLOAD_MENU_WRAPPER_ID) return false;
-            if (child === inputWrapper) return false;
-            if (inputWrapper instanceof HTMLElement && child.contains(inputWrapper)) return false;
-            return true;
-        });
-    }
-
-    function getNativeChatInputActionButtons(input = getChatInput()) {
-        if (isTr4kerPage() && input instanceof HTMLElement) {
-            const directButtons = Array.from(
-                (input.parentElement || input).querySelectorAll('button[type="button"]')
-            ).filter((button) => isNativeChatInputUtilityButton(button));
-            return Array.from(new Set(directButtons)).slice(0, 2);
-        }
-
-        const actionContainers = getChatInputActionContainers(input);
-        if (actionContainers.length === 0) return [];
-
-        const candidateButtons = [];
-
-        actionContainers.forEach((container) => {
-            if (container instanceof HTMLButtonElement && String(container.type || '').toLowerCase() === 'button') {
-                candidateButtons.push(container);
-            }
-
-            container
-                .querySelectorAll(':scope > button[type="button"], :scope > * > button[type="button"]')
-                .forEach((button) => {
-                    if (button instanceof HTMLButtonElement) {
-                        candidateButtons.push(button);
-                    }
-                });
-        });
-
-        const explicitMatches = [];
-        const fallbackMatches = [];
-
-        Array.from(new Set(candidateButtons))
-            .filter((button) => isNativeChatInputUtilityButton(button))
-            .forEach((button) => {
-            const label = getNativeChatInputActionLabel(button);
-            if (/\b(emoji|emojis|image|images|img|photo|picture|upload|insere|insérer|inserer|joindre|galerie)\b/.test(label)) {
-                explicitMatches.push(button);
-                return;
-            }
-
-            fallbackMatches.push(button);
-            });
-
-        return Array.from(new Set([...explicitMatches, ...fallbackMatches])).slice(0, 2);
+        return isEmojiButton || isImageButton;
     }
 
     function restoreNativeChatInputActionButtons() {
@@ -17780,7 +17355,7 @@
         popup.style.setProperty('bottom', 'auto', 'important');
         popup.style.setProperty('left', '-9999px', 'important');
         popup.style.setProperty('top', '-9999px', 'important');
-        popup.style.setProperty('z-index', isHomePage() ? '1400' : '120', 'important');
+        popup.style.setProperty('z-index', '120', 'important');
 
         const popupRect = popup.getBoundingClientRect();
         if (popupRect.width <= 0 || popupRect.height <= 0) return;
@@ -17891,81 +17466,27 @@
     }
 
     function syncNativeChatInputActionButtons(input = getChatInput()) {
-        if (isTr4kerPage()) {
-            // Tr4ker owns the React popovers associated with these buttons. Keep
-            // the native controls in place so their event/ref lifecycle remains intact.
-            restoreNativeChatInputActionButtons();
-            return;
-        }
-
-        if (!shouldUseChatInputToolbarRail()) {
-            restoreNativeChatInputActionButtons();
-            return;
-        }
-
-        const context = getChatInputToolbarMountContext(input);
-        const rail = getExistingChatInputToolbarRail(context);
-        if (!(rail instanceof HTMLElement)) {
-            restoreNativeChatInputActionButtons();
-            return;
-        }
-
-        getMovedNativeChatInputActionHosts(rail).forEach((host) => {
-            insertNativeChatInputActionHost(rail, host);
-        });
-
-        const candidateButtons = getNativeChatInputActionButtons(input);
-
-        candidateButtons.forEach((button, index) => {
-            const placeholderId = `native-action-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`;
-            const placeholder = document.createElement('span');
-            placeholder.setAttribute(NATIVE_CHAT_INPUT_ACTION_PLACEHOLDER_ATTR, placeholderId);
-            placeholder.style.display = 'none';
-
-            const host = document.createElement('div');
-            host.setAttribute(NATIVE_CHAT_INPUT_ACTION_HOST_ATTR, '1');
-            host.style.display = 'flex';
-            host.style.alignItems = 'center';
-            host.style.position = 'relative';
-            host.style.overflow = 'visible';
-            host.style.flexShrink = '0';
-            host.style.pointerEvents = 'auto';
-            host.style.zIndex = '80';
-
-            if (button.getAttribute(NATIVE_CHAT_INPUT_ACTION_POPOVER_SYNC_BOUND_ATTR) !== '1') {
-                button.setAttribute(NATIVE_CHAT_INPUT_ACTION_POPOVER_SYNC_BOUND_ATTR, '1');
-                button.addEventListener('click', () => {
-                    scheduleMovedNativeChatInputActionPopoversSync();
-                });
-            }
-
-            button.before(placeholder);
-            if (placeholder.parentElement instanceof HTMLElement) {
-                placeholder.parentElement.setAttribute(NATIVE_CHAT_INPUT_ACTION_SOURCE_ATTR, '1');
-                placeholder.parentElement.style.overflow = 'visible';
-            }
-            button.setAttribute('data-tm-native-chat-input-action-moved', '1');
-            button.setAttribute('data-tm-native-chat-input-action-placeholder-id', placeholderId);
-            host.appendChild(button);
-            insertNativeChatInputActionHost(rail, host);
-        });
-
-        syncMovedNativeChatInputActionPopovers();
+        // Tr4ker possède le cycle de vie React de ses contrôles natifs.
+        // Cette restauration est conservée seulement pour rétablir une UI
+        // déplacée par une ancienne version du userscript.
+        restoreNativeChatInputActionButtons();
     }
 
     function getChatInputMaxLength(input) {
-        if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
-            const attributeMaxLength = Number(input.getAttribute('maxlength'));
-            if (Number.isFinite(attributeMaxLength) && attributeMaxLength > 0) {
-                return attributeMaxLength;
-            }
+        // Le Wiki est un éditeur d'article : les limites de saisie du chat ne
+        // doivent jamais empêcher l'insertion de contenu Markdown.
+        if (input === getWikiEditorInput()) return 0;
 
-            if (input.maxLength > 0) {
-                return input.maxLength;
-            }
-        }
+        return MAX_CHAT_MESSAGE_LENGTH;
+    }
 
-        return MAX_SAVED_PHRASE_LENGTH;
+    function syncChatInputCharacterLimit(input = getChatInput()) {
+        if (!(input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement)) return;
+        if (input === getWikiEditorInput()) return;
+
+        // On relève aussi la contrainte HTML éventuelle afin que la saisie
+        // manuelle suive la même limite que les insertions du script.
+        input.maxLength = MAX_CHAT_MESSAGE_LENGTH;
     }
 
     function getChatInputRawValue(input = getChatInput()) {
@@ -18533,7 +18054,7 @@
     }
 
     function injectEmojiQuickAccessToolbar() {
-        if (!isSupportedPage()) return;
+        if (!isToolbarSupportedPage()) return;
 
         const quickAccessRecords = getQuickAccessEmojiRecords();
         if (quickAccessRecords.length === 0) {
@@ -18561,7 +18082,7 @@
     }
 
     function refreshEmojiQuickAccessToolbar() {
-        if (!isSupportedPage()) return;
+        if (!isToolbarSupportedPage()) return;
 
         if (emojiQuickAccessLimit <= 0) {
             removeEmojiQuickAccessToolbar();
@@ -19030,7 +18551,7 @@
      * @returns {void}
      */
     function injectSavedPhrasesToolbar() {
-        if (!isSupportedPage()) return;
+        if (!isToolbarSupportedPage()) return;
         if (!savedPhrasesEnabled) {
             removeSavedPhrasesToolbar();
             return;
@@ -19305,7 +18826,7 @@
         menu.style.setProperty('position', 'absolute', 'important');
         menu.style.setProperty('top', 'auto', 'important');
         menu.style.setProperty('bottom', 'calc(100% + 8px)', 'important');
-        menu.style.setProperty('z-index', isHomePage() ? '1400' : '1500', 'important');
+        menu.style.setProperty('z-index', '1500', 'important');
 
         if (chatInputToolbarAlignRight) {
             menu.style.setProperty('left', 'auto', 'important');
@@ -20039,7 +19560,7 @@
      * @returns {void}
      */
     function injectKlipyGifToolbar() {
-        if (!isSupportedPage()) return;
+        if (!isToolbarSupportedPage()) return;
         if (!klipyGifsEnabled) {
             removeKlipyGifToolbar();
             return;
@@ -20064,6 +19585,203 @@
     }
 
     // T9 Emoj picker - manifeste gateway et cache client
+    function openT9EmojMediaCacheDb() {
+        if (t9EmojMediaCacheDbPromise) return t9EmojMediaCacheDbPromise;
+        if (!('indexedDB' in window)) return Promise.resolve(null);
+
+        t9EmojMediaCacheDbPromise = new Promise((resolve) => {
+            let request = null;
+            try {
+                request = indexedDB.open(T9_EMOJ_MEDIA_CACHE_DB_NAME, 1);
+            } catch (e) {
+                resolve(null);
+                return;
+            }
+
+            request.onupgradeneeded = () => {
+                const database = request.result;
+                if (!database.objectStoreNames.contains(T9_EMOJ_MEDIA_CACHE_STORE_NAME)) {
+                    database.createObjectStore(T9_EMOJ_MEDIA_CACHE_STORE_NAME, { keyPath: 'id' });
+                }
+            };
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => resolve(null);
+            request.onblocked = () => resolve(null);
+        });
+
+        return t9EmojMediaCacheDbPromise;
+    }
+
+    function warmT9EmojMediaCache() {
+        if (t9EmojMediaCachePreloadPromise) return t9EmojMediaCachePreloadPromise;
+
+        t9EmojMediaCachePreloadPromise = openT9EmojMediaCacheDb().then((database) => {
+            if (!database) return;
+
+            return new Promise((resolve) => {
+                const transaction = database.transaction(T9_EMOJ_MEDIA_CACHE_STORE_NAME, 'readwrite');
+                const store = transaction.objectStore(T9_EMOJ_MEDIA_CACHE_STORE_NAME);
+                const request = store.getAll();
+                request.onsuccess = () => {
+                    const now = Date.now();
+                    (Array.isArray(request.result) ? request.result : []).forEach((record) => {
+                        const isUsable = record && record.blob instanceof Blob && record.expiresAt > now && record.id && record.url;
+                        if (isUsable) {
+                            t9EmojMediaCacheRecords.set(record.id, record);
+                        } else if (record?.id) {
+                            store.delete(record.id);
+                        }
+                    });
+                };
+                transaction.oncomplete = () => resolve();
+                transaction.onerror = () => resolve();
+                transaction.onabort = () => resolve();
+            });
+        }).catch(() => {});
+
+        return t9EmojMediaCachePreloadPromise;
+    }
+
+    async function getT9EmojMediaCacheRecord(item) {
+        const database = await openT9EmojMediaCacheDb();
+        if (!database) return null;
+
+        return new Promise((resolve) => {
+            const transaction = database.transaction(T9_EMOJ_MEDIA_CACHE_STORE_NAME, 'readwrite');
+            const store = transaction.objectStore(T9_EMOJ_MEDIA_CACHE_STORE_NAME);
+            const request = store.get(item.id);
+            request.onsuccess = () => {
+                const record = request.result;
+                const isUsable = record &&
+                    record.url === item.url &&
+                    record.blob instanceof Blob &&
+                    record.expiresAt > Date.now();
+                if (!isUsable) {
+                    if (record) store.delete(item.id);
+                    t9EmojMediaCacheRecords.delete(item.id);
+                    resolve(null);
+                    return;
+                }
+
+                record.lastAccessAt = Date.now();
+                store.put(record);
+                t9EmojMediaCacheRecords.set(item.id, record);
+                resolve(record);
+            };
+            request.onerror = () => resolve(null);
+            transaction.onerror = () => resolve(null);
+        });
+    }
+
+    async function saveT9EmojMediaCacheRecord(item, blob) {
+        const database = await openT9EmojMediaCacheDb();
+        if (!database || !(blob instanceof Blob) || blob.size <= 0 || blob.size > T9_EMOJ_MEDIA_CACHE_MAX_BYTES) return;
+
+        await new Promise((resolve) => {
+            const transaction = database.transaction(T9_EMOJ_MEDIA_CACHE_STORE_NAME, 'readwrite');
+            const store = transaction.objectStore(T9_EMOJ_MEDIA_CACHE_STORE_NAME);
+            const now = Date.now();
+            store.put({
+                id: item.id,
+                url: item.url,
+                blob,
+                size: blob.size,
+                expiresAt: now + T9_EMOJ_CACHE_TTL_MS,
+                lastAccessAt: now
+            });
+            t9EmojMediaCacheRecords.set(item.id, {
+                id: item.id,
+                url: item.url,
+                blob,
+                size: blob.size,
+                expiresAt: now + T9_EMOJ_CACHE_TTL_MS,
+                lastAccessAt: now
+            });
+
+            const recordsRequest = store.getAll();
+            recordsRequest.onsuccess = () => {
+                const records = Array.isArray(recordsRequest.result) ? recordsRequest.result : [];
+                let totalBytes = records.reduce((total, record) => total + Math.max(0, Number(record?.size) || 0), 0);
+                records
+                    .sort((left, right) => (Number(left?.lastAccessAt) || 0) - (Number(right?.lastAccessAt) || 0))
+                    .forEach((record) => {
+                        const expired = !record?.expiresAt || Number(record.expiresAt) <= now;
+                        if (!expired && totalBytes <= T9_EMOJ_MEDIA_CACHE_MAX_BYTES) return;
+                        if (record?.id === item.id && !expired) return;
+                        store.delete(record.id);
+                        t9EmojMediaCacheRecords.delete(record.id);
+                        totalBytes -= Math.max(0, Number(record?.size) || 0);
+                    });
+            };
+            transaction.oncomplete = () => resolve();
+            transaction.onerror = () => resolve();
+            transaction.onabort = () => resolve();
+        });
+    }
+
+    function createT9EmojMediaObjectUrl(item, blob) {
+        const existingUrl = t9EmojMediaObjectUrls.get(item.id);
+        if (existingUrl) return existingUrl;
+
+        const objectUrl = URL.createObjectURL(blob);
+        t9EmojMediaObjectUrls.set(item.id, objectUrl);
+        return objectUrl;
+    }
+
+    function clearT9EmojMediaObjectUrls() {
+        t9EmojMediaObjectUrls.forEach((objectUrl) => URL.revokeObjectURL(objectUrl));
+        t9EmojMediaObjectUrls.clear();
+    }
+
+    function getCachedT9EmojMediaUrl(item) {
+        const inMemoryUrl = t9EmojMediaObjectUrls.get(item.id);
+        if (inMemoryUrl) return inMemoryUrl;
+
+        const record = t9EmojMediaCacheRecords.get(item.id);
+        if (!record || record.url !== item.url || !(record.blob instanceof Blob) || record.expiresAt <= Date.now()) return '';
+        return createT9EmojMediaObjectUrl(item, record.blob);
+    }
+
+    async function cacheT9EmojMedia(item) {
+        const cachedUrl = getCachedT9EmojMediaUrl(item);
+        if (cachedUrl) return cachedUrl;
+        if (t9EmojMediaRequests.has(item.id)) return t9EmojMediaRequests.get(item.id);
+
+        const request = (async () => {
+            const cachedRecord = await getT9EmojMediaCacheRecord(item);
+            if (cachedRecord) return createT9EmojMediaObjectUrl(item, cachedRecord.blob);
+
+            const arrayBuffer = await requestExternalArrayBuffer(item.url, {
+                method: 'GET',
+                headers: { 'X-Client-ID': getKlipyGatewayClientId() },
+                credentials: 'omit',
+                timeout: 30000
+            });
+            const blob = new Blob([arrayBuffer], { type: item.format === 'gif' ? 'image/gif' : 'image/png' });
+            await saveT9EmojMediaCacheRecord(item, blob);
+            return createT9EmojMediaObjectUrl(item, blob);
+        })();
+
+        t9EmojMediaRequests.set(item.id, request);
+        try {
+            return await request;
+        } finally {
+            t9EmojMediaRequests.delete(item.id);
+        }
+    }
+
+    function loadT9EmojMediaIntoImage(image, item) {
+        if (!(image instanceof HTMLImageElement)) return;
+        const cachedUrl = getCachedT9EmojMediaUrl(item);
+        if (cachedUrl) {
+            image.src = cachedUrl;
+            return;
+        }
+
+        image.src = item.url;
+        void cacheT9EmojMedia(item);
+    }
+
     function normalizeT9EmojManifestItem(value) {
         if (!value || typeof value !== 'object') return null;
 
@@ -20278,14 +19996,15 @@
             button.style.cursor = 'pointer';
 
             const image = document.createElement('img');
-            image.src = item.url;
             image.alt = item.id;
-            image.loading = 'lazy';
+            image.decoding = 'async';
             image.style.width = '100%';
             image.style.height = '100%';
             image.style.objectFit = 'contain';
             image.style.maxHeight = '42px';
+            image.style.background = 'rgba(255,255,255,0.025)';
             button.appendChild(image);
+            loadT9EmojMediaIntoImage(image, item);
 
             button.addEventListener('click', () => {
                 const insertion = insertImageIntoChatInput(getChatInput(), item.url);
@@ -20310,7 +20029,7 @@
             renderT9EmojResults(menu, items, searchInput instanceof HTMLInputElement ? searchInput.value : '');
             menu.dataset.tmT9EmojLoaded = '1';
             menu.dataset.tmT9EmojCount = String(items.length);
-            setT9EmojMenuStatus(menu, `${items.length} émoticônes disponibles — cache local : 1 heure.`);
+            setT9EmojMenuStatus(menu, `${items.length} émoticônes disponibles — cache local : 30 jours.`);
             positionT9EmojMenu(menu);
         } catch (error) {
             setT9EmojMenuStatus(menu, `Erreur T9 Emoj : ${error instanceof Error ? error.message : 'chargement impossible.'}`, true);
@@ -20415,6 +20134,7 @@
     }
 
     function removeT9EmojToolbar() {
+        clearT9EmojMediaObjectUrls();
         getT9EmojMenu()?.remove();
         document.getElementById(T9_EMOJ_MENU_WRAPPER_ID)?.remove();
         syncNativeChatInputActionButtons();
@@ -20422,10 +20142,11 @@
     }
 
     function injectT9EmojToolbar() {
-        if (!isSupportedPage() || !t9EmojEnabled) {
+        if (!isToolbarSupportedPage() || !t9EmojEnabled) {
             removeT9EmojToolbar();
             return;
         }
+        void warmT9EmojMediaCache();
         const textInput = getChatInput();
         if (!textInput) return;
         const rail = getOrCreateChatInputToolbarRail(getChatInputToolbarMountContext(textInput));
@@ -20532,7 +20253,7 @@
         menu.style.setProperty('position', 'absolute', 'important');
         menu.style.setProperty('top', 'auto', 'important');
         menu.style.setProperty('bottom', 'calc(100% + 8px)', 'important');
-        menu.style.setProperty('z-index', isHomePage() ? '1400' : '1500', 'important');
+        menu.style.setProperty('z-index', '1500', 'important');
 
         if (chatInputToolbarAlignRight) {
             menu.style.setProperty('left', 'auto', 'important');
@@ -21284,7 +21005,7 @@
     }
 
     function injectImageUploadToolbar() {
-        if (!isSupportedPage()) return;
+        if (!isToolbarSupportedPage()) return;
         if (!imageHostingEnabled) {
             removeImageUploadToolbar();
             return;
@@ -21340,7 +21061,7 @@
         imagePasteHandlerInstalled = true;
 
         document.addEventListener('paste', (event) => {
-            if (!imageHostingEnabled || !isSupportedPage()) return;
+            if (!imageHostingEnabled || !isToolbarSupportedPage()) return;
 
             const target = event.target;
             if (!(target instanceof HTMLElement)) return;
@@ -21390,54 +21111,14 @@
     function getMessageTextContent(messageEl) {
         if (!(messageEl instanceof HTMLElement)) return '';
 
-        if (isTr4kerPage()) {
-            const textBlock = messageEl.querySelector('[class*="msgBubble"]');
-            return (textBlock?.textContent || '').trim();
-        }
-
-        if (isChatPage()) {
-            const textBlock = messageEl.querySelector(':scope > .flex-1.min-w-0 > .text-sm.text-gray-200.break-words');
-            return (textBlock?.textContent || '').trim();
-        }
-
-        if (isHomePage()) {
-            const textBlock = messageEl.querySelector(':scope > .flex-1.min-w-0 > p.break-words.leading-snug');
-            return (textBlock?.textContent || '').trim();
-        }
-
-        return '';
+        const textBlock = messageEl.querySelector('[class*="msgBubble"]');
+        return (textBlock?.textContent || '').trim();
     }
 
     function getMessageTimestampText(messageEl) {
         if (!(messageEl instanceof HTMLElement)) return '';
 
-        if (isTr4kerPage()) {
-            return String(messageEl.querySelector('[class*="msgTime"]')?.textContent || '').trim();
-        }
-
-        if (isChatPage()) {
-            const metaSpans = Array.from(messageEl.querySelectorAll(':scope > .flex-1.min-w-0 > .flex.items-baseline span'));
-            const parsedCandidate = metaSpans
-                .map((span) => (span.textContent || '').trim())
-                .find((text) => parseMessageTimestampKey(text) > 0);
-
-            if (parsedCandidate) return parsedCandidate;
-
-            return metaSpans
-                .map((span) => (span.textContent || '').trim())
-                .filter(Boolean)
-                .pop() || '';
-        }
-
-        if (isHomePage()) {
-            const metaSpans = messageEl.querySelectorAll(':scope > .flex-1.min-w-0 > .flex.items-center span:not(.text-xs.font-bold)');
-            return Array.from(metaSpans)
-                .map((span) => span.textContent.trim())
-                .filter(Boolean)
-                .join(' | ');
-        }
-
-        return '';
+        return String(messageEl.querySelector('[class*="msgTime"]')?.textContent || '').trim();
     }
 
     function parseMessageTimestampKey(timestampText) {
@@ -21469,7 +21150,7 @@
         const messageTimestampKey = parseMessageTimestampKey(messageTimestamp);
         const normalizedMessageText = normalizeMentionComparableText(messageText);
         const normalizedReplyContextText = normalizeMentionComparableText(replyContextText).replace(/^@+/, '');
-        const stableTimestampToken = isTr4kerPage() && messageEl.hasAttribute('data-msg-id')
+        const stableTimestampToken = messageEl.hasAttribute('data-msg-id')
             ? `id:${messageEl.getAttribute('data-msg-id')}`
             : messageTimestampKey > 0
             ? String(messageTimestampKey)
@@ -21497,7 +21178,7 @@
 
         const signatureParts = [username, stableTimestampToken, normalizedMessageText];
 
-        // Keep reply-context-only mentions distinct without making home/chat hashes diverge.
+        // Keep reply-context-only mentions distinct.
         if (!normalizedMessageText && normalizedReplyContextText) {
             signatureParts.push(`reply:${normalizedReplyContextText}`);
         }
@@ -21512,34 +21193,21 @@
     function getMessageReplyContextText(messageEl) {
         if (!(messageEl instanceof HTMLElement) || !isChatPage()) return '';
 
-        if (isTr4kerPage()) {
-            const author = messageEl.querySelector('[class*="quoteAuthor"]');
-            const body = messageEl.querySelector('[class*="quoteBody"]');
-            return [author?.textContent, body?.textContent].filter(Boolean).join(' : ').trim();
-        }
-
-        const replyButton = messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-center.gap-2.mb-1.text-xs button[type="button"]');
-        return String(replyButton?.textContent || '').trim();
+        const author = messageEl.querySelector('[class*="quoteAuthor"]');
+        const body = messageEl.querySelector('[class*="quoteBody"]');
+        return [author?.textContent, body?.textContent].filter(Boolean).join(' : ').trim();
     }
 
     function getMessageReplyAuthorText(messageEl) {
         if (!(messageEl instanceof HTMLElement) || !isChatPage()) return '';
 
-        if (isTr4kerPage()) {
-            return String(messageEl.querySelector('[class*="quoteAuthor"]')?.textContent || '').trim();
-        }
-
-        return getMessageReplyContextText(messageEl);
+        return String(messageEl.querySelector('[class*="quoteAuthor"]')?.textContent || '').trim();
     }
 
     function getMessageReplyContextRow(messageEl) {
         if (!(messageEl instanceof HTMLElement) || !isChatPage()) return null;
 
-        if (isTr4kerPage()) {
-            return messageEl.querySelector('[class*="quote"]');
-        }
-
-        return messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-center.gap-2.mb-1.text-xs');
+        return messageEl.querySelector('[class*="quote"]');
     }
 
     function syncMessageReplyContextHover(messageEl) {
@@ -21580,13 +21248,7 @@
     function getMessageActionButtonsContainer(messageEl) {
         if (!(messageEl instanceof HTMLElement) || !isChatPage()) return null;
 
-        if (isTr4kerPage()) {
-            return messageEl.querySelector('[data-msg-actions]');
-        }
-
-        return messageEl.querySelector(
-            ':scope > .absolute.right-2.-top-3.flex.items-center.gap-0\\.5.bg-zinc-900.border.border-zinc-700.rounded-lg.shadow-lg.px-1.py-0\\.5.z-10'
-        );
+        return messageEl.querySelector('[data-msg-actions]');
     }
 
     function getMessageReplyActionButton(messageEl) {
@@ -21598,10 +21260,8 @@
             return directReplyButton;
         }
 
-        const usernameButton = isTr4kerPage()
-            ? messageEl.querySelector('[class*="msgSender"]')
-            : messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-baseline button[type="button"]');
-        const replyContextButton = messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-center.gap-2.mb-1.text-xs button[type="button"]');
+        const usernameButton = messageEl.querySelector('[class*="msgSender"]');
+        const replyContextButton = messageEl.querySelector('[class*="quoteAuthor"]');
         const buttons = Array.from(
             (actionButtonsContainer || messageEl).querySelectorAll('button')
         );
@@ -21640,10 +21300,8 @@
             return directReactionButton;
         }
 
-        const usernameButton = isTr4kerPage()
-            ? messageEl.querySelector('[class*="msgSender"]')
-            : messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-baseline button[type="button"]');
-        const replyContextButton = messageEl.querySelector(':scope > .flex-1.min-w-0 > .flex.items-center.gap-2.mb-1.text-xs button[type="button"]');
+        const usernameButton = messageEl.querySelector('[class*="msgSender"]');
+        const replyContextButton = messageEl.querySelector('[class*="quoteAuthor"]');
         const replyActionButton = getMessageReplyActionButton(messageEl);
         const buttons = Array.from(
             (actionButtonsContainer || messageEl).querySelectorAll('button')
@@ -21675,50 +21333,31 @@
 
     function isReactionPickerElement(element) {
         if (!(element instanceof HTMLDivElement)) return false;
+        if (isUserscriptEmojiControl(element)) return false;
 
-        if (isTr4kerPage()) {
-            if (isUserscriptEmojiControl(element)) return false;
+        const context = getActiveNativeReactionPickerContext();
+        if (!context) return false;
 
-            const context = getActiveNativeReactionPickerContext();
-            if (!context) return false;
+        const className = String(element.getAttribute('class') || '').toLowerCase();
+        const buttons = Array.from(element.querySelectorAll('button'));
+        const rect = element.getBoundingClientRect();
+        const messageEl = element.closest('[data-msg-id]');
 
-            const className = String(element.getAttribute('class') || '').toLowerCase();
-            const buttons = Array.from(element.querySelectorAll('button'));
-            const rect = element.getBoundingClientRect();
-            const messageEl = element.closest('[data-msg-id]');
-
-            // Le popover peut être rendu dans la ligne du message ou déplacé
-            // sous body par React. Son contexte est donc le clic préalable sur
-            // le bouton « Réagir » du message concerné, jamais son apparence.
-            return (
-                rect.width > 0 &&
-                rect.height > 0 &&
-                buttons.length >= 3 &&
-                /reaction|picker|emoji/.test(className) &&
-                (!(messageEl instanceof HTMLElement) || messageEl === context.messageEl)
-            );
-        }
-
-        if (!element.classList.contains('absolute')) return false;
-        if (!element.classList.contains('bg-zinc-900')) return false;
-        if (!element.classList.contains('border-zinc-700')) return false;
-        if (!element.classList.contains('rounded-xl')) return false;
-        if (!element.classList.contains('shadow-2xl')) return false;
-        if (!element.classList.contains('z-50')) return false;
-
-        const quickReactionsGrid = element.querySelector(':scope > div.grid.grid-cols-8');
-        const customReactionsGrid = element.querySelector(':scope > div > div.grid.grid-cols-7');
-        return !!quickReactionsGrid && !!customReactionsGrid;
+        // Le popover peut être rendu dans la ligne du message ou déplacé
+        // sous body par React. Son contexte est donc le clic préalable sur
+        // le bouton « Réagir » du message concerné, jamais son apparence.
+        return (
+            rect.width > 0 &&
+            rect.height > 0 &&
+            buttons.length >= 3 &&
+            /reaction|picker|emoji/.test(className) &&
+            (!(messageEl instanceof HTMLElement) || messageEl === context.messageEl)
+        );
     }
 
     function isReactionUsageGridElement(element) {
         if (!(element instanceof HTMLDivElement)) return false;
-        if (isTr4kerPage()) {
-            return element.classList.contains('grid') || element.querySelectorAll('button').length >= 3;
-        }
-        if (!element.classList.contains('grid')) return false;
-
-        return element.classList.contains('grid-cols-8') || element.classList.contains('grid-cols-7');
+        return element.classList.contains('grid') || element.querySelectorAll('button').length >= 3;
     }
 
     function findReactionUsagePickerRootFromTarget(target) {
@@ -21771,7 +21410,7 @@
     }
 
     function findNativeEmojiInputTrigger(target) {
-        if (!(target instanceof Element) || !isTr4kerPage()) return null;
+        if (!(target instanceof Element)) return null;
 
         const button = target.closest('button');
         if (!(button instanceof HTMLButtonElement) || isUserscriptEmojiControl(button)) return null;
@@ -21787,7 +21426,7 @@
 
     function installNativePickerContextTracker() {
         document.addEventListener('click', (event) => {
-            if (!isChatPage() || !isTr4kerPage()) return;
+            if (!isChatPage()) return;
             if (!(event.target instanceof Element)) return;
 
             const emojiTrigger = findNativeEmojiInputTrigger(event.target);
@@ -21831,38 +21470,21 @@
     function isNativeEmojiPickerElement(element) {
         if (!(element instanceof HTMLDivElement)) return false;
 
-        if (isTr4kerPage()) {
-            // Les menus GIF/images/phrases du userscript contiennent aussi des
-            // boutons et des images. Ils ne doivent jamais être pris pour le
-            // picker emoji natif ni alimenter ses favoris.
-            if (isUserscriptEmojiControl(element)) return false;
-            if (!getActiveNativeEmojiPickerContext()) return false;
+        // Les menus GIF/images/phrases du userscript contiennent aussi des
+        // boutons et des images. Ils ne doivent jamais être pris pour le
+        // picker emoji natif ni alimenter ses favoris.
+        if (isUserscriptEmojiControl(element)) return false;
+        if (!getActiveNativeEmojiPickerContext()) return false;
 
-            const className = String(element.getAttribute('class') || '').toLowerCase();
-            const buttons = Array.from(element.querySelectorAll('button'));
-            const rect = element.getBoundingClientRect();
-            return (
-                rect.width > 0 &&
-                rect.height > 0 &&
-                buttons.length >= 3 &&
-                (/emoji|picker/.test(className) || buttons.some((button) => button.querySelector('img')))
-            );
-        }
-
-        if (!element.classList.contains('absolute')) return false;
-        if (!element.classList.contains('bg-zinc-900')) return false;
-        if (!element.classList.contains('border-zinc-700')) return false;
-        if (!element.classList.contains('rounded-xl')) return false;
-        if (!element.classList.contains('shadow-2xl')) return false;
-
-        const headerLabel = element.querySelector(':scope > div:first-child span');
-        const headerText = normalizeMentionComparableText(headerLabel?.textContent || '');
-        if (!/\bemojis?\b/.test(headerText)) return false;
-
-        const emojiGrid = element.querySelector(':scope > div:last-child > div.grid.grid-cols-7');
-        if (!(emojiGrid instanceof HTMLDivElement)) return false;
-
-        return !!emojiGrid.querySelector('button[title] img');
+        const className = String(element.getAttribute('class') || '').toLowerCase();
+        const buttons = Array.from(element.querySelectorAll('button'));
+        const rect = element.getBoundingClientRect();
+        return (
+            rect.width > 0 &&
+            rect.height > 0 &&
+            buttons.length >= 3 &&
+            (/emoji|picker/.test(className) || buttons.some((button) => button.querySelector('img')))
+        );
     }
 
     function findNativeEmojiPickerButtonFromTarget(target) {
@@ -21872,63 +21494,45 @@
         const button = target.closest('button');
         if (!(button instanceof HTMLButtonElement)) return null;
         if (isUserscriptEmojiControl(button)) return null;
-        if (!isTr4kerPage() && !(button.querySelector('img') instanceof HTMLImageElement)) return null;
-
         let picker = null;
-        if (isTr4kerPage()) {
-            let current = button.parentElement;
-            while (current && current !== document.body) {
-                if (current instanceof HTMLDivElement && isNativeEmojiPickerElement(current)) {
-                    picker = current;
-                    break;
-                }
-                current = current.parentElement;
+        let current = button.parentElement;
+        while (current && current !== document.body) {
+            if (current instanceof HTMLDivElement && isNativeEmojiPickerElement(current)) {
+                picker = current;
+                break;
             }
-        } else {
-            picker = button.closest('div.absolute.bg-zinc-900.border.border-zinc-700.rounded-xl.shadow-2xl');
+            current = current.parentElement;
         }
         if (!(picker instanceof HTMLDivElement) || !isNativeEmojiPickerElement(picker)) return null;
 
-        if (isTr4kerPage()) {
-            const pickerButtonText = String(button.textContent || '').trim();
-            const pickerMetadata = [
-                button.getAttribute('data-emoji'),
-                button.getAttribute('data-value'),
-                button.getAttribute('data-name'),
-                button.getAttribute('title'),
-                button.getAttribute('aria-label')
-            ]
-                .map((value) => String(value || '').trim())
-                .filter(Boolean);
-            const hasEmojiAsset = button.querySelector('img') instanceof HTMLImageElement;
-            const hasUnicodeEmoji = !!normalizeReactionEmojiValue(pickerButtonText);
-            const hasShortcode = pickerMetadata.some((value) => /^:[^:\s][^:]*:$/.test(value));
+        const pickerButtonText = String(button.textContent || '').trim();
+        const pickerMetadata = [
+            button.getAttribute('data-emoji'),
+            button.getAttribute('data-value'),
+            button.getAttribute('data-name'),
+            button.getAttribute('title'),
+            button.getAttribute('aria-label')
+        ]
+            .map((value) => String(value || '').trim())
+            .filter(Boolean);
+        const hasEmojiAsset = button.querySelector('img') instanceof HTMLImageElement;
+        const hasUnicodeEmoji = !!normalizeReactionEmojiValue(pickerButtonText);
+        const hasShortcode = pickerMetadata.some((value) => /^:[^:\s][^:]*:$/.test(value));
 
-            // Ignore les onglets et boutons de navigation du picker : seuls les
-            // éléments qui représentent réellement un emoji sont comptabilisés.
-            return hasEmojiAsset || hasUnicodeEmoji || hasShortcode ? button : null;
-        }
-
-        const emojiGrid = button.closest('div.grid.grid-cols-7');
-        if (!(emojiGrid instanceof HTMLDivElement) || !picker.contains(emojiGrid)) return null;
-
-        return button;
+        // Ignore les onglets et boutons de navigation du picker : seuls les
+        // éléments qui représentent réellement un emoji sont comptabilisés.
+        return hasEmojiAsset || hasUnicodeEmoji || hasShortcode ? button : null;
     }
 
     function findNativeEmojiPickerFromTarget(target) {
         if (!(target instanceof Element)) return null;
 
-        if (isTr4kerPage()) {
-            let current = target instanceof HTMLElement ? target : null;
-            while (current && current !== document.body) {
-                if (current instanceof HTMLDivElement && isNativeEmojiPickerElement(current)) return current;
-                current = current.parentElement;
-            }
-            return null;
+        let current = target instanceof HTMLElement ? target : null;
+        while (current && current !== document.body) {
+            if (current instanceof HTMLDivElement && isNativeEmojiPickerElement(current)) return current;
+            current = current.parentElement;
         }
-
-        const picker = target.closest('div.absolute.bg-zinc-900.border.border-zinc-700.rounded-xl.shadow-2xl');
-        return picker instanceof HTMLDivElement && isNativeEmojiPickerElement(picker) ? picker : null;
+        return null;
     }
 
     function findReactionPickerButtonFromTarget(target) {
@@ -21936,9 +21540,7 @@
 
         const button = target.closest('button[type="button"]');
         if (!(button instanceof HTMLButtonElement)) return null;
-        const picker = isTr4kerPage()
-            ? findReactionUsagePickerRootFromTarget(button)
-            : button.closest('div.absolute.bg-zinc-900.border.border-zinc-700.rounded-xl.shadow-2xl.z-50');
+        const picker = findReactionUsagePickerRootFromTarget(button);
         if (!(picker instanceof HTMLDivElement) || !isReactionPickerElement(picker)) return null;
 
         return button;
@@ -21954,38 +21556,30 @@
         const picker = findReactionUsagePickerRootFromTarget(button);
         if (!(picker instanceof HTMLDivElement)) return null;
 
-        if (isTr4kerPage()) {
-            const context = getActiveNativeReactionPickerContext();
-            if (!context) return null;
+        const context = getActiveNativeReactionPickerContext();
+        if (!context) return null;
 
-            const buttonMessageEl = findMessageElementFromTarget(button);
-            const pickerMessageEl = picker.closest('[data-msg-id]');
-            if (
-                (buttonMessageEl instanceof HTMLElement && buttonMessageEl !== context.messageEl) ||
-                (pickerMessageEl instanceof HTMLElement && pickerMessageEl !== context.messageEl)
-            ) return null;
+        const buttonMessageEl = findMessageElementFromTarget(button);
+        const pickerMessageEl = picker.closest('[data-msg-id]');
+        if (
+            (buttonMessageEl instanceof HTMLElement && buttonMessageEl !== context.messageEl) ||
+            (pickerMessageEl instanceof HTMLElement && pickerMessageEl !== context.messageEl)
+        ) return null;
 
-            const record = extractReactionUsageRecordFromButton(button);
-            const hasEmojiValue = !!normalizeReactionEmojiValue(
-                record?.emojiValue || record?.label || record?.title || record?.alt || ''
-            );
-            const hasEmojiAsset = button.querySelector('img') instanceof HTMLImageElement;
-            const hasEmojiDataset = [
-                button.getAttribute('data-emoji'),
-                button.getAttribute('data-value'),
-                button.getAttribute('data-name')
-            ].some((value) => !!String(value || '').trim());
+        const record = extractReactionUsageRecordFromButton(button);
+        const hasEmojiValue = !!normalizeReactionEmojiValue(
+            record?.emojiValue || record?.label || record?.title || record?.alt || ''
+        );
+        const hasEmojiAsset = button.querySelector('img') instanceof HTMLImageElement;
+        const hasEmojiDataset = [
+            button.getAttribute('data-emoji'),
+            button.getAttribute('data-value'),
+            button.getAttribute('data-name')
+        ].some((value) => !!String(value || '').trim());
 
-            // Tr4ker utilise des classes CSS modules, sans conteneur `div.grid`.
-            // Écarter les contrôles du picker et ne conserver que les emojis.
-            return hasEmojiValue || hasEmojiAsset || hasEmojiDataset ? button : null;
-        }
-
-        const nearestGrid = button.closest('div.grid');
-        if (!(nearestGrid instanceof HTMLDivElement) || !picker.contains(nearestGrid)) return null;
-        if (!isReactionUsageGridElement(nearestGrid)) return null;
-
-        return button;
+        // Tr4ker utilise des classes CSS modules, sans conteneur `div.grid`.
+        // Écarter les contrôles du picker et ne conserver que les emojis.
+        return hasEmojiValue || hasEmojiAsset || hasEmojiDataset ? button : null;
     }
 
     function applyManualQuickAccessPickerMarker(button, isFavorite) {
@@ -22566,37 +22160,13 @@
         // échouer le démontage d'une conversation (NotFoundError/removeChild).
         // Tr4ker rend déjà les URL sous forme de liens natifs : ne modifions
         // donc jamais son texte, mais gardons le bouton du mini-player YouTube.
-        if (isTr4kerPage()) {
-            syncYouTubePlayButtons(messageEl);
-            return;
-        }
-
-        if (linkifyUrlsEnabled) {
-            linkifyMessageTextBlock(messageEl);
-            syncEmbeddedImagePreviews(messageEl);
-        } else {
-            unlinkifyMessageTextBlock(messageEl);
-        }
-
         syncYouTubePlayButtons(messageEl);
     }
 
     function getMessageTextBlock(messageEl) {
         if (!(messageEl instanceof HTMLElement)) return null;
 
-        if (isTr4kerPage()) {
-            return messageEl.querySelector('[class*="msgBubble"]');
-        }
-
-        if (isChatPage()) {
-            return messageEl.querySelector(':scope > .flex-1.min-w-0 > .text-sm.text-gray-200.break-words');
-        }
-
-        if (isHomePage()) {
-            return messageEl.querySelector(':scope > .flex-1.min-w-0 > p.break-words.leading-snug');
-        }
-
-        return null;
+        return messageEl.querySelector('[class*="msgBubble"]');
     }
 
     function getMessageContentImageFromTarget(target) {
@@ -22841,20 +22411,8 @@
     function findUsernameTrigger(target) {
         if (!(target instanceof Element)) return null;
 
-        if (isTr4kerPage()) {
-            // Le bouton de pseudo Tr4ker ne porte pas d'attribut type="button".
-            return target.closest('button[class*="msgSender"], [class*="msgSender"]');
-        }
-
-        if (isChatPage()) {
-            return target.closest('button[type="button"]');
-        }
-
-        if (isHomePage()) {
-            return target.closest('span.text-xs.font-bold');
-        }
-
-        return null;
+        // Le bouton de pseudo Tr4ker ne porte pas d'attribut type="button".
+        return target.closest('button[class*="msgSender"], [class*="msgSender"]');
     }
 
     function isExcludedMessageShortcutTarget(target) {
@@ -22949,33 +22507,7 @@
     }
 
     function installNativeReactionButtonPositionHandler() {
-        document.addEventListener('click', (event) => {
-            if (modalOpen || !isChatPage()) return;
-
-            // Le picker Tr4ker est ancré à la ligne du message. Le transformer
-            // en élément fixed agrandit parfois la zone défilable horizontalement
-            // du chat : on laisse donc le positionnement natif intact.
-            if (isTr4kerPage()) return;
-
-            const target = event.target;
-            if (!(target instanceof Element)) return;
-
-            const clickedButton = target.closest('button');
-            if (!(clickedButton instanceof HTMLButtonElement)) return;
-
-            const messageEl = findMessageElementFromTarget(clickedButton);
-            if (!messageEl || !messageEl.contains(clickedButton)) return;
-
-            const reactionButton = getMessageReactionActionButton(messageEl);
-            if (!(reactionButton instanceof HTMLButtonElement) || reactionButton.disabled) return;
-            if (clickedButton !== reactionButton && !reactionButton.contains(clickedButton)) return;
-
-            elevateVisibleReactionPicker();
-
-            if (messageActionsLeftEnabled) {
-                positionReactionPickerNearPointer(event.clientX, event.clientY);
-            }
-        }, true);
+        // Tr4ker conserve le positionnement natif de son picker de réactions.
     }
 
     function clearLongPressReactionState() {
@@ -23016,9 +22548,6 @@
 
                     longPressReactionState.triggered = true;
                     reactionButton.click();
-                    if (!isTr4kerPage()) {
-                        positionReactionPickerNearPointer(event.clientX, event.clientY);
-                    }
                 }, LONG_PRESS_REACTION_DELAY_MS)
             };
 
@@ -23525,6 +23054,9 @@
         syncTr4kerTopbarStatsButton();
         syncTr4kerTopbarBurgerMenu();
         applyCustomBackgroundColor();
+        statsHidden = loadStatsHidden();
+        settingsBubbleEnabled = loadSettingsBubbleEnabled();
+        syncSettingsBubble();
 
         if (!isChatPage()) {
             clearSavedPhrasesReplyContext();
@@ -23540,26 +23072,13 @@
             chatScrollbarEnabled = loadChatScrollbarEnabled();
             messageActionsLeftEnabled = loadMessageActionsLeftEnabled();
 
-            if (isHomePage() && !getHomepageChatContainer()) {
-                removeEmojiQuickAccessToolbar();
-                removeMessageReactionQuickAccessButtons();
-                removeSavedPhrasesToolbar();
-                removeKlipyGifToolbar();
-                removeT9EmojToolbar();
-                removeImageUploadToolbar();
-                removeChatSidebarControls();
-                stopObserver();
-                return;
-            }
-
             createStatsBox();
-            syncHomepageCollapseUi(true);
             applyBoxPosition();
             applyChatPageScrollbarState();
             applyMessageActionsPositionState();
-            applyHomeChatPopoverState();
             applyNativeChatInputPopoverState();
             syncChatSidebarControls();
+            syncChatInputCharacterLimit();
             injectEmojiQuickAccessToolbar();
             injectSavedPhrasesToolbar();
             injectKlipyGifToolbar();
@@ -23575,18 +23094,23 @@
                 clearAfkReplayProtection();
             }
 
-            if (isHomePage() && homeChatCollapsed) {
-                stopObserver();
-            } else {
-                processAllMessages();
-                startObserver();
-            }
+            processAllMessages();
+            startObserver();
 
             refreshReactionQuickAccessButtons();
             renderAfkPanel();
+        } else if (isWikiEditorPage()) {
+            // L'éditeur Wiki possède déjà sa propre barre Markdown. On ne
+            // déplace aucun de ses contrôles natifs : le rail est simplement
+            // ancré au-dessus du textarea de contenu.
+            injectEmojiQuickAccessToolbar();
+            injectSavedPhrasesToolbar();
+            injectKlipyGifToolbar();
+            injectT9EmojToolbar();
+            injectImageUploadToolbar();
+            applyChatInputToolbarAlignmentState();
         } else {
             applyMessageActionsPositionState();
-            applyHomeChatPopoverState();
             applyNativeChatInputPopoverState();
             removeChatSidebarControls();
             stopObserver();
@@ -23649,20 +23173,7 @@
                 renderAfkPanel();
             } else if (isTr4kerPage() && isChatPage() && !getChatPageMessagesRoot()) {
                 refreshForRoute();
-            } else if (isHomePage() && !getHomepageChatContainer()) {
-                removeEmojiQuickAccessToolbar();
-                removeMessageReactionQuickAccessButtons();
-                removeSavedPhrasesToolbar();
-                removeKlipyGifToolbar();
-                removeT9EmojToolbar();
-                removeImageUploadToolbar();
-                removeChatSidebarControls();
-                stopObserver();
-            } else if (isHomePage() && needsHomepageCollapseUiRefresh()) {
-                syncHomepageCollapseUi();
-            } else if (isHomePage() && getHomepageChatContainer() && !observer) {
-                refreshForRoute();
-            } else if (isSupportedPage()) {
+            } else if (isToolbarSupportedPage()) {
                 const emojiWrapper = document.getElementById(EMOJI_QUICK_ACCESS_WRAPPER_ID);
                 if (
                     (emojiQuickAccessLimit <= 0 || getQuickAccessEmojiRecords(1).length === 0) &&
@@ -23689,6 +23200,7 @@
 
                 const textInput = getChatInput();
                 if (textInput) {
+                    syncChatInputCharacterLimit(textInput);
                     const mountContext = getChatInputToolbarMountContext(textInput);
                     const toolbarHost = getChatInputToolbarRailHost(mountContext) || mountContext.mountParent;
                     const currentEmojiWrapper = document.getElementById(EMOJI_QUICK_ACCESS_WRAPPER_ID);
@@ -23838,7 +23350,7 @@
         }
 
         if (isSettingsShortcut) {
-            if (!isSupportedPage()) return;
+            if (!isTr4kerPage()) return;
             if (imageViewerOpen) return;
             e.preventDefault();
             openSettingsModal();
@@ -23846,7 +23358,7 @@
         }
 
         if (isSavedPhrasesShortcut) {
-            if (!isSupportedPage()) return;
+            if (!isToolbarSupportedPage()) return;
             if (imageViewerOpen || modalOpen) return;
             e.preventDefault();
 
@@ -24245,6 +23757,7 @@
         installYouTubePlayerHandler();
         installImagePasteHandler();
         installRouteWatcher();
+        syncCrossChannelMentionSocket();
         syncCreditRecapFeatureState();
         document.addEventListener('click', handleStatsBoxActionClick, true);
         refreshForRoute();
