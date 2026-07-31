@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    http://tampermonkey.net/
-// @version      3.0.98
+// @version      3.01.00
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -41,6 +41,7 @@
     const STORAGE_KEY_MENTION_SETTINGS = 'tm_t4_mention_highlight_settings';
     const STORAGE_KEY_CROSS_CHANNEL_MENTION_ENABLED = 'tm_t4_cross_channel_mention_enabled';
     const STORAGE_KEY_CROSS_CHANNEL_MENTION_CHANNELS = 'tm_t4_cross_channel_mention_channels';
+    const STORAGE_KEY_PRIVATE_MESSAGE_NOTIFICATIONS_ENABLED = 'tm_t4_private_message_notifications_enabled';
     const STORAGE_KEY_LAST_MENTION_SOUND_NOTIFICATION = 'tm_t4_last_mention_sound_notification';
     const STORAGE_KEY_RECENT_MENTION_SOUND_NOTIFICATIONS = 'tm_t4_recent_mention_sound_notifications';
     const STORAGE_KEY_CHAT_FONT_SCALE = 'tm_t4_chat_font_scale';
@@ -105,6 +106,9 @@
     const STORAGE_KEY_AFK_ACTIVITY = 'tm_t4_afk_activity';
     const STORAGE_KEY_AFK_PANEL_POSITION = 'tm_t4_afk_panel_position';
     const STORAGE_KEY_AFK_PANEL_HIDDEN = 'tm_t4_afk_panel_hidden';
+    const STORAGE_KEY_AFK_CHANNELS = 'tm_t4_afk_channels';
+    const STORAGE_KEY_MENTION_INBOX = 'tm_t4_mention_inbox_v1';
+    const STORAGE_KEY_MENTION_INBOX_CLEARED_AT = 'tm_t4_mention_inbox_cleared_at';
     const STORAGE_KEY_GRADE_PSEUDONYM_COLORS = 'tm_t4_grade_pseudonym_colors';
     const STORAGE_KEY_GRADE_PSEUDONYM_EFFECTS = 'tm_t4_grade_pseudonym_effects';
     const SESSION_STORAGE_KEY_AFK_TAB_ID = 'tm_t4_afk_tab_id';
@@ -280,6 +284,8 @@
         STORAGE_KEY_IMAGE_HOSTING_ENABLED,
         STORAGE_KEY_IMAGE_HOSTING_EXPIRATION_SECONDS,
         STORAGE_KEY_CREDIT_RECAP_ENABLED,
+        STORAGE_KEY_PRIVATE_MESSAGE_NOTIFICATIONS_ENABLED,
+        STORAGE_KEY_AFK_CHANNELS,
         STORAGE_KEY_AFK_PANEL_POSITION,
         STORAGE_KEY_GRADE_PSEUDONYM_COLORS,
         STORAGE_KEY_GRADE_PSEUDONYM_EFFECTS
@@ -289,6 +295,7 @@
     const OVERLAY_ID = 'tm-t4-chat-overlay';
     const TOAST_ID = 'tm-t4-chat-toast';
     const SETTINGS_BUBBLE_ID = 'tm-t4-settings-bubble';
+    const MENTION_INBOX_BUBBLE_ID = 'tm-t4-mention-inbox-bubble';
     const CHAT_SIDEBAR_RESIZER_ID = 'tm-t4-chat-sidebar-resizer';
     const CHAT_SIDEBAR_TOGGLE_ID = 'tm-t4-chat-sidebar-toggle';
     const IMAGE_PREVIEW_ID = 'tm-t4-image-preview';
@@ -297,6 +304,8 @@
     const IMAGE_CATALOG_DELETE_CONFIRMATION_ID = 'tm-t4-image-catalog-delete-confirmation';
     const YOUTUBE_PLAYER_ID = 'tm-t4-youtube-player';
     const AFK_PANEL_ID = 'tm-t4-afk-panel';
+    const MENTION_INBOX_PANEL_ID = 'tm-t4-mention-inbox-panel';
+    const PRIVATE_MESSAGE_NOTIFICATION_ID = 'tm-t4-private-message-notification';
     const PHRASES_MENU_WRAPPER_ID = 'tm-t4-phrases-menu-wrapper';
     const GIF_MENU_WRAPPER_ID = 'tm-t4-klipy-gif-wrapper';
     const T9_EMOJ_MENU_WRAPPER_ID = 'tm-t4-t9-emoj-wrapper';
@@ -366,6 +375,11 @@
     const MAX_STATS_BOTTOM_PERCENT = 95;
     const MAX_RECENT_MENTION_SOUND_RECORDS = 40;
     const MAX_AFK_READ_ACTIVITY_RECORDS = 50;
+    const MAX_AFK_UNREAD_ACTIVITY_RECORDS = 300;
+    const MAX_MENTION_INBOX_READ_RECORDS = 300;
+    const MAX_MENTION_INBOX_UNREAD_WARNING = 300;
+    const MENTION_INBOX_READ_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+    const MAX_MENTION_INBOX_MESSAGE_LENGTH = 4000;
     const MAX_AFK_AUTO_REPLY_MESSAGE_LENGTH = 300;
     const MAX_CHAT_MESSAGE_LENGTH = 4000;
     const MAX_SAVED_PHRASE_LENGTH = MAX_CHAT_MESSAGE_LENGTH;
@@ -539,7 +553,6 @@
     const AFK_AUTO_REPLY_GLOBAL_COOLDOWN_MS = 60 * 1000;
     const AFK_AUTO_REPLY_PER_USER_COOLDOWN_MS = 5 * 60 * 1000;
     const AFK_AUTO_REPLY_MAX_INACTIVITY_MS = 30 * 60 * 1000;
-    const AFK_RELOAD_REPLAY_PROTECTION_MS = 8000;
     const CREDIT_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
     const CREDIT_MAX_GAP_MIN = 90;
 
@@ -573,6 +586,7 @@
     let statsUpdateFrame = null;
     let crossChannelMentionEnabled = loadCrossChannelMentionEnabled();
     let crossChannelMentionChannelIds = loadCrossChannelMentionChannelIds();
+    let privateMessageNotificationsEnabled = loadPrivateMessageNotificationsEnabled();
     let crossChannelMentionSocket = null;
     let crossChannelMentionReconnectTimer = null;
     let crossChannelMentionReconnectDelay = 1000;
@@ -580,6 +594,12 @@
     let crossChannelMentionChannelsRequest = null;
     const crossChannelMentionChannels = new Map();
     const crossChannelMentionSeenMessageIds = new Set();
+    const crossChannelMentionPendingMessageIds = new Set();
+    let privateMessageConversationsFetchedAt = 0;
+    let privateMessageConversationsRequest = null;
+    let privateMessageNotificationTimer = null;
+    const privateMessageConversations = new Map();
+    const privateMessageSeenIds = new Set();
     let tr4kerTopbarStatsData = null;
     let tr4kerTopbarStatsFetchedAt = 0;
     let tr4kerTopbarStatsRequest = null;
@@ -678,12 +698,18 @@
     let savedPhrasesReplyContext = null;
     let afkAutomatedSendInFlight = false;
     let afkMessageDraft = null;
-    let afkReplayProtectionUntil = 0;
-    let afkReplayProtectionContextKey = '';
     let afkState = loadAfkState();
     let afkActivityRecords = loadAfkActivityRecords();
     let afkPanelPosition = loadAfkPanelPosition();
     let afkPanelHidden = loadAfkPanelHidden();
+    let afkChannelIds = loadAfkChannelIds();
+    let mentionInboxLastClearedAt = loadMentionInboxLastClearedAt();
+    let mentionInboxRecords = loadMentionInboxRecords();
+    let mentionInboxOpen = false;
+    let mentionInboxQuery = '';
+    let mentionInboxReadFilter = 'unread';
+    let mentionInboxChannelFilter = '';
+    let mentionInboxSenderFilter = '';
     const afkTabId = loadAfkTabId();
 
     const savedPhrases = loadSavedPhrases();
@@ -705,6 +731,7 @@
     const t9EmojMediaRequests = new Map();
     const youtubeVideoTitleCache = new Map();
     const afkSeenMessageKeys = new Set();
+    const afkSeenCrossChannelMessageIds = new Set();
 
     /**
      * @typedef {Object} SavedPhraseRecord
@@ -746,6 +773,7 @@
      * @property {string} username
      * @property {string} autoReplyMessage
      * @property {number} activatedAt
+     * @property {number} activationMessageTimestampKey
      * @property {number} lastAutoReplyAt
      * @property {Object.<string, number>} perUserReplyAt
      */
@@ -765,6 +793,7 @@
      * @property {boolean} isRead
      * @property {number} readAt
      * @property {boolean} autoReplySent
+     * @property {boolean} autoReplyRequested
      * @property {string} autoReplyStatus
      * @property {string} autoReplyText
      * @property {string} signatureHash
@@ -2447,10 +2476,12 @@
     function normalizeAfkPerUserReplyAtMap(value) {
         if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
 
+        const now = Date.now();
+
         return Object.fromEntries(
             Object.entries(value)
                 .map(([username, timestamp]) => [normalizeName(username), Math.max(0, Number(timestamp) || 0)])
-                .filter(([username, timestamp]) => !!username && timestamp > 0)
+                .filter(([username, timestamp]) => !!username && timestamp > 0 && now - timestamp < AFK_AUTO_REPLY_PER_USER_COOLDOWN_MS)
         );
     }
 
@@ -2472,6 +2503,7 @@
                 username: normalizeName(mentionSettings?.username || ''),
                 autoReplyMessage: DEFAULT_AFK_AUTO_REPLY_MESSAGE,
                 activatedAt: 0,
+                activationMessageTimestampKey: 0,
                 lastAutoReplyAt: 0,
                 perUserReplyAt: {}
             };
@@ -2487,6 +2519,7 @@
             username: normalizeName(value.username || mentionSettings?.username || ''),
             autoReplyMessage: normalizeAfkAutoReplyMessage(value.autoReplyMessage),
             activatedAt: Math.max(0, Number(value.activatedAt) || 0),
+            activationMessageTimestampKey: Math.max(0, Number(value.activationMessageTimestampKey) || 0),
             lastAutoReplyAt: Math.max(0, Number(value.lastAutoReplyAt) || 0),
             perUserReplyAt: normalizeAfkPerUserReplyAtMap(value.perUserReplyAt)
         };
@@ -2566,6 +2599,7 @@
             isRead: value.isRead === true || Math.max(0, Number(value.readAt) || 0) > 0,
             readAt: Math.max(0, Number(value.readAt) || 0),
             autoReplySent: value.autoReplySent === true,
+            autoReplyRequested: value.autoReplyRequested === true || value.autoReplySent === true,
             autoReplyStatus: String(value.autoReplyStatus || '').trim(),
             autoReplyText: String(value.autoReplyText || '').trim(),
             signatureHash,
@@ -2589,7 +2623,11 @@
             .map(normalizeAfkActivityRecord)
             .filter(Boolean);
 
-        const unreadRecords = normalizedRecords.filter((record) => !record.isRead);
+        // Ne jamais effacer silencieusement une demande non lue. Le seuil est
+        // signalé dans l'UI ; seules les entrées lues sont automatiquement bornées.
+        const unreadRecords = normalizedRecords
+            .filter((record) => !record.isRead)
+            .sort((a, b) => (Number(b.capturedAt) || 0) - (Number(a.capturedAt) || 0));
         const readRecords = normalizedRecords
             .filter((record) => record.isRead)
             .sort((a, b) =>
@@ -2612,6 +2650,401 @@
         afkActivityRecords = pruneAfkActivityRecords(afkActivityRecords);
 
         writeStorageJson(STORAGE_KEY_AFK_ACTIVITY, afkActivityRecords);
+    }
+
+    /**
+     * Une mention reçue est conservée indépendamment du mode AFK. Ce journal
+     * représente la source de relecture commune aux événements WebSocket et DOM.
+     * Les champs sont volontairement bornés : son contenu est placé dans
+     * localStorage, donc lisible par le navigateur de l'utilisateur.
+     */
+    function normalizeMentionInboxRecord(value) {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+        const messageId = String(value.messageId || value.id || '').trim();
+        const sender = String(value.sender || '').trim().slice(0, 160);
+        const body = String(value.body || '').trim().slice(0, MAX_MENTION_INBOX_MESSAGE_LENGTH);
+        const channelId = String(value.channelId || '').trim();
+        const channelName = String(value.channelName || value.contextLabel || '').trim().slice(0, 160);
+        const channelSlug = String(value.channelSlug || '').trim();
+        const capturedAt = Math.max(0, Number(value.capturedAt) || Date.now());
+        const at = String(value.at || value.messageTimestamp || '').trim().slice(0, 80);
+
+        if (!messageId || !sender || !body) return null;
+
+        return {
+            id: String(value.id || messageId).trim(),
+            messageId,
+            channelId,
+            channelName: channelName || 'Conversation inconnue',
+            channelSlug,
+            sender,
+            body,
+            at,
+            capturedAt,
+            source: value.source === 'dom' ? 'dom' : (value.source === 'ws+dom' ? 'ws+dom' : 'ws'),
+            reason: value.reason === 'reply' ? 'reply' : (value.reason === 'mention+reply' ? 'mention+reply' : 'mention'),
+            isRead: value.isRead === true || Math.max(0, Number(value.readAt) || 0) > 0,
+            readAt: Math.max(0, Number(value.readAt) || 0),
+            isArchived: value.isArchived === true || Math.max(0, Number(value.archivedAt) || 0) > 0,
+            archivedAt: Math.max(0, Number(value.archivedAt) || 0)
+        };
+    }
+
+    function sortMentionInboxRecords(records = []) {
+        return records.slice().sort((a, b) =>
+            Number(a.isArchived) - Number(b.isArchived) ||
+            Number(a.isRead) - Number(b.isRead) ||
+            (Number(b.capturedAt) || 0) - (Number(a.capturedAt) || 0)
+        );
+    }
+
+    function pruneMentionInboxRecords(records = []) {
+        const now = Date.now();
+        const normalized = records.map(normalizeMentionInboxRecord).filter(Boolean);
+        const activeRecords = normalized.filter((record) => !record.isRead && !record.isArchived);
+        const retainedReadRecords = normalized
+            .filter((record) => record.isRead || record.isArchived)
+            .filter((record) => now - Math.max(record.readAt, record.archivedAt, record.capturedAt) <= MENTION_INBOX_READ_RETENTION_MS)
+            .sort((a, b) => (Number(b.capturedAt) || 0) - (Number(a.capturedAt) || 0))
+            .slice(0, MAX_MENTION_INBOX_READ_RECORDS);
+
+        return sortMentionInboxRecords([...activeRecords, ...retainedReadRecords]);
+    }
+
+    function normalizeMentionInboxClearedAt(value) {
+        return Math.max(0, Number(value) || 0);
+    }
+
+    function loadMentionInboxLastClearedAt() {
+        return normalizeMentionInboxClearedAt(readStorageItem(STORAGE_KEY_MENTION_INBOX_CLEARED_AT));
+    }
+
+    function saveMentionInboxLastClearedAt(value) {
+        mentionInboxLastClearedAt = normalizeMentionInboxClearedAt(value);
+        writeStorageItem(STORAGE_KEY_MENTION_INBOX_CLEARED_AT, String(mentionInboxLastClearedAt));
+    }
+
+    function isMentionInboxRecordBeforeLastClear(record) {
+        const capturedAt = Math.max(0, Number(record?.capturedAt) || 0);
+        return mentionInboxLastClearedAt > 0 && capturedAt > 0 && capturedAt <= mentionInboxLastClearedAt;
+    }
+
+    function loadMentionInboxRecords() {
+        const parsed = readStorageJson(STORAGE_KEY_MENTION_INBOX, []);
+        return Array.isArray(parsed)
+            ? pruneMentionInboxRecords(parsed).filter((record) => !isMentionInboxRecordBeforeLastClear(record))
+            : [];
+    }
+
+    function saveMentionInboxRecords() {
+        mentionInboxRecords = pruneMentionInboxRecords(mentionInboxRecords)
+            .filter((record) => !isMentionInboxRecordBeforeLastClear(record));
+        writeStorageJson(STORAGE_KEY_MENTION_INBOX, mentionInboxRecords);
+    }
+
+    function getMentionInboxUnreadCount() {
+        return mentionInboxRecords.filter((record) => !record.isRead && !record.isArchived).length;
+    }
+
+    function upsertMentionInboxRecord(value, options = {}) {
+        const record = normalizeMentionInboxRecord(value);
+        if (!record) return null;
+        if (isMentionInboxRecordBeforeLastClear(record)) return null;
+
+        const index = mentionInboxRecords.findIndex((entry) => entry.messageId === record.messageId);
+        if (index >= 0) {
+            const previous = mentionInboxRecords[index];
+            mentionInboxRecords[index] = {
+                ...previous,
+                ...record,
+                source: previous.source === record.source
+                    ? record.source
+                    : 'ws+dom',
+                isRead: previous.isRead,
+                readAt: previous.isRead ? previous.readAt : record.readAt,
+                isArchived: previous.isArchived,
+                archivedAt: previous.isArchived ? previous.archivedAt : record.archivedAt
+            };
+        } else {
+            mentionInboxRecords.unshift(record);
+        }
+
+        if (options.persist !== false) {
+            saveMentionInboxRecords();
+            renderMentionInboxPanel();
+            updateStatsBox();
+        }
+        return record;
+    }
+
+    function setMentionInboxRecordState(recordId, changes = {}) {
+        const id = String(recordId || '').trim();
+        const index = mentionInboxRecords.findIndex((record) => record.id === id);
+        if (index < 0) return { ok: false, message: 'Mention introuvable.' };
+
+        const now = Date.now();
+        const current = mentionInboxRecords[index];
+        mentionInboxRecords[index] = normalizeMentionInboxRecord({
+            ...current,
+            isRead: changes.isRead === undefined ? current.isRead : changes.isRead === true,
+            readAt: changes.isRead === undefined
+                ? current.readAt
+                : (changes.isRead === true ? now : 0),
+            isArchived: changes.isArchived === undefined ? current.isArchived : changes.isArchived === true,
+            archivedAt: changes.isArchived === undefined
+                ? current.archivedAt
+                : (changes.isArchived === true ? now : 0)
+        });
+        saveMentionInboxRecords();
+        renderMentionInboxPanel();
+        updateStatsBox();
+        return { ok: true, message: 'Mention mise à jour.' };
+    }
+
+    function markAllMentionInboxRecordsRead() {
+        const now = Date.now();
+        let count = 0;
+        mentionInboxRecords = mentionInboxRecords.map((record) => {
+            if (record.isRead || record.isArchived) return record;
+            count += 1;
+            return normalizeMentionInboxRecord({ ...record, isRead: true, readAt: now });
+        }).filter(Boolean);
+        saveMentionInboxRecords();
+        renderMentionInboxPanel();
+        updateStatsBox();
+        return { ok: count > 0, message: count > 0 ? `${count} mention${count > 1 ? 's' : ''} marquée${count > 1 ? 's' : ''} comme lue${count > 1 ? 's' : ''}.` : 'Aucune mention non lue.' };
+    }
+
+    function clearMentionInboxRecords() {
+        saveMentionInboxLastClearedAt(Date.now());
+        mentionInboxRecords = [];
+        saveMentionInboxRecords();
+        renderMentionInboxPanel();
+        updateStatsBox();
+    }
+
+    function getMentionInboxRecordHref(record) {
+        const conv = String(record?.channelId || '').trim();
+        const messageId = String(record?.messageId || '').trim();
+        if (!conv) return '/communication';
+
+        const params = new URLSearchParams({ conv });
+        if (messageId) params.set('msg', messageId);
+        return `/communication?${params.toString()}`;
+    }
+
+    function formatUserLocalTimestamp(rawValue, fallbackTimestamp = 0, showSeconds = false) {
+        const rawTimestamp = String(rawValue || '').trim();
+        const parsedTimestamp = rawTimestamp ? Date.parse(rawTimestamp) : NaN;
+        const timestamp = Number.isFinite(parsedTimestamp) && parsedTimestamp > 0
+            ? parsedTimestamp
+            : Math.max(0, Number(fallbackTimestamp) || 0);
+
+        if (timestamp > 0) {
+            const options = {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            };
+            if (showSeconds) options.second = '2-digit';
+            return new Date(timestamp).toLocaleString('fr-FR', options);
+        }
+
+        return rawTimestamp || 'Horodatage indisponible';
+    }
+
+    function formatMentionInboxRecordTimestamp(record) {
+        return formatUserLocalTimestamp(record?.at, record?.capturedAt, true);
+    }
+
+    function getMentionInboxVisibleRecords() {
+        const normalizedQuery = normalizeMentionComparableText(mentionInboxQuery);
+        return mentionInboxRecords.filter((record) => {
+            if (mentionInboxReadFilter === 'unread' && (record.isRead || record.isArchived)) return false;
+            if (mentionInboxReadFilter === 'read' && (!record.isRead || record.isArchived)) return false;
+            if (mentionInboxReadFilter === 'archived' && !record.isArchived) return false;
+            if (mentionInboxChannelFilter && record.channelId !== mentionInboxChannelFilter) return false;
+            if (mentionInboxSenderFilter && normalizeMentionComparableText(record.sender) !== normalizeMentionComparableText(mentionInboxSenderFilter)) return false;
+            if (!normalizedQuery) return true;
+            return normalizeMentionComparableText([
+                record.channelName,
+                record.sender,
+                record.body,
+                record.at
+            ].join(' ')).includes(normalizedQuery);
+        });
+    }
+
+    function downloadMentionInboxExport(format) {
+        const records = mentionInboxRecords.map((record) => ({ ...record }));
+        const normalizedFormat = format === 'csv' ? 'csv' : 'json';
+        const date = new Date().toISOString().slice(0, 10);
+        const escapeCsv = (value) => {
+            const raw = String(value ?? '');
+            const safe = /^[=+\-@]/.test(raw) ? `'${raw}` : raw;
+            return `"${safe.replace(/"/g, '""')}"`;
+        };
+        const content = normalizedFormat === 'csv'
+            ? [
+                ['id', 'messageId', 'canal', 'expediteur', 'message', 'date', 'source', 'raison', 'lu', 'archive'].join(','),
+                ...records.map((record) => [
+                    record.id,
+                    record.messageId,
+                    record.channelName,
+                    record.sender,
+                    record.body,
+                    formatMentionInboxRecordTimestamp(record),
+                    record.source,
+                    record.reason,
+                    record.isRead ? 'oui' : 'non',
+                    record.isArchived ? 'oui' : 'non'
+                ].map(escapeCsv).join(','))
+            ].join('\n')
+            : JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), records }, null, 2);
+        const blob = new Blob([content], { type: normalizedFormat === 'csv' ? 'text/csv;charset=utf-8' : 'application/json;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `tr4ker-mentions-${date}.${normalizedFormat}`;
+        document.body?.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    }
+
+    function closeMentionInboxPanel() {
+        mentionInboxOpen = false;
+        document.getElementById(MENTION_INBOX_PANEL_ID)?.remove();
+    }
+
+    function openMentionInboxPanel() {
+        if (!isTr4kerPage()) return;
+        mentionInboxOpen = true;
+        renderMentionInboxPanel();
+    }
+
+    function toggleMentionInboxPanel() {
+        if (mentionInboxOpen) {
+            closeMentionInboxPanel();
+        } else {
+            openMentionInboxPanel();
+        }
+        updateStatsBox();
+        syncSettingsBubble();
+    }
+
+    function renderMentionInboxPanel() {
+        const existingPanel = document.getElementById(MENTION_INBOX_PANEL_ID);
+        if (!mentionInboxOpen || !isTr4kerPage()) {
+            existingPanel?.remove();
+            return;
+        }
+
+        const channels = [...new Map(mentionInboxRecords
+            .filter((record) => !!record.channelId)
+            .map((record) => [record.channelId, record.channelName]))
+            .entries()]
+            .sort(([, a], [, b]) => a.localeCompare(b, 'fr'));
+        const senders = [...new Set(mentionInboxRecords.map((record) => record.sender))]
+            .sort((a, b) => a.localeCompare(b, 'fr'));
+        const records = getMentionInboxVisibleRecords();
+        const unreadCount = getMentionInboxUnreadCount();
+        const panel = existingPanel instanceof HTMLElement ? existingPanel : document.createElement('aside');
+
+        panel.id = MENTION_INBOX_PANEL_ID;
+        panel.setAttribute('role', 'dialog');
+        panel.setAttribute('aria-label', 'Boîte de réception des mentions');
+        panel.style.cssText = [
+            'position:fixed', 'z-index:1000002', 'right:18px', 'top:72px',
+            'width:min(480px, calc(100vw - 24px))', 'max-height:calc(100vh - 92px)',
+            'overflow:auto', 'box-sizing:border-box', 'padding:14px', 'border-radius:14px',
+            'background:rgba(24,24,27,.98)', 'border:1px solid rgba(255,255,255,.12)',
+            'box-shadow:0 18px 46px rgba(0,0,0,.48)', 'color:#e4e4e7',
+            'font-family:Inter,Arial,sans-serif'
+        ].join(';');
+        panel.innerHTML = `
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px;">
+                <div><div style="font-weight:700;font-size:15px;">Mentions à relire</div><div style="font-size:11px;color:${unreadCount > MAX_MENTION_INBOX_UNREAD_WARNING ? '#fde68a' : '#a1a1aa'};margin-top:3px;">${unreadCount} non lue${unreadCount > 1 ? 's' : ''} · WebSocket${unreadCount > MAX_MENTION_INBOX_UNREAD_WARNING ? ' · à trier' : ''}</div></div>
+                <button type="button" data-tm-inbox-action="close" aria-label="Fermer" title="Fermer" style="border:0;background:#27272a;color:#fff;border-radius:8px;width:28px;height:28px;cursor:pointer;font-size:18px;">×</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                <select data-tm-inbox-filter="read" style="min-width:0;background:#18181b;color:#fff;border:1px solid #3f3f46;border-radius:8px;padding:7px;">
+                    <option value="unread" ${mentionInboxReadFilter === 'unread' ? 'selected' : ''}>Non lues</option>
+                    <option value="all" ${mentionInboxReadFilter === 'all' ? 'selected' : ''}>Toutes</option>
+                    <option value="read" ${mentionInboxReadFilter === 'read' ? 'selected' : ''}>Lues</option>
+                    <option value="archived" ${mentionInboxReadFilter === 'archived' ? 'selected' : ''}>Archivées</option>
+                </select>
+                <select data-tm-inbox-filter="channel" style="min-width:0;background:#18181b;color:#fff;border:1px solid #3f3f46;border-radius:8px;padding:7px;">
+                    <option value="">Tous les canaux</option>
+                    ${channels.map(([id, name]) => `<option value="${escapeHtml(id)}" ${mentionInboxChannelFilter === id ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}
+                </select>
+                <select data-tm-inbox-filter="sender" style="min-width:0;background:#18181b;color:#fff;border:1px solid #3f3f46;border-radius:8px;padding:7px;">
+                    <option value="">Tous les expéditeurs</option>
+                    ${senders.map((sender) => `<option value="${escapeHtml(sender)}" ${mentionInboxSenderFilter === sender ? 'selected' : ''}>${escapeHtml(sender)}</option>`).join('')}
+                </select>
+                <input data-tm-inbox-filter="query" value="${escapeHtml(mentionInboxQuery)}" placeholder="Rechercher…" style="min-width:0;background:#18181b;color:#fff;border:1px solid #3f3f46;border-radius:8px;padding:7px;">
+            </div>
+            <div style="display:flex;gap:7px;flex-wrap:wrap;margin:10px 0 12px;">
+                <button type="button" data-tm-inbox-action="mark-all-read" style="border:0;background:#2563eb;color:#fff;border-radius:8px;padding:7px 9px;cursor:pointer;">Tout marquer lu</button>
+                <button type="button" data-tm-inbox-action="export-json" style="border:0;background:#3f3f46;color:#fff;border-radius:8px;padding:7px 9px;cursor:pointer;">JSON</button>
+                <button type="button" data-tm-inbox-action="export-csv" style="border:0;background:#3f3f46;color:#fff;border-radius:8px;padding:7px 9px;cursor:pointer;">CSV</button>
+                <button type="button" data-tm-inbox-action="clear" style="border:0;background:#3f3f46;color:#fca5a5;border-radius:8px;padding:7px 9px;cursor:pointer;">Effacer</button>
+            </div>
+            <div style="display:grid;gap:8px;">
+                ${records.length === 0 ? '<div style="font-size:12px;color:#a1a1aa;padding:12px 2px;">Aucune mention pour ce filtre.</div>' : records.map((record) => `
+                    <article style="padding:10px;border-radius:10px;background:${record.isArchived ? 'rgba(113,113,122,.1)' : (record.isRead ? 'rgba(255,255,255,.035)' : 'rgba(37,99,235,.13)')};border:1px solid ${record.isRead || record.isArchived ? 'rgba(255,255,255,.07)' : 'rgba(59,130,246,.28)'};">
+                        <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;"><strong style="font-size:12px;color:#e0f2fe;">${escapeHtml(record.sender)}</strong><span style="font-size:10px;color:#a1a1aa;">${escapeHtml(record.channelName)} · ${escapeHtml(formatMentionInboxRecordTimestamp(record))}</span></div>
+                        <div style="white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.45;margin-top:7px;">${escapeHtml(record.body)}</div>
+                        <div style="display:flex;justify-content:flex-end;gap:7px;flex-wrap:wrap;margin-top:9px;">
+                            <a href="${escapeHtml(getMentionInboxRecordHref(record))}" data-tm-inbox-open-id="${escapeHtml(record.id)}" style="color:#bfdbfe;font-size:11px;text-decoration:none;padding:6px 8px;border-radius:7px;background:#1e3a8a;">Ouvrir</a>
+                            <button type="button" data-tm-inbox-action="toggle-read" data-tm-inbox-id="${escapeHtml(record.id)}" style="border:0;background:#3f3f46;color:#fff;border-radius:7px;padding:6px 8px;cursor:pointer;font-size:11px;">${record.isRead ? 'Non lu' : 'Lu'}</button>
+                            <button type="button" data-tm-inbox-action="toggle-archive" data-tm-inbox-id="${escapeHtml(record.id)}" style="border:0;background:#3f3f46;color:#fff;border-radius:7px;padding:6px 8px;cursor:pointer;font-size:11px;">${record.isArchived ? 'Désarchiver' : 'Archiver'}</button>
+                        </div>
+                    </article>`).join('')}
+            </div>`;
+
+        if (!existingPanel) document.body?.appendChild(panel);
+        panel.querySelectorAll('[data-tm-inbox-filter]').forEach((element) => {
+            element.addEventListener('input', () => {
+                const filter = element.getAttribute('data-tm-inbox-filter');
+                if (filter === 'query') mentionInboxQuery = element.value;
+                if (filter === 'read') mentionInboxReadFilter = element.value;
+                if (filter === 'channel') mentionInboxChannelFilter = element.value;
+                if (filter === 'sender') mentionInboxSenderFilter = element.value;
+                renderMentionInboxPanel();
+            });
+            element.addEventListener('change', () => {
+                const filter = element.getAttribute('data-tm-inbox-filter');
+                if (filter !== 'query') {
+                    if (filter === 'read') mentionInboxReadFilter = element.value;
+                    if (filter === 'channel') mentionInboxChannelFilter = element.value;
+                    if (filter === 'sender') mentionInboxSenderFilter = element.value;
+                    renderMentionInboxPanel();
+                }
+            });
+        });
+        panel.querySelectorAll('[data-tm-inbox-action]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const action = button.getAttribute('data-tm-inbox-action');
+                const id = button.getAttribute('data-tm-inbox-id') || '';
+                if (action === 'close') closeMentionInboxPanel();
+                if (action === 'mark-all-read') showToast(markAllMentionInboxRecordsRead().message);
+                if (action === 'export-json') { downloadMentionInboxExport('json'); showToast('Export JSON téléchargé.'); }
+                if (action === 'export-csv') { downloadMentionInboxExport('csv'); showToast('Export CSV téléchargé.'); }
+                if (action === 'clear') { clearMentionInboxRecords(); showToast('Historique des mentions effacé.'); }
+                if (action === 'toggle-read') setMentionInboxRecordState(id, { isRead: !mentionInboxRecords.find((record) => record.id === id)?.isRead });
+                if (action === 'toggle-archive') setMentionInboxRecordState(id, { isArchived: !mentionInboxRecords.find((record) => record.id === id)?.isArchived });
+            });
+        });
+        panel.querySelectorAll('[data-tm-inbox-open-id]').forEach((link) => {
+            link.addEventListener('click', () => {
+                const result = setMentionInboxRecordState(link.getAttribute('data-tm-inbox-open-id'), { isRead: true });
+                if (!result.ok) return;
+            });
+        });
     }
 
     function normalizeAfkPanelPosition(value) {
@@ -3162,6 +3595,7 @@
         mentionSettings = loadMentionSettings();
         crossChannelMentionEnabled = loadCrossChannelMentionEnabled();
         crossChannelMentionChannelIds = loadCrossChannelMentionChannelIds();
+        privateMessageNotificationsEnabled = loadPrivateMessageNotificationsEnabled();
         syncCrossChannelMentionSocket();
         chatFontScale = loadChatFontScale();
         chatScrollbarEnabled = loadChatScrollbarEnabled();
@@ -3207,8 +3641,10 @@
         gradePseudonymColors = loadGradePseudonymColors();
         gradePseudonymEffects = loadGradePseudonymEffects();
         afkState = loadAfkState();
+        afkChannelIds = loadAfkChannelIds();
         afkPanelPosition = loadAfkPanelPosition();
         afkPanelHidden = loadAfkPanelHidden();
+        syncCrossChannelMentionSocket();
         syncCreditRecapFeatureState();
 
         hiddenUsers.clear();
@@ -3302,7 +3738,6 @@
 
         afkActivityRecords = [];
         removeStorageItem(STORAGE_KEY_AFK_ACTIVITY);
-        clearAfkReplayProtection();
         applyReloadedScriptConfiguration();
 
         return {
@@ -3474,6 +3909,16 @@
         writeStorageBoolean(STORAGE_KEY_CROSS_CHANNEL_MENTION_ENABLED, crossChannelMentionEnabled);
     }
 
+    function loadPrivateMessageNotificationsEnabled() {
+        return readStorageBoolean(STORAGE_KEY_PRIVATE_MESSAGE_NOTIFICATIONS_ENABLED, true);
+    }
+
+    function savePrivateMessageNotificationsEnabled(value) {
+        privateMessageNotificationsEnabled = value === true;
+        writeStorageBoolean(STORAGE_KEY_PRIVATE_MESSAGE_NOTIFICATIONS_ENABLED, privateMessageNotificationsEnabled);
+        if (!privateMessageNotificationsEnabled) hidePrivateMessageNotification();
+    }
+
     function loadCrossChannelMentionChannelIds() {
         const value = readStorageJson(STORAGE_KEY_CROSS_CHANNEL_MENTION_CHANNELS, null);
         if (!Array.isArray(value)) return null;
@@ -3488,6 +3933,21 @@
                 .filter(Boolean)
         )];
         writeStorageJson(STORAGE_KEY_CROSS_CHANNEL_MENTION_CHANNELS, crossChannelMentionChannelIds);
+    }
+
+    function loadAfkChannelIds() {
+        const value = readStorageJson(STORAGE_KEY_AFK_CHANNELS, []);
+        if (!Array.isArray(value)) return [];
+        return [...new Set(value.map((id) => String(id || '').trim()).filter(Boolean))];
+    }
+
+    function saveAfkChannelIds(channelIds) {
+        afkChannelIds = [...new Set(
+            (Array.isArray(channelIds) ? channelIds : [])
+                .map((id) => String(id || '').trim())
+                .filter(Boolean)
+        )];
+        writeStorageJson(STORAGE_KEY_AFK_CHANNELS, afkChannelIds);
     }
 
     function getDefaultMentionSettings() {
@@ -7693,14 +8153,7 @@
     function formatImageCatalogDate(timestamp) {
         const normalizedTimestamp = Math.max(0, Number(timestamp) || 0);
         if (!normalizedTimestamp) return '';
-
-        return new Date(normalizedTimestamp).toLocaleString('fr-FR', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+        return formatUserLocalTimestamp('', normalizedTimestamp);
     }
 
     async function validateImageUrl(imageUrl, timeoutMs = IMAGE_URL_VALIDATION_TIMEOUT_MS) {
@@ -8603,6 +9056,25 @@
                 line-height:1;
             ">⚙</button>
         `;
+        const mentionInboxUnreadCount = getMentionInboxUnreadCount();
+        const mentionInboxButtonHtml = `
+            <button type="button" data-tm-action="open-mention-inbox" title="${mentionInboxOpen ? 'Fermer les mentions à relire' : 'Ouvrir les mentions à relire'}" aria-label="${mentionInboxOpen ? 'Fermer les mentions à relire' : 'Ouvrir les mentions à relire'}" style="
+                border:none;
+                background:${mentionInboxUnreadCount > 0 ? '#1d4ed8' : '#27272a'};
+                color:#fff;
+                border-radius:8px;
+                min-width:24px;
+                height:24px;
+                padding:0 6px;
+                display:inline-flex;
+                align-items:center;
+                justify-content:center;
+                cursor:pointer;
+                font-size:12px;
+                font-weight:700;
+                line-height:1;
+            ">✉${mentionInboxUnreadCount > 0 ? `<span style="margin-left:3px;">${mentionInboxUnreadCount > 99 ? '99+' : mentionInboxUnreadCount}</span>` : ''}</button>
+        `;
 
         if (isMiniMode) {
             return `
@@ -8611,6 +9083,7 @@
                         Total : <span style="color:#fff;font-weight:700;">${total}</span>
                     </div>
                     <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
+                        ${mentionInboxButtonHtml}
                         ${settingsButtonHtml}
                         ${createStatsActionButtonHtml('set-stats-display-expanded', 'Développer la stats box', '+')}
                     </div>
@@ -8624,6 +9097,7 @@
                     Messages bloqués
                 </div>
                 <div style="display:flex;align-items:center;gap:6px;">
+                    ${mentionInboxButtonHtml}
                     ${settingsButtonHtml}
                     ${isCompactMode
                         ? createStatsActionButtonHtml('set-stats-display-mini', 'Passer la stats box en pastille', '--', '16px')
@@ -8689,6 +9163,7 @@
     function updateStatsBox() {
         if (!statsContent) return;
         statsContent.innerHTML = buildStatsHtml();
+        syncSettingsBubble();
     }
 
     function getOrCreateToast() {
@@ -8849,6 +9324,10 @@
         return formatGlobalShortcutLabel('A');
     }
 
+    function formatMentionInboxShortcutLabel() {
+        return formatGlobalShortcutLabel('M');
+    }
+
     function getAfkWatchedUsername() {
         return normalizeName(afkState.username || mentionSettings.username || '');
     }
@@ -8899,9 +9378,11 @@
     }
 
     function getAfkAutoReplyStatusLabel(record) {
-        if (record?.autoReplySent === true) return 'Réponse auto envoyée';
+        if (record?.autoReplySent === true) return 'Réponse auto confirmée';
 
         const status = String(record?.autoReplyStatus || '').trim();
+        if (status === 'send-requested') return 'Envoi auto demandé, confirmation en attente';
+        if (status === 'cross-channel') return 'Mention inter-canaux — réponse auto désactivée';
         if (status === 'disabled') return 'Réponse auto désactivée';
         if (status === 'inactive-timeout') return 'Réponses auto coupées après 30 min';
         if (status === 'cooldown') return 'Réponse auto en cooldown';
@@ -8911,6 +9392,34 @@
         if (status === 'missing-username') return 'Pseudo AFK manquant';
 
         return 'Réponse auto non envoyée';
+    }
+
+    function maybeConfirmAfkAutoReply(messageEl) {
+        if (!(messageEl instanceof HTMLElement) || !isAfkEnabledForCurrentContext()) return;
+        const sender = normalizeName(getLogicalUsername(messageEl) || '');
+        if (!sender || sender !== getAfkWatchedUsername()) return;
+
+        confirmAfkAutoReplyByText(getMessageTextContent(messageEl));
+    }
+
+    function confirmAfkAutoReplyByText(rawMessageText) {
+        if (!isAfkEnabledForCurrentContext()) return false;
+        const messageText = normalizeMentionComparableText(rawMessageText);
+        if (!messageText) return false;
+        const candidate = afkActivityRecords.find((record) =>
+            record.autoReplyRequested === true &&
+            record.autoReplySent !== true &&
+            normalizeMentionComparableText(record.autoReplyText) === messageText
+        );
+        if (!candidate) return false;
+
+        afkActivityRecords = afkActivityRecords.map((record) => record.id === candidate.id
+            ? normalizeAfkActivityRecord({ ...record, autoReplySent: true, autoReplyStatus: 'confirmed' })
+            : record
+        ).filter(Boolean);
+        saveAfkActivityRecords();
+        renderAfkPanel();
+        return true;
     }
 
     function getAfkReadStatusLabel(record) {
@@ -8924,41 +9433,8 @@
         return referenceTime - activatedAt >= AFK_AUTO_REPLY_MAX_INACTIVITY_MS;
     }
 
-    function clearAfkReplayProtection() {
-        afkReplayProtectionUntil = 0;
-        afkReplayProtectionContextKey = '';
-    }
-
-    function startAfkReplayProtectionForCurrentContext(durationMs = AFK_RELOAD_REPLAY_PROTECTION_MS) {
-        if (!isAfkEnabledForCurrentContext()) {
-            clearAfkReplayProtection();
-            return;
-        }
-
-        afkReplayProtectionContextKey = getCurrentChatContextKey();
-        afkReplayProtectionUntil = Date.now() + Math.max(0, Number(durationMs) || 0);
-    }
-
-    function isAfkReplayProtectionActive() {
-        if (!isAfkEnabledForCurrentContext()) return false;
-        if (!afkReplayProtectionUntil || Date.now() > afkReplayProtectionUntil) return false;
-        return afkReplayProtectionContextKey === getCurrentChatContextKey();
-    }
-
     function formatAfkRecordTimestamp(record) {
-        const messageTimestamp = String(record?.messageTimestamp || '').trim();
-        if (messageTimestamp) return messageTimestamp;
-
-        const capturedAt = Math.max(0, Number(record?.capturedAt) || 0);
-        if (capturedAt <= 0) return 'Horodatage indisponible';
-
-        return new Date(capturedAt).toLocaleString('fr-FR', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+        return formatUserLocalTimestamp(record?.messageTimestamp, record?.capturedAt);
     }
 
     function seedAfkSeenMessagesFromCurrentRoot() {
@@ -8975,6 +9451,21 @@
                 afkSeenMessageKeys.add(messageKey);
             }
         });
+    }
+
+    function getAfkActivationMessageTimestampKey() {
+        const root = getActiveChatRoot();
+        if (!root) return 0;
+
+        let newestTimestampKey = 0;
+        root.querySelectorAll(TR4KER_MESSAGE_SELECTOR).forEach((element) => {
+            if (!(element instanceof HTMLElement) || !isChatMessage(element)) return;
+            newestTimestampKey = Math.max(
+                newestTimestampKey,
+                Math.max(0, Number(getMentionNotificationSignature(element)?.messageTimestampKey) || 0)
+            );
+        });
+        return newestTimestampKey;
     }
 
     function upsertAfkActivityRecord(record) {
@@ -9129,11 +9620,13 @@
             contextKey: '',
             contextLabel: '',
             activatedAt: 0,
+            activationMessageTimestampKey: 0,
             lastAutoReplyAt: 0,
             perUserReplyAt: {}
         });
         afkSeenMessageKeys.clear();
-        clearAfkReplayProtection();
+        afkSeenCrossChannelMessageIds.clear();
+        syncCrossChannelMentionSocket();
         renderAfkPanel();
 
         return {
@@ -9240,6 +9733,304 @@
         return crossChannelMentionChannelsRequest;
     }
 
+    async function refreshPrivateMessageConversations(force = false) {
+        const staleAfterMs = 5 * 60 * 1000;
+        if (!isTr4kerPage()) return privateMessageConversations;
+        if (!force && privateMessageConversations.size > 0 && Date.now() - privateMessageConversationsFetchedAt < staleAfterMs) {
+            return privateMessageConversations;
+        }
+        if (privateMessageConversationsRequest) return privateMessageConversationsRequest;
+
+        privateMessageConversationsRequest = (async () => {
+            const nextConversations = new Map();
+            // Même pagination que le client Tr4ker natif : une nouvelle
+            // conversation remonte en tête, ce qui permet de l'identifier sans
+            // dépendre d'une limite serveur plus permissive.
+            const pageSize = 10;
+            let offset = 0;
+
+            for (let page = 0; page < 5; page += 1) {
+                let response = null;
+                try {
+                    response = await fetch(`/api/conversations/dms?limit=${pageSize}&offset=${offset}`, { credentials: 'include' });
+                } catch (error) {
+                    return privateMessageConversations;
+                }
+                if (!response.ok) return privateMessageConversations;
+
+                let payload = null;
+                try {
+                    payload = await response.json();
+                } catch (error) {
+                    return privateMessageConversations;
+                }
+                const conversations = Array.isArray(payload?.dms) ? payload.dms : [];
+                conversations.forEach((conversation) => {
+                    const id = String(conversation?.id ?? '').trim();
+                    if (!id) return;
+                    nextConversations.set(id, {
+                        name: String(conversation?.name || 'Message privé').trim(),
+                        avatarUrl: String(conversation?.avatar_url || '').trim(),
+                        lastMessage: String(conversation?.last_message || '').trim(),
+                        lastAt: String(conversation?.last_at || '').trim(),
+                        unreadCount: Math.max(0, Number(conversation?.unread_count) || 0)
+                    });
+                });
+
+                if (!payload?.has_more || conversations.length === 0) break;
+                offset += conversations.length;
+            }
+
+            privateMessageConversations.clear();
+            nextConversations.forEach((conversation, id) => privateMessageConversations.set(id, conversation));
+            privateMessageConversationsFetchedAt = Date.now();
+            return privateMessageConversations;
+        })().finally(() => {
+            privateMessageConversationsRequest = null;
+        });
+
+        return privateMessageConversationsRequest;
+    }
+
+    function getPrivateMessageSidebarSection() {
+        if (!isChatPage()) return null;
+
+        const layout = getChatSidebarLayout();
+        if (!(layout?.sidebar instanceof HTMLElement)) return null;
+        return Array.from(layout.sidebar.querySelectorAll('section')).find((section) => {
+            const label = normalizeChatContextLabel(
+                section.querySelector('[class*="sectionLabelText"]')?.textContent || ''
+            );
+            return label === 'messages prives';
+        }) || null;
+    }
+
+    function getPrivateMessageSidebarList(section) {
+        if (!(section instanceof HTMLElement)) return null;
+        return Array.from(section.children).find((child) =>
+            child instanceof HTMLElement && Array.from(child.classList).some((className) => className.includes('itemsWrap'))
+        ) || null;
+    }
+
+    function updatePrivateMessageSidebarUnreadBadge(row, unreadCount, templateRow) {
+        if (!(row instanceof HTMLElement)) return;
+        let badge = row.querySelector('[data-tm-private-message-unread="1"], [class*="unreadBadge"]');
+        if (unreadCount <= 0) {
+            if (badge instanceof HTMLElement && badge.dataset.tmPrivateMessageUnread === '1') badge.remove();
+            return;
+        }
+
+        if (!(badge instanceof HTMLElement)) {
+            badge = document.createElement('span');
+            const templateBadge = templateRow?.querySelector('[class*="unreadBadge"]');
+            badge.className = templateBadge instanceof HTMLElement ? templateBadge.className : '';
+            badge.dataset.tmPrivateMessageUnread = '1';
+            if (!badge.className) {
+                badge.style.cssText = 'margin-left:auto;min-width:18px;padding:2px 6px;border-radius:999px;background:#2563eb;color:#fff;text-align:center;font-size:10px;font-weight:700;';
+            }
+            row.appendChild(badge);
+        }
+        badge.textContent = String(unreadCount);
+    }
+
+    function createPrivateMessageSidebarEntry(conversationId, conversation, message, templateRow) {
+        const row = document.createElement('div');
+        const templateClasses = templateRow instanceof HTMLElement
+            ? Array.from(templateRow.classList).filter((className) => !className.includes('active')).join(' ')
+            : '';
+        row.className = templateClasses;
+        row.dataset.tmPrivateMessageSidebarEntry = conversationId;
+        row.setAttribute('role', 'button');
+        row.tabIndex = 0;
+        if (!row.className) {
+            row.style.cssText = 'display:flex;align-items:center;gap:9px;padding:9px 10px;cursor:pointer;border-radius:8px;color:inherit;';
+        }
+
+        const avatar = String(message?.avatar_url || conversation?.avatarUrl || '').trim();
+        if (avatar) {
+            const image = document.createElement('img');
+            const templateImage = templateRow?.querySelector('img');
+            image.className = templateImage instanceof HTMLImageElement ? templateImage.className : '';
+            image.src = avatar;
+            image.alt = '';
+            if (!image.className) image.style.cssText = 'width:30px;height:30px;border-radius:50%;object-fit:cover;';
+            row.appendChild(image);
+        }
+
+        const info = document.createElement('div');
+        const templateInfo = templateRow?.querySelector('[class*="dmInfo"]');
+        info.className = templateInfo instanceof HTMLElement ? templateInfo.className : '';
+        if (!info.className) info.style.cssText = 'min-width:0;flex:1;display:flex;flex-direction:column;gap:3px;';
+        const name = document.createElement('span');
+        const templateName = templateRow?.querySelector('[class*="navName"]');
+        name.className = templateName instanceof HTMLElement ? templateName.className : '';
+        name.textContent = conversation.name || String(message?.sender || 'Message privé');
+        const preview = document.createElement('span');
+        const templatePreview = templateRow?.querySelector('[class*="dmPreview"]');
+        preview.className = templatePreview instanceof HTMLElement ? templatePreview.className : '';
+        preview.textContent = conversation.lastMessage || String(message?.body || '').trim();
+        if (!preview.className) preview.style.cssText = 'font-size:11px;opacity:.72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+        info.append(name, preview);
+        row.appendChild(info);
+        updatePrivateMessageSidebarUnreadBadge(row, conversation.unreadCount, templateRow);
+
+        const openConversation = () => {
+            window.location.assign(`/communication?conv=${encodeURIComponent(conversationId)}`);
+        };
+        row.addEventListener('click', openConversation);
+        row.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            openConversation();
+        });
+        return row;
+    }
+
+    function refreshPrivateMessageSidebarEntry(conversationId, message = null) {
+        const id = String(conversationId || '').trim();
+        const conversation = privateMessageConversations.get(id);
+        const section = getPrivateMessageSidebarSection();
+        const list = getPrivateMessageSidebarList(section);
+        if (!id || !conversation || !(list instanceof HTMLElement)) return;
+
+        const rows = Array.from(list.children).filter((child) => child instanceof HTMLElement);
+        const templateRow = rows.find((row) => row.querySelector('[class*="navName"]')) || null;
+        const normalizedName = normalizeMentionComparableText(conversation.name);
+        const existingRow = rows.find((row) => {
+            if (row.dataset.tmPrivateMessageSidebarEntry === id) return true;
+            const rowName = normalizeMentionComparableText(row.querySelector('[class*="navName"]')?.textContent || '');
+            return !!normalizedName && rowName === normalizedName;
+        });
+
+        if (existingRow instanceof HTMLElement) {
+            let preview = existingRow.querySelector('[class*="dmPreview"]');
+            const nextPreview = conversation.lastMessage || String(message?.body || '').trim();
+            if (!(preview instanceof HTMLElement) && nextPreview) {
+                preview = document.createElement('span');
+                const templatePreview = templateRow?.querySelector('[class*="dmPreview"]');
+                preview.className = templatePreview instanceof HTMLElement ? templatePreview.className : '';
+                if (!preview.className) preview.style.cssText = 'font-size:11px;opacity:.72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+                const info = existingRow.querySelector('[class*="dmInfo"]');
+                info?.appendChild(preview);
+            }
+            if (preview instanceof HTMLElement && nextPreview) preview.textContent = nextPreview;
+            updatePrivateMessageSidebarUnreadBadge(existingRow, conversation.unreadCount, templateRow);
+            return;
+        }
+
+        const entry = createPrivateMessageSidebarEntry(id, conversation, message, templateRow);
+        list.insertBefore(entry, list.firstChild);
+    }
+
+    function getCurrentTr4kerUsername() {
+        const userCard = document.querySelector('aside[aria-label="Navigation"] a[aria-label="Mon compte"]');
+        return String(
+            userCard?.querySelector('[class*="username"]')?.textContent ||
+            userCard?.querySelector('span')?.textContent ||
+            ''
+        ).trim();
+    }
+
+    function isCurrentPrivateMessageConversation(conversationId) {
+        return isChatPage() &&
+            isTr4kerPrivateConversation() &&
+            String(new URLSearchParams(location.search).get('conv') || '').trim() === String(conversationId || '').trim();
+    }
+
+    function hidePrivateMessageNotification() {
+        if (privateMessageNotificationTimer) {
+            clearTimeout(privateMessageNotificationTimer);
+            privateMessageNotificationTimer = null;
+        }
+        document.getElementById(PRIVATE_MESSAGE_NOTIFICATION_ID)?.remove();
+    }
+
+    function showPrivateMessageNotification(message, conversation) {
+        if (!document.body) return;
+        hidePrivateMessageNotification();
+
+        const conversationId = String(message?.conv_id ?? '').trim();
+        const sender = String(message?.sender || conversation?.name || 'Expéditeur inconnu').trim();
+        const body = String(message?.body || '').replace(/\s+/g, ' ').trim();
+        const excerpt = body.length > 190 ? `${body.slice(0, 187)}…` : body;
+        const avatarUrl = String(message?.avatar_url || conversation?.avatarUrl || '').trim();
+        const panel = document.createElement('aside');
+
+        panel.id = PRIVATE_MESSAGE_NOTIFICATION_ID;
+        panel.setAttribute('role', 'status');
+        panel.setAttribute('aria-live', 'polite');
+        panel.style.cssText = [
+            'position:fixed', 'right:18px', 'bottom:18px', 'z-index:1000004',
+            'width:min(360px,calc(100vw - 36px))', 'box-sizing:border-box', 'overflow:hidden',
+            'border:1px solid rgba(96,165,250,.55)', 'border-radius:16px',
+            'background:linear-gradient(135deg,rgba(30,58,138,.98),rgba(24,24,27,.98))',
+            'box-shadow:0 18px 44px rgba(0,0,0,.48)', 'color:#f8fafc',
+            'font-family:Inter,Arial,sans-serif'
+        ].join(';');
+        panel.innerHTML = `
+            <div style="display:flex;gap:10px;padding:12px 12px 10px;align-items:flex-start;">
+                ${avatarUrl ? `<img src="${escapeHtml(avatarUrl)}" alt="" style="width:38px;height:38px;object-fit:cover;border-radius:50%;border:1px solid rgba(255,255,255,.28);">` : '<span style="display:inline-flex;width:38px;height:38px;align-items:center;justify-content:center;border-radius:50%;background:rgba(255,255,255,.14);font-size:18px;">✉</span>'}
+                <div style="min-width:0;flex:1;">
+                    <div style="font-size:11px;font-weight:700;letter-spacing:.03em;color:#bfdbfe;text-transform:uppercase;">Nouveau message privé</div>
+                    <div style="margin-top:2px;font-size:14px;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(sender)}</div>
+                    <div style="margin-top:4px;color:#dbeafe;font-size:12px;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(excerpt || 'Nouveau message')}</div>
+                </div>
+                <button type="button" data-tm-private-message-notification="close" title="Fermer" aria-label="Fermer" style="border:0;background:transparent;color:#dbeafe;font-size:18px;line-height:1;cursor:pointer;padding:2px 4px;">×</button>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;padding:0 12px 12px;">
+                <button type="button" data-tm-private-message-notification="close" style="border:0;border-radius:8px;background:rgba(255,255,255,.12);color:#fff;padding:7px 9px;cursor:pointer;font-size:11px;font-weight:700;">Plus tard</button>
+                <a href="/communication?conv=${encodeURIComponent(conversationId)}" data-tm-private-message-notification="open" style="border-radius:8px;background:#60a5fa;color:#172554;padding:7px 9px;text-decoration:none;font-size:11px;font-weight:800;">Ouvrir le MP</a>
+            </div>`;
+        panel.querySelectorAll('[data-tm-private-message-notification="close"]').forEach((button) => {
+            button.addEventListener('click', hidePrivateMessageNotification);
+        });
+        panel.querySelector('[data-tm-private-message-notification="open"]')?.addEventListener('click', hidePrivateMessageNotification);
+        document.body.appendChild(panel);
+        privateMessageNotificationTimer = window.setTimeout(hidePrivateMessageNotification, 12000);
+    }
+
+    async function handlePrivateMessageSocketEvent(message) {
+        if (!privateMessageNotificationsEnabled) return;
+        if (message?.type === 'new_dm') {
+            const conversations = await refreshPrivateMessageConversations(true);
+            const newestConversationId = conversations.keys().next().value;
+            if (newestConversationId) refreshPrivateMessageSidebarEntry(newestConversationId);
+            return;
+        }
+        if (message?.type !== 'msg.received') return;
+
+        const conversationId = String(message.conv_id ?? '').trim();
+        const messageId = String(message.id ?? `${conversationId}:${message.at || ''}:${message.sender || ''}:${message.body || ''}`);
+        const sender = String(message.sender || '').trim();
+        if (!conversationId || !messageId || !sender) return;
+
+        let conversation = privateMessageConversations.get(conversationId);
+        let refreshed = false;
+        if (!conversation && crossChannelMentionChannels.has(conversationId)) return;
+        if (!conversation) {
+            await refreshPrivateMessageConversations(true);
+            conversation = privateMessageConversations.get(conversationId);
+            refreshed = true;
+        }
+        if (!conversation) return;
+        if (!refreshed) {
+            await refreshPrivateMessageConversations(true);
+            conversation = privateMessageConversations.get(conversationId) || conversation;
+        }
+        refreshPrivateMessageSidebarEntry(conversationId, message);
+        if (isCurrentPrivateMessageConversation(conversationId)) return;
+
+        const currentUsername = getCurrentTr4kerUsername();
+        if (currentUsername && normalizeName(sender) === normalizeName(currentUsername)) return;
+        if (privateMessageSeenIds.has(messageId)) return;
+
+        privateMessageSeenIds.add(messageId);
+        if (privateMessageSeenIds.size > 500) {
+            privateMessageSeenIds.delete(privateMessageSeenIds.values().next().value);
+        }
+        showPrivateMessageNotification(message, conversation);
+    }
+
     function isCurrentCrossChannelMentionChannel(channel) {
         return isChatPage() &&
             channel?.slug &&
@@ -9252,6 +10043,33 @@
             crossChannelMentionChannelIds === null ||
             crossChannelMentionChannelIds.includes(normalizedChannelId)
         );
+    }
+
+    function isAfkCrossChannelMonitoringEnabled() {
+        return afkState.enabled === true &&
+            afkState.ownerTabId === afkTabId &&
+            !!getAfkWatchedUsername() &&
+            afkChannelIds.length > 0;
+    }
+
+    function isAfkCrossChannelEnabled(channelId) {
+        const normalizedChannelId = String(channelId || '').trim();
+        return !!normalizedChannelId && afkChannelIds.includes(normalizedChannelId);
+    }
+
+    function setAfkCrossChannelEnabled(channelId, enabled) {
+        const normalizedChannelId = String(channelId || '').trim();
+        if (!normalizedChannelId) return;
+
+        const selectedChannelIds = new Set(afkChannelIds);
+        if (enabled) {
+            selectedChannelIds.add(normalizedChannelId);
+        } else {
+            selectedChannelIds.delete(normalizedChannelId);
+        }
+        saveAfkChannelIds([...selectedChannelIds]);
+        syncCrossChannelMentionSocket();
+        renderAfkPanel();
     }
 
     function setCrossChannelMentionChannelEnabled(channelId, enabled) {
@@ -9316,23 +10134,89 @@
     }
 
     async function handleCrossChannelMentionMessage(message) {
-        if (!crossChannelMentionEnabled || !mentionSettings.username || message?.type !== 'msg.received') return;
+        if (!mentionSettings.username || message?.type !== 'msg.received') return;
 
         const conversationId = String(message.conv_id ?? '').trim();
         const messageId = String(message.id ?? `${conversationId}:${message.at || ''}:${message.sender || ''}:${message.body || ''}`);
         if (!conversationId || !messageTextMentionsUsername(message.body)) return;
+        if (crossChannelMentionSeenMessageIds.has(messageId) || crossChannelMentionPendingMessageIds.has(messageId)) return;
+
+        crossChannelMentionPendingMessageIds.add(messageId);
+        try {
+            const channels = await refreshCrossChannelMentionChannels();
+            const channel = channels.get(conversationId);
+            if (!channel) return;
+            const isCurrentChannel = isCurrentCrossChannelMentionChannel(channel);
+            if (!isCurrentChannel && (!crossChannelMentionEnabled || !isCrossChannelMentionChannelEnabled(conversationId))) return;
+
+            const watchedUsername = normalizeName(mentionSettings.username);
+            const sender = String(message.sender || '').trim();
+            if (normalizeName(sender) === watchedUsername || !rememberCrossChannelMentionMessage(messageId)) return;
+
+            upsertMentionInboxRecord({
+                id: messageId,
+                messageId,
+                channelId: conversationId,
+                channelName: `#${channel.name}`,
+                channelSlug: channel.slug,
+                sender,
+                body: String(message.body || ''),
+                at: String(message.at || ''),
+                capturedAt: Date.parse(String(message.at || '')) || Date.now(),
+                source: 'ws',
+                reason: 'mention'
+            });
+
+            if (!isCurrentChannel) {
+                const excerpt = String(message.body || '').replace(/\s+/g, ' ').trim().slice(0, 92);
+                showToast(`@${mentionSettings.username} mentionné${sender ? ` par ${sender}` : ''} dans #${channel.name}${excerpt ? ` : ${excerpt}` : ''}`, false, 10000);
+                maybePlayCrossChannelMentionSound();
+            }
+        } finally {
+            crossChannelMentionPendingMessageIds.delete(messageId);
+        }
+    }
+
+    async function maybeHandleCrossChannelAfkMessage(message) {
+        if (!isAfkCrossChannelMonitoringEnabled() || message?.type !== 'msg.received') return;
+
+        const conversationId = String(message.conv_id ?? '').trim();
+        const messageId = String(message.id ?? `${conversationId}:${message.at || ''}:${message.sender || ''}:${message.body || ''}`);
+        const watchedUsername = getAfkWatchedUsername();
+        const sender = String(message.sender || '').trim();
+        const body = String(message.body || '').trim();
+        if (!conversationId || !messageId || !sender || !body) return;
+        if (!isAfkCrossChannelEnabled(conversationId) || !messageTextMentionsUsername(body, watchedUsername)) return;
+        if (normalizeName(sender) === watchedUsername || afkSeenCrossChannelMessageIds.has(messageId)) return;
 
         const channels = await refreshCrossChannelMentionChannels();
         const channel = channels.get(conversationId);
-        if (!channel || !isCrossChannelMentionChannelEnabled(conversationId) || isCurrentCrossChannelMentionChannel(channel)) return;
+        if (!channel || isCurrentCrossChannelMentionChannel(channel)) return;
 
-        const watchedUsername = normalizeName(mentionSettings.username);
-        const sender = String(message.sender || '').trim();
-        if (normalizeName(sender) === watchedUsername || !rememberCrossChannelMentionMessage(messageId)) return;
+        afkSeenCrossChannelMessageIds.add(messageId);
+        if (afkSeenCrossChannelMessageIds.size > 500) {
+            afkSeenCrossChannelMessageIds.delete(afkSeenCrossChannelMessageIds.values().next().value);
+        }
 
-        const excerpt = String(message.body || '').replace(/\s+/g, ' ').trim().slice(0, 92);
-        showToast(`@${mentionSettings.username} mentionné${sender ? ` par ${sender}` : ''} dans #${channel.name}${excerpt ? ` : ${excerpt}` : ''}`, false, 10000);
-        maybePlayCrossChannelMentionSound();
+        const capturedAt = Date.parse(String(message.at || '')) || Date.now();
+        upsertAfkActivityRecord({
+            id: `ws:${messageId}`,
+            contextKey: `channel:${normalizeChatContextLabel(channel.slug)}`,
+            contextLabel: `#${channel.name}`,
+            username: normalizeName(sender),
+            displayUsername: sender,
+            messageText: body,
+            replyContextText: '',
+            reason: 'mention',
+            messageTimestamp: String(message.at || ''),
+            capturedAt,
+            autoReplySent: false,
+            autoReplyRequested: false,
+            autoReplyStatus: 'cross-channel',
+            autoReplyText: '',
+            signatureHash: hashString(`ws:${messageId}`),
+            signatureTimestampKey: capturedAt
+        });
     }
 
     function closeCrossChannelMentionSocket() {
@@ -9349,9 +10233,14 @@
     }
 
     function syncCrossChannelMentionSocket() {
-        const shouldMonitor = isTr4kerPage() && crossChannelMentionEnabled && !!mentionSettings.username;
+        const shouldMonitor = isTr4kerPage() && (
+            !!mentionSettings.username ||
+            isAfkCrossChannelMonitoringEnabled() ||
+            privateMessageNotificationsEnabled
+        );
         if (!shouldMonitor) {
             closeCrossChannelMentionSocket();
+            hidePrivateMessageNotification();
             return;
         }
         if (crossChannelMentionSocket && (
@@ -9370,7 +10259,10 @@
         crossChannelMentionSocket = socket;
 
         socket.addEventListener('open', () => {
-            if (crossChannelMentionSocket === socket) crossChannelMentionReconnectDelay = 1000;
+            if (crossChannelMentionSocket === socket) {
+                crossChannelMentionReconnectDelay = 1000;
+                void refreshPrivateMessageConversations();
+            }
         });
         socket.addEventListener('message', (event) => {
             try {
@@ -9379,13 +10271,25 @@
                     socket.send(JSON.stringify({ type: 'pong' }));
                     return;
                 }
+                void handlePrivateMessageSocketEvent(message);
+                if (
+                    message?.type === 'msg.received' &&
+                    normalizeName(message.sender || '') === getAfkWatchedUsername()
+                ) {
+                    confirmAfkAutoReplyByText(message.body);
+                }
                 void handleCrossChannelMentionMessage(message);
+                void maybeHandleCrossChannelAfkMessage(message);
             } catch (e) {}
         });
         socket.addEventListener('close', () => {
             if (crossChannelMentionSocket !== socket) return;
             crossChannelMentionSocket = null;
-            if (!crossChannelMentionEnabled || !mentionSettings.username) return;
+            if (!isTr4kerPage() || !(
+                !!mentionSettings.username ||
+                isAfkCrossChannelMonitoringEnabled() ||
+                privateMessageNotificationsEnabled
+            )) return;
 
             crossChannelMentionReconnectTimer = window.setTimeout(() => {
                 crossChannelMentionReconnectTimer = null;
@@ -9506,7 +10410,34 @@
                     <div style="font-size:11px;color:#a1a1aa;text-align:right;line-height:1.4;">
                         ${formatAfkShortcutLabel()}
                     </div>
+                    <button type="button" data-tm-afk-action="open-mention-inbox" title="${mentionInboxOpen ? 'Fermer les mentions à relire' : 'Ouvrir les mentions à relire'}" aria-label="${mentionInboxOpen ? 'Fermer les mentions à relire' : 'Ouvrir les mentions à relire'}" style="border:none;background:#1d4ed8;color:#fff;width:30px;height:30px;border-radius:10px;cursor:pointer;font-size:14px;line-height:1;">✉</button>
                     ${renderAfkPanelCloseButton()}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderAfkChannelListeningSection() {
+        const channels = [...crossChannelMentionChannels.entries()]
+            .sort(([, first], [, second]) => first.name.localeCompare(second.name, 'fr'));
+
+        return `
+            <div style="padding:12px;border-radius:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);margin-bottom:12px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                    <div style="font-size:12px;font-weight:700;color:#d4d4d8;">Canaux écoutés pendant l’AFK</div>
+                    <button type="button" data-tm-afk-action="select-all-channels" style="border:none;background:#27272a;color:#e4e4e7;border-radius:8px;padding:6px 8px;cursor:pointer;font-size:11px;font-weight:700;">Tout sélectionner</button>
+                </div>
+                <div style="margin-top:7px;font-size:11px;color:#71717a;line-height:1.45;">
+                    Les mentions dans ces canaux sont ajoutées au suivi AFK via le WebSocket. Les réponses automatiques restent limitées au canal ouvert.
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:6px;margin-top:9px;">
+                    ${channels.length === 0
+                        ? '<div style="font-size:11px;color:#a1a1aa;">Chargement des canaux…</div>'
+                        : channels.map(([channelId, channel]) => `
+                            <label style="display:flex;align-items:center;gap:7px;padding:7px 8px;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:rgba(255,255,255,0.025);cursor:pointer;font-size:11px;color:#d4d4d8;">
+                                <input type="checkbox" data-tm-afk-channel-id="${escapeHtml(channelId)}" ${isAfkCrossChannelEnabled(channelId) ? 'checked' : ''} style="accent-color:#60a5fa;">
+                                <span>#${escapeHtml(channel.name)}</span>
+                            </label>`).join('')}
                 </div>
             </div>
         `;
@@ -9680,6 +10611,11 @@
                 </div>
             </div>
 
+            ${viewModel.unreadCount > MAX_AFK_UNREAD_ACTIVITY_RECORDS ? `
+                <div style="margin-bottom:8px;padding:8px;border-radius:8px;background:rgba(250,204,21,.1);color:#fde68a;font-size:11px;line-height:1.4;">
+                    ${viewModel.unreadCount} messages AFK non lus : pense à les trier ou les marquer lus. Les messages non lus ne sont jamais supprimés automatiquement.
+                </div>` : ''}
+
             <div id="tm-afk-records" style="display:grid;gap:8px;">
                 ${afkActivityRecords.length === 0
                     ? '<div style="font-size:12px;color:#a1a1aa;padding:8px 2px;">Aucun message AFK enregistré pour le moment.</div>'
@@ -9692,6 +10628,7 @@
         return `
             ${renderAfkPanelHeader(viewModel)}
             ${renderAfkPanelReplySection(viewModel)}
+            ${renderAfkChannelListeningSection()}
             ${renderAfkPanelRecordsSection(viewModel)}
         `;
     }
@@ -9703,6 +10640,9 @@
             clearBtn: panel.querySelector('[data-tm-afk-action="clear"]'),
             markAllReadBtn: panel.querySelector('[data-tm-afk-action="mark-all-read"]'),
             hidePanelBtn: panel.querySelector('[data-tm-afk-action="hide-panel"]'),
+            mentionInboxBtn: panel.querySelector('[data-tm-afk-action="open-mention-inbox"]'),
+            selectAllChannelsBtn: panel.querySelector('[data-tm-afk-action="select-all-channels"]'),
+            afkChannelInputs: Array.from(panel.querySelectorAll('[data-tm-afk-channel-id]')),
             afkMessageInput: panel.querySelector('#tm-afk-message-input'),
             autoReplyEnabledInput: panel.querySelector('#tm-afk-auto-reply-enabled'),
             muteMentionSoundInput: panel.querySelector('#tm-afk-mute-mention-sound-enabled'),
@@ -9792,6 +10732,23 @@
             showToast(result.message, !result.ok);
         });
 
+        elements.mentionInboxBtn?.addEventListener('click', () => toggleMentionInboxPanel());
+
+        elements.selectAllChannelsBtn?.addEventListener('click', () => {
+            saveAfkChannelIds([...crossChannelMentionChannels.keys()]);
+            syncCrossChannelMentionSocket();
+            renderAfkPanel();
+            showToast('Tous les canaux sont écoutés pendant l’AFK.');
+        });
+
+        elements.afkChannelInputs.forEach((input) => {
+            if (!(input instanceof HTMLInputElement)) return;
+            input.addEventListener('change', () => {
+                setAfkCrossChannelEnabled(input.getAttribute('data-tm-afk-channel-id'), input.checked);
+                showToast(input.checked ? 'Canal ajouté au suivi AFK.' : 'Canal retiré du suivi AFK.');
+            });
+        });
+
         elements.autoReplyEnabledInput?.addEventListener('change', () => {
             if (!(elements.autoReplyEnabledInput instanceof HTMLInputElement)) return;
             const result = updateAfkAutoReplyEnabled(elements.autoReplyEnabledInput.checked);
@@ -9864,6 +10821,12 @@
         bindAfkPanelEvents(panel, elements);
         applyAfkPanelPosition(panel);
         constrainAfkPanelToViewport(panel, false);
+
+        if (crossChannelMentionChannels.size === 0) {
+            void refreshCrossChannelMentionChannels().then(() => {
+                if (crossChannelMentionChannels.size > 0) renderAfkPanel();
+            });
+        }
     }
 
     function toggleAfkModeForCurrentContext() {
@@ -9895,13 +10858,15 @@
             contextLabel: currentContextLabel,
             username: watchedUsername,
             activatedAt: afkState.autoReplyEnabled === true ? Date.now() : 0,
+            activationMessageTimestampKey: getAfkActivationMessageTimestampKey(),
             lastAutoReplyAt: 0,
             perUserReplyAt: {}
         });
         saveAfkPanelHidden(false);
         afkSeenMessageKeys.clear();
-        clearAfkReplayProtection();
+        afkSeenCrossChannelMessageIds.clear();
         seedAfkSeenMessagesFromCurrentRoot();
+        syncCrossChannelMentionSocket();
         renderAfkPanel();
 
         return {
@@ -9921,7 +10886,8 @@
         if (!messageKey) return;
         if (afkSeenMessageKeys.has(messageKey)) return;
 
-        if (isAfkReplayProtectionActive()) {
+        const activationWatermark = Math.max(0, Number(afkState.activationMessageTimestampKey) || 0);
+        if (signature.messageTimestampKey > 0 && activationWatermark > 0 && signature.messageTimestampKey <= activationWatermark) {
             afkSeenMessageKeys.add(messageKey);
             return;
         }
@@ -9939,6 +10905,7 @@
         const autoReplyMessage = `@${targetingInfo.senderDisplayName || targetingInfo.senderUsername} ${normalizeAfkAutoReplyMessage(afkState.autoReplyMessage)}`;
         const autoReplyEnabled = isAfkAutoReplyEnabled();
         let autoReplySent = false;
+        let autoReplyRequested = false;
         let autoReplyStatus = '';
 
         if (!watchedUsername) {
@@ -9954,8 +10921,8 @@
         } else {
             const sendResult = sendAutomatedChatMessage(autoReplyMessage);
             if (sendResult.ok) {
-                autoReplySent = true;
-                autoReplyStatus = 'sent';
+                autoReplyRequested = true;
+                autoReplyStatus = 'send-requested';
                 saveAfkState({
                     ...afkState,
                     lastAutoReplyAt: now,
@@ -9983,8 +10950,9 @@
             messageTimestamp: getMessageTimestampText(messageEl),
             capturedAt: now,
             autoReplySent,
+            autoReplyRequested,
             autoReplyStatus,
-            autoReplyText: autoReplySent ? autoReplyMessage : '',
+            autoReplyText: autoReplyRequested ? autoReplyMessage : '',
             signatureHash: signature.hash,
             signatureTimestampKey: signature.messageTimestampKey
         });
@@ -10217,10 +11185,12 @@
 
     function syncSettingsBubble() {
         const existing = document.getElementById(SETTINGS_BUBBLE_ID);
+        const existingMentionInbox = document.getElementById(MENTION_INBOX_BUBBLE_ID);
         const shouldDisplay = isTr4kerPage() && statsHidden && settingsBubbleEnabled;
 
         if (!shouldDisplay) {
             existing?.remove();
+            existingMentionInbox?.remove();
             return;
         }
 
@@ -10271,6 +11241,51 @@
             });
             document.body.appendChild(bubble);
         }
+
+        const unreadCount = getMentionInboxUnreadCount();
+        const mentionBubble = existingMentionInbox instanceof HTMLButtonElement
+            ? existingMentionInbox
+            : document.createElement('button');
+
+        if (!(existingMentionInbox instanceof HTMLButtonElement)) {
+            mentionBubble.id = MENTION_INBOX_BUBBLE_ID;
+            mentionBubble.type = 'button';
+            mentionBubble.style.position = 'fixed';
+            mentionBubble.style.top = 'calc(50% + 54px)';
+            mentionBubble.style.right = '0';
+            mentionBubble.style.zIndex = '1000001';
+            mentionBubble.style.width = '42px';
+            mentionBubble.style.height = '42px';
+            mentionBubble.style.border = '1px solid rgba(255,255,255,0.16)';
+            mentionBubble.style.borderRight = 'none';
+            mentionBubble.style.borderRadius = '14px 0 0 14px';
+            mentionBubble.style.boxShadow = '0 8px 24px rgba(0,0,0,0.4)';
+            mentionBubble.style.color = '#f4f4f5';
+            mentionBubble.style.fontSize = '17px';
+            mentionBubble.style.cursor = 'pointer';
+            mentionBubble.style.transition = 'width 140ms ease, background 140ms ease';
+            mentionBubble.addEventListener('mouseenter', () => {
+                mentionBubble.style.width = '50px';
+            });
+            mentionBubble.addEventListener('mouseleave', () => {
+                mentionBubble.style.width = '42px';
+            });
+            mentionBubble.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                toggleMentionInboxPanel();
+            });
+            document.body.appendChild(mentionBubble);
+        }
+
+        mentionBubble.textContent = `✉${unreadCount > 0 ? ` ${unreadCount > 99 ? '99+' : unreadCount}` : ''}`;
+        mentionBubble.title = mentionInboxOpen
+            ? 'Fermer les mentions à relire'
+            : (unreadCount > 0
+                ? `Ouvrir les mentions à relire (${unreadCount})`
+                : 'Ouvrir les mentions à relire');
+        mentionBubble.setAttribute('aria-label', mentionBubble.title);
+        mentionBubble.style.background = unreadCount > 0 ? 'rgba(29,78,216,0.98)' : 'rgba(24,24,27,0.96)';
     }
 
     function createStatsBox() {
@@ -10941,6 +11956,8 @@
             return;
         }
 
+        maybeConfirmAfkAutoReply(messageEl);
+
         const normalized = normalizeName(username);
         const highlightConfig = highlightedUsers[normalized];
         const mentionsWatchedUser = messageMentionsWatchedUser(messageEl);
@@ -11298,6 +12315,7 @@
             mentionKeepHighlightToggle: modal.querySelector('#tm-mention-keep-highlight-toggle'),
             mentionIncludeReplyToggle: modal.querySelector('#tm-mention-include-reply-toggle'),
             crossChannelMentionToggle: modal.querySelector('#tm-cross-channel-mention-toggle'),
+            privateMessageNotificationsToggle: modal.querySelector('#tm-private-message-notifications-toggle'),
             crossChannelMentionList: modal.querySelector('#tm-cross-channel-mention-list'),
             crossChannelMentionSelectAllBtn: modal.querySelector('#tm-cross-channel-mention-select-all'),
             mentionSoundScopeGroup: modal.querySelector('#tm-mention-sound-scope-group'),
@@ -11307,6 +12325,7 @@
             mentionSoundCustomUrlInput: modal.querySelector('#tm-mention-sound-custom-url-input'),
             mentionSoundCooldownInput: modal.querySelector('#tm-mention-sound-cooldown-input'),
             mentionSoundTestBtn: modal.querySelector('#tm-mention-sound-test'),
+            mentionInboxOpenBtn: modal.querySelector('#tm-mention-inbox-open'),
             mentionSaveBtn: modal.querySelector('#tm-mention-save'),
             fontSizeRange: modal.querySelector('#tm-font-size-range'),
             fontSizeValue: modal.querySelector('#tm-font-size-value'),
@@ -12379,6 +13398,15 @@
                 ? 'Surveillance des mentions dans les autres canaux activée.'
                 : 'Surveillance des mentions dans les autres canaux désactivée.');
         });
+        elements.privateMessageNotificationsToggle?.addEventListener('change', () => {
+            if (!(elements.privateMessageNotificationsToggle instanceof HTMLInputElement)) return;
+            savePrivateMessageNotificationsEnabled(elements.privateMessageNotificationsToggle.checked);
+            syncCrossChannelMentionSocket();
+            controls.setFeedback(privateMessageNotificationsEnabled
+                ? 'Notifications de messages privés activées.'
+                : 'Notifications de messages privés désactivées.');
+        });
+        elements.mentionInboxOpenBtn?.addEventListener('click', () => toggleMentionInboxPanel());
         elements.mentionSoundCooldownInput?.addEventListener('keydown', (event) => {
             if (event.key !== 'Enter') return;
             event.preventDefault();
@@ -14370,7 +15398,15 @@
                     <span>Surveiller les mentions dans les autres canaux</span>
                 </label>
                 <div style="margin-top:6px;font-size:11px;color:#71717a;line-height:1.45;">
-                    Maintient une connexion temps réel Tr4ker pour t’alerter lorsqu’un autre canal te mentionne. Les messages privés et le canal déjà ouvert ne sont pas concernés.
+                    Maintient une connexion temps réel Tr4ker et conserve les nouvelles mentions dans la boîte de réception. Le suivi est entièrement alimenté par le WebSocket.
+                </div>
+
+                <label style="${settingsCheckboxLabelStyle} margin-top:10px;">
+                    <input id="tm-private-message-notifications-toggle" type="checkbox" ${privateMessageNotificationsEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#3b82f6')}">
+                    <span>Notifier les nouveaux messages privés</span>
+                </label>
+                <div style="margin-top:6px;font-size:11px;color:#71717a;line-height:1.45;">
+                    Affiche une notification visuelle avec l’expéditeur, le message et un accès direct à la conversation. Les MP restent dans la messagerie native de Tr4ker.
                 </div>
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;">
                     <span style="font-size:12px;color:#c4c4c8;">Canaux surveillés</span>
@@ -14381,6 +15417,7 @@
                 ${renderSettingsMentionSoundSection()}
 
                 <div style="display:flex;justify-content:flex-start;gap:8px;flex-wrap:wrap;margin-top:12px;">
+                    <button id="tm-mention-inbox-open" type="button" style="border:none;background:#1d4ed8;color:#fff;border-radius:10px;padding:10px 12px;cursor:pointer;font-weight:600;">Mentions à relire (${getMentionInboxUnreadCount()})</button>
                     <button id="tm-mention-save" style="
                         border:none;
                         background:#059669;
@@ -16497,6 +17534,12 @@
             event.stopPropagation();
             openSettingsModal();
             return;
+        }
+
+        if (action === 'open-mention-inbox') {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleMentionInboxPanel();
         }
 
     }
@@ -23088,10 +24131,7 @@
             syncNativeChatInputActionButtons();
 
             if (isAfkEnabledForCurrentContext()) {
-                startAfkReplayProtectionForCurrentContext();
                 seedAfkSeenMessagesFromCurrentRoot();
-            } else {
-                clearAfkReplayProtection();
             }
 
             processAllMessages();
@@ -23164,10 +24204,7 @@
                 applyChatInputToolbarAlignmentState();
                 syncNativeChatInputActionButtons();
                 if (isAfkEnabledForCurrentContext()) {
-                    startAfkReplayProtectionForCurrentContext();
                     seedAfkSeenMessagesFromCurrentRoot();
-                } else {
-                    clearAfkReplayProtection();
                 }
                 processAllMessages();
                 renderAfkPanel();
@@ -23307,25 +24344,33 @@
             if (
                 event.key !== STORAGE_KEY_AFK_STATE &&
                 event.key !== STORAGE_KEY_AFK_ACTIVITY &&
+                event.key !== STORAGE_KEY_AFK_CHANNELS &&
+                event.key !== STORAGE_KEY_PRIVATE_MESSAGE_NOTIFICATIONS_ENABLED &&
                 event.key !== STORAGE_KEY_AFK_PANEL_POSITION &&
-                event.key !== STORAGE_KEY_AFK_PANEL_HIDDEN
+                event.key !== STORAGE_KEY_AFK_PANEL_HIDDEN &&
+                event.key !== STORAGE_KEY_MENTION_INBOX &&
+                event.key !== STORAGE_KEY_MENTION_INBOX_CLEARED_AT
             ) {
                 return;
             }
 
             afkState = loadAfkState();
             afkActivityRecords = loadAfkActivityRecords();
+            afkChannelIds = loadAfkChannelIds();
+            privateMessageNotificationsEnabled = loadPrivateMessageNotificationsEnabled();
             afkPanelPosition = loadAfkPanelPosition();
             afkPanelHidden = loadAfkPanelHidden();
+            syncCrossChannelMentionSocket();
+            mentionInboxLastClearedAt = loadMentionInboxLastClearedAt();
+            mentionInboxRecords = loadMentionInboxRecords();
 
             if (isAfkEnabledForCurrentContext()) {
-                startAfkReplayProtectionForCurrentContext();
                 seedAfkSeenMessagesFromCurrentRoot();
-            } else {
-                clearAfkReplayProtection();
             }
 
             renderAfkPanel();
+            renderMentionInboxPanel();
+            updateStatsBox();
         });
     }
 
@@ -23334,6 +24379,14 @@
         const isAfkShortcut = matchesGlobalShortcut(e, 'a');
         const isSavedPhrasesShortcut = matchesGlobalShortcut(e, 'r');
         const isAdultModeShortcut = matchesGlobalShortcut(e, 'p');
+        const isMentionInboxShortcut = matchesGlobalShortcut(e, 'm');
+
+        if (isMentionInboxShortcut) {
+            if (!isTr4kerPage() || imageViewerOpen || modalOpen) return;
+            e.preventDefault();
+            toggleMentionInboxPanel();
+            return;
+        }
 
         if (isAdultModeShortcut) {
             console.info('[PimpMyShoutbox] Raccourci Ctrl+Alt/⌘+P détecté.', {
@@ -23761,7 +24814,7 @@
         syncCreditRecapFeatureState();
         document.addEventListener('click', handleStatsBoxActionClick, true);
         refreshForRoute();
-        console.log(`[PimpMyShoutbox] Script actif. Raccourcis : ${formatGlobalShortcutLabel('C')} · ${formatGlobalShortcutLabel('R')} · ${formatAfkShortcutLabel()} · ${formatGlobalShortcutLabel('P')}`);
+        console.log(`[PimpMyShoutbox] Script actif. Raccourcis : ${formatGlobalShortcutLabel('C')} · ${formatGlobalShortcutLabel('R')} · ${formatAfkShortcutLabel()} · ${formatMentionInboxShortcutLabel()} · ${formatGlobalShortcutLabel('P')}`);
     }
 
     if (document.readyState === 'loading') {

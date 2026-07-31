@@ -10,6 +10,18 @@ Ce fichier suit l'état fonctionnel du userscript à partir de la version actuel
 
 ## Version en préparation
 
+- À la réception d’un MP, la liste native des messages privés est relue puis mise à jour avec l’aperçu et le compteur ; une ligne cliquable est ajoutée si Tr4ker ne l’a pas encore rendue.
+- Le formatage horaire est centralisé : les horodatages WebSocket et les interfaces AFK, messagerie et catalogue d’images utilisent désormais le fuseau local du navigateur.
+- Les horodatages WebSocket des mentions sont affichés dans le fuseau local du navigateur plutôt qu’en UTC ; l’export CSV utilise le même format lisible.
+- Les boutons ✉ de la stats box, de la bulle latérale, de l’AFK et des réglages ouvrent ou ferment désormais la boîte de réception au clic.
+- La collecte de la boîte de réception des mentions repose désormais exclusivement sur le WebSocket. Un horodatage de nettoyage empêche les messages antérieurs effacés de réapparaître après un rechargement.
+- Les nouveaux messages privés sont détectés via le WebSocket et affichent une notification visuelle avec aperçu, avatar et accès direct au MP. Cette alerte est activable dans les réglages.
+- Quand la stats box est masquée, la bulle de configuration conserve désormais un bouton ✉ pour ouvrir la boîte de réception, avec son nombre de mentions non lues.
+- Le panneau AFK donne accès directement à la boîte de réception des mentions et permet de sélectionner les canaux à surveiller. Les alertes inter-canaux sont journalisées sans réponse automatique hors du canal affiché.
+- Correction de la surveillance inter-canaux : retour au cycle WebSocket natif de reconnexion, sans verrou de session ni bascule forcée vers le polling HTTP.
+- Refonte du suivi des mentions : une boîte de réception persistante rassemble les messages à relire, avec filtres, archivage, marquage lu, export JSON/CSV et raccourci `Ctrl+Alt/⌘+M`.
+- Les mentions inter-canaux utilisent le WebSocket Tr4ker en temps réel.
+- Le mode AFK utilise désormais un watermark de messages plutôt qu’une fenêtre fixe de rejeu, borne les historiques lus et distingue l’envoi automatique demandé de sa confirmation par l’écho du chat.
 - La limite de saisie du chat et des réponses rapides passe à 3 000 caractères ; elle ne s’applique pas à l’éditeur d’articles Wiki.
 - Le rail d’outils est disponible dans l’éditeur d’articles Wiki : emojis rapides, réponses enregistrées, GIF Klipy, T9 Emoj et Up-Img s’insèrent dans le textarea Markdown sans modifier la barre de formatage native.
 - Le panneau Communication à gauche (canaux, tickets et messages privés) peut maintenant être redimensionné à la souris, replié via une flèche et restauré avec ses dimensions mémorisées.
