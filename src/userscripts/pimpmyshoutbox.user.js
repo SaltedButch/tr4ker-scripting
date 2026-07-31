@@ -22914,15 +22914,33 @@
         const hostname = parsedUrl.hostname.toLowerCase().replace(/^www\./, '').replace(/^m\./, '');
         const pathnameParts = parsedUrl.pathname.split('/').filter(Boolean);
         let videoId = '';
+        let playlistId = '';
 
         if (hostname === 'youtu.be') {
             videoId = pathnameParts[0] || '';
         } else if (hostname === 'youtube.com' || hostname === 'music.youtube.com' || hostname === 'youtube-nocookie.com') {
             if (parsedUrl.pathname === '/watch') {
                 videoId = parsedUrl.searchParams.get('v') || '';
+            } else if (parsedUrl.pathname === '/playlist') {
+                playlistId = parsedUrl.searchParams.get('list') || '';
             } else if (pathnameParts[0] === 'shorts' || pathnameParts[0] === 'embed' || pathnameParts[0] === 'live') {
                 videoId = pathnameParts[1] || '';
             }
+        }
+
+        if (playlistId) {
+            const embedUrl = new URL('https://www.youtube-nocookie.com/embed/videoseries');
+            embedUrl.searchParams.set('list', playlistId);
+            embedUrl.searchParams.set('autoplay', '1');
+            embedUrl.searchParams.set('rel', '0');
+            embedUrl.searchParams.set('modestbranding', '1');
+            embedUrl.searchParams.set('playsinline', '1');
+
+            return {
+                videoId: `playlist:${playlistId}`,
+                embedUrl: embedUrl.toString(),
+                watchUrl: parsedUrl.toString()
+            };
         }
 
         // Un identifiant de vidéo YouTube fait exactement 11 caractères.
