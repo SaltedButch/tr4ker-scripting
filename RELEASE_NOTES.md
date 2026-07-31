@@ -10,6 +10,7 @@ Ce fichier suit l'état fonctionnel du userscript à partir de la version actuel
 
 ## Version en préparation
 
+- La configuration est maintenant organisée par onglets, avec un dernier onglet mémorisé ; toutes les cartes de réglages sont repliables en accordéons.
 - Le mini-player reconnaît les liens de playlists YouTube et construit l’embed `youtube-nocookie.com/embed/videoseries?list=…`.
 - À la réception d’un MP, la liste native des messages privés est relue puis mise à jour avec l’aperçu et le compteur ; une ligne cliquable est ajoutée si Tr4ker ne l’a pas encore rendue.
 - Le formatage horaire est centralisé : les horodatages WebSocket et les interfaces AFK, messagerie et catalogue d’images utilisent désormais le fuseau local du navigateur.

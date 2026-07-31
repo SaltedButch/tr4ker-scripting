@@ -36,6 +36,7 @@
     const STORAGE_KEY_STATS_COLLAPSED_CHAT = 'tm_t4_stats_box_collapsed_chat';
     const STORAGE_KEY_STATS_HIDDEN_CHAT = 'tm_t4_stats_box_hidden_chat';
     const STORAGE_KEY_SETTINGS_BUBBLE_ENABLED = 'tm_t4_settings_bubble_enabled';
+    const STORAGE_KEY_SETTINGS_ACTIVE_TAB = 'tm_t4_settings_active_tab';
     const STORAGE_KEY_DEBUG = 'tm_t4_debug_mode';
     const STORAGE_KEY_HIGHLIGHTED_USERS = 'tm_highlighted_shout_users_t4';
     const STORAGE_KEY_MENTION_SETTINGS = 'tm_t4_mention_highlight_settings';
@@ -114,6 +115,15 @@
     const SESSION_STORAGE_KEY_AFK_TAB_ID = 'tm_t4_afk_tab_id';
     const STORAGE_KEY_CREDIT_RECAP_ENABLED = 'tm_t4_credit_recap_enabled';
     const STORAGE_KEY_CREDIT_HISTORY = 'tm_t4_shop_history_cache_v1';
+    const SETTINGS_MODAL_TAB_DEFINITIONS = Object.freeze([
+        { id: 'general', label: 'Général' },
+        { id: 'chat', label: 'Chat' },
+        { id: 'mentions', label: 'Mentions & AFK' },
+        { id: 'media', label: 'Médias' },
+        { id: 'shortcuts', label: 'Raccourcis' },
+        { id: 'appearance', label: 'Apparence' },
+        { id: 'statistics', label: 'Statistiques' }
+    ]);
     /**
      * Effectue une requête externe hors du contexte réseau de la page.
      * Tr4ker applique une CSP qui bloque les fetch cross-origin du userscript;
@@ -14322,7 +14332,7 @@
                 <summary style="font-size:13px;font-weight:700;margin-bottom:10px;cursor:pointer;user-select:none;">Header customisé</summary>
                 <label style="${settingsCheckboxLabelWithMarginStyle}">
                     <input id="tm-matrix-dashboard-toggle" type="checkbox" ${matrixDashboardEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#4ade80')}">
-                    <span>Activer les statistiques dans la top bar</span>
+                    <span>Activer le header personnalisé</span>
                 </label>
                 <label style="${settingsCheckboxLabelWithMarginStyle}">
                     <input id="tm-topbar-stats-all-site-toggle" type="checkbox" ${tr4kerTopbarStatsAllSite ? 'checked' : ''} style="${createSettingsCheckboxInputStyle('#45c7c7')}">
@@ -15453,31 +15463,170 @@
         `;
     }
 
+    function normalizeSettingsModalTabId(tabId) {
+        const normalizedTabId = String(tabId || '').trim();
+        return SETTINGS_MODAL_TAB_DEFINITIONS.some((tab) => tab.id === normalizedTabId)
+            ? normalizedTabId
+            : SETTINGS_MODAL_TAB_DEFINITIONS[0].id;
+    }
+
+    function loadSettingsModalActiveTab() {
+        return normalizeSettingsModalTabId(readStorageItem(STORAGE_KEY_SETTINGS_ACTIVE_TAB));
+    }
+
+    function saveSettingsModalActiveTab(tabId) {
+        writeStorageItem(STORAGE_KEY_SETTINGS_ACTIVE_TAB, normalizeSettingsModalTabId(tabId));
+    }
+
+    function renderSettingsModalTabNavigation(activeTabId) {
+        return `
+            <div role="tablist" aria-label="Catégories des paramètres" style="display:flex;gap:7px;overflow-x:auto;padding:2px 1px 10px;margin-bottom:4px;scrollbar-width:thin;">
+                ${SETTINGS_MODAL_TAB_DEFINITIONS.map((tab) => {
+                    const isActive = tab.id === activeTabId;
+                    return `
+                        <button
+                            type="button"
+                            role="tab"
+                            data-tm-settings-tab="${tab.id}"
+                            aria-controls="tm-settings-tab-panel-${tab.id}"
+                            aria-selected="${isActive ? 'true' : 'false'}"
+                            tabindex="${isActive ? '0' : '-1'}"
+                            style="flex:0 0 auto;border:1px solid ${isActive ? 'rgba(96,165,250,0.72)' : 'rgba(255,255,255,0.10)'};background:${isActive ? '#2563eb' : '#27272a'};color:${isActive ? '#fff' : '#d4d4d8'};border-radius:999px;padding:8px 11px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap;"
+                        >${tab.label}</button>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    }
+
+    function renderSettingsModalCard(cardId, cardHtml) {
+        return `<div data-tm-settings-card="${cardId}" style="min-width:0;">${cardHtml}</div>`;
+    }
+
+    function renderSettingsModalTabPanel(tabId, cardHtml, isActive, styles) {
+        return `
+            <section
+                id="tm-settings-tab-panel-${tabId}"
+                role="tabpanel"
+                data-tm-settings-tab-panel="${tabId}"
+                ${isActive ? '' : 'hidden'}
+                style="display:${isActive ? 'grid' : 'none'};grid-template-columns:repeat(${styles.settingsColumnCount}, minmax(0, 1fr));gap:0 14px;align-items:start;"
+            >${cardHtml}</section>
+        `;
+    }
+
+    function convertSettingsCardToAccordion(cardWrapper) {
+        if (!(cardWrapper instanceof HTMLElement)) return;
+
+        const card = cardWrapper.firstElementChild;
+        if (card instanceof HTMLDetailsElement) {
+            card.dataset.tmSettingsAccordion = '1';
+            card.style.display = 'block';
+            return;
+        }
+        if (!(card instanceof HTMLElement)) return;
+
+        const heading = card.firstElementChild;
+        const title = String(heading?.textContent || '').trim();
+        if (!(heading instanceof HTMLElement) || !title) return;
+
+        const accordion = document.createElement('details');
+        accordion.dataset.tmSettingsAccordion = '1';
+        accordion.style.cssText = card.style.cssText;
+        accordion.style.display = 'block';
+        accordion.style.padding = '0';
+
+        const summary = document.createElement('summary');
+        summary.textContent = title;
+        summary.style.cssText = 'padding:12px;cursor:pointer;user-select:none;font-size:13px;font-weight:700;color:#f4f4f5;';
+
+        heading.remove();
+        card.style.display = 'block';
+        card.style.width = 'auto';
+        card.style.padding = '0 12px 12px';
+        card.style.margin = '0';
+        card.style.background = 'transparent';
+        card.style.border = '0';
+        card.style.borderRadius = '0';
+        card.style.boxSizing = 'border-box';
+        card.style.breakInside = 'auto';
+        card.style.verticalAlign = 'baseline';
+
+        accordion.append(summary, card);
+        cardWrapper.replaceChildren(accordion);
+    }
+
+    function initializeSettingsModalSections(modal) {
+        if (!(modal instanceof HTMLElement)) return;
+
+        modal.querySelectorAll('[data-tm-settings-card]').forEach(convertSettingsCardToAccordion);
+
+        const tabButtons = Array.from(modal.querySelectorAll('[data-tm-settings-tab]'));
+        const tabPanels = Array.from(modal.querySelectorAll('[data-tm-settings-tab-panel]'));
+        const selectTab = (tabId) => {
+            const activeTabId = normalizeSettingsModalTabId(tabId);
+            tabButtons.forEach((button) => {
+                if (!(button instanceof HTMLButtonElement)) return;
+                const isActive = button.dataset.tmSettingsTab === activeTabId;
+                button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+                button.tabIndex = isActive ? 0 : -1;
+                button.style.background = isActive ? '#2563eb' : '#27272a';
+                button.style.color = isActive ? '#fff' : '#d4d4d8';
+                button.style.borderColor = isActive ? 'rgba(96,165,250,0.72)' : 'rgba(255,255,255,0.10)';
+            });
+            tabPanels.forEach((panel) => {
+                if (!(panel instanceof HTMLElement)) return;
+                const isActive = panel.dataset.tmSettingsTabPanel === activeTabId;
+                panel.hidden = !isActive;
+                panel.style.display = isActive ? 'grid' : 'none';
+            });
+            saveSettingsModalActiveTab(activeTabId);
+        };
+
+        tabButtons.forEach((button) => {
+            if (!(button instanceof HTMLButtonElement)) return;
+            button.addEventListener('click', () => selectTab(button.dataset.tmSettingsTab));
+        });
+        selectTab(loadSettingsModalActiveTab());
+    }
+
     function buildSettingsModalHtml(currentPageLabel, isChatView, styles) {
+        const activeTabId = loadSettingsModalActiveTab();
+        const tabCards = {
+            general: [
+                renderSettingsModalCard('tips', renderSettingsTipsCard(styles.settingsFullWidthCardStyle)),
+                renderSettingsModalCard('stats-box', renderSettingsStatsCard(currentPageLabel, styles.settingsCardStyle, styles.settingsCheckboxLabelWithMarginStyle)),
+                renderSettingsModalCard('configuration', renderSettingsConfigCard(styles.settingsCardStyle)),
+                renderSettingsModalCard('debug', renderSettingsDebugCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle))
+            ].join(''),
+            chat: [
+                renderSettingsModalCard('accessibility', renderSettingsAccessibilityCard(currentPageLabel, isChatView, styles)),
+                renderSettingsModalCard('blacklist', renderSettingsBlacklistCard(styles.settingsCardStyle)),
+                renderSettingsModalCard('highlight', renderSettingsHighlightCard(styles.settingsCardStyle))
+            ].join(''),
+            mentions: renderSettingsModalCard('mentions', renderSettingsMentionCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)),
+            media: [
+                renderSettingsModalCard('gif-klipy', renderSettingsGifCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)),
+                renderSettingsModalCard('t9-emoj', renderSettingsT9EmojCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)),
+                renderSettingsModalCard('image-hosting', renderSettingsImageHostingCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle))
+            ].join(''),
+            shortcuts: [
+                renderSettingsModalCard('saved-phrases', renderSettingsSavedPhrasesCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)),
+                renderSettingsModalCard('emoji-quick-access', renderSettingsEmojiQuickAccessCard(styles.settingsCardStyle))
+            ].join(''),
+            appearance: renderSettingsModalCard('grade-pseudonyms', renderSettingsGradePseudonymColorsCard(styles.settingsCardStyle)),
+            statistics: [
+                renderSettingsModalCard('header-custom', renderSettingsMatrixDashboardCard(styles.settingsCardStyle, styles.settingsCheckboxLabelWithMarginStyle)),
+                renderSettingsModalCard('credit-recap', renderSettingsCreditRecapCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle))
+            ].join('')
+        };
+
         return `
             ${renderSettingsModalHeader(currentPageLabel)}
-            ${renderSettingsTipsCard(styles.settingsFullWidthCardStyle)}
-
-            <div style="
-                column-count:${styles.settingsColumnCount};
-                column-gap:14px;
-            ">
-                ${renderSettingsStatsCard(currentPageLabel, styles.settingsCardStyle, styles.settingsCheckboxLabelWithMarginStyle)}
-                ${renderSettingsMatrixDashboardCard(styles.settingsCardStyle, styles.settingsCheckboxLabelWithMarginStyle)}
-                ${renderSettingsAccessibilityCard(currentPageLabel, isChatView, styles)}
-                ${renderSettingsSavedPhrasesCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)}
-                ${renderSettingsConfigCard(styles.settingsCardStyle)}
-                ${renderSettingsCreditRecapCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)}
-                ${renderSettingsGifCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)}
-                ${renderSettingsT9EmojCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)}
-                ${renderSettingsImageHostingCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)}
-                ${renderSettingsEmojiQuickAccessCard(styles.settingsCardStyle)}
-                ${renderSettingsBlacklistCard(styles.settingsCardStyle)}
-                ${renderSettingsHighlightCard(styles.settingsCardStyle)}
-                ${renderSettingsGradePseudonymColorsCard(styles.settingsCardStyle)}
-                ${renderSettingsMentionCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)}
-                ${renderSettingsDebugCard(styles.settingsCardStyle, styles.settingsCheckboxLabelStyle)}
-            </div>
+            ${renderSettingsModalTabNavigation(activeTabId)}
+            ${SETTINGS_MODAL_TAB_DEFINITIONS.map((tab) =>
+                renderSettingsModalTabPanel(tab.id, tabCards[tab.id] || '', tab.id === activeTabId, styles)
+            ).join('')}
 
             <div id="tm-feedback" style="
                 min-height:20px;
@@ -17591,6 +17740,7 @@
 
         document.body.appendChild(overlay);
         document.body.appendChild(modal);
+        initializeSettingsModalSections(modal);
         bindSettingsModalDragging(modal);
         const elements = getSettingsModalElements(modal);
         const controls = createSettingsModalController(elements);
