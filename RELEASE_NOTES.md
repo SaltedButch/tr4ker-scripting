@@ -10,6 +10,13 @@ Ce fichier suit l'état fonctionnel du userscript à partir de la version actuel
 
 ## Version en préparation
 
+- Ajout d’une carte profil minimale activable dans les réglages : au survol d’un pseudo, elle affiche l’ancienneté, le ratio, l’upload et le download. La requête API n’est lancée qu’au survol et son résultat reste seulement en mémoire dans l’onglet.
+- La carte profil utilise maintenant l’avatar public fourni par Tr4ker et indique clairement les profils privés ou inaccessibles, sans tenter d’en afficher les statistiques.
+- La carte profil est également disponible au survol de l’avatar affiché à gauche de chaque message du chat.
+- La date d’inscription de la carte profil est placée sur une ligne dédiée sous le grade afin de rester lisible avec les grades longs.
+- La carte profil respecte désormais l’option Tr4ker `hide_ratio` : ratio, upload et download sont indiqués comme masqués au lieu d’afficher des zéros.
+- Les bannières publiques de profil sont utilisées comme en-tête visuel de la carte au survol, avec un dégradé de lisibilité et un repli automatique si elles sont absentes.
+- La carte profil se ferme immédiatement au clic sur un pseudo ou un avatar, ainsi qu’à la sortie de la page chat.
 - Les alertes locales et inter-canaux d'un même message partagent maintenant son identifiant Tr4ker ; elles ne peuvent donc plus produire deux sons dans des onglets différents.
 - Le script ne crée plus de pastille de messages privés non lus dans la barre latérale et retire celles laissées par les versions précédentes ; seul le compteur natif de Tr4ker est affiché.
 - Les messages groupés mis en avant forment maintenant une zone visuelle continue, avec des bordures uniquement au début et à la fin du groupe.

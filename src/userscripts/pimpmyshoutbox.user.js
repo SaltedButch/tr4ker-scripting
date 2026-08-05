@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    http://tampermonkey.net/
-// @version      3.01.06
+// @version      3.01.13
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -49,6 +49,7 @@
     const SESSION_STORAGE_KEY_MENTION_SOUND_TAB_ID = 'tm_t4_mention_sound_tab_id';
     const STORAGE_KEY_CHAT_FONT_SCALE = 'tm_t4_chat_font_scale';
     const STORAGE_KEY_CHAT_SCROLLBAR_ENABLED = 'tm_t4_chat_scrollbar_enabled';
+    const STORAGE_KEY_PROFILE_HOVER_ENABLED = 'tm_t4_profile_hover_enabled';
     const STORAGE_KEY_CUSTOM_BACKGROUND_ENABLED = 'tm_t4_custom_background_enabled';
     const STORAGE_KEY_CUSTOM_BACKGROUND_COLOR = 'tm_t4_custom_background_color';
     const TR4KER_ME_PREFERENCES_ENDPOINT = '/api/me/preferences';
@@ -243,6 +244,7 @@
         STORAGE_KEY_CROSS_CHANNEL_MENTION_CHANNELS,
         STORAGE_KEY_CHAT_FONT_SCALE,
         STORAGE_KEY_CHAT_SCROLLBAR_ENABLED,
+        STORAGE_KEY_PROFILE_HOVER_ENABLED,
         STORAGE_KEY_CUSTOM_BACKGROUND_ENABLED,
         STORAGE_KEY_CUSTOM_BACKGROUND_COLOR,
         STORAGE_KEY_MESSAGE_ACTIONS_LEFT_ENABLED,
@@ -306,6 +308,7 @@
     const MODAL_ID = 'tm-t4-chat-modal';
     const OVERLAY_ID = 'tm-t4-chat-overlay';
     const TOAST_ID = 'tm-t4-chat-toast';
+    const PROFILE_HOVER_CARD_ID = 'tm-t4-profile-hover-card';
     const SETTINGS_BUBBLE_ID = 'tm-t4-settings-bubble';
     const MENTION_INBOX_BUBBLE_ID = 'tm-t4-mention-inbox-bubble';
     const CHAT_SIDEBAR_RESIZER_ID = 'tm-t4-chat-sidebar-resizer';
@@ -627,6 +630,12 @@
     let mentionSettings = loadMentionSettings();
     let chatFontScale = loadChatFontScale();
     let chatScrollbarEnabled = loadChatScrollbarEnabled();
+    let profileHoverEnabled = loadProfileHoverEnabled();
+    let profileHoverCard = null;
+    let profileHoverHideTimer = null;
+    let profileHoverActiveSender = null;
+    const profileHoverCache = new Map();
+    const profileHoverPendingRequests = new Map();
     let customBackgroundEnabled = loadCustomBackgroundEnabled();
     let customBackgroundColor = loadCustomBackgroundColor();
     let messageActionsLeftEnabled = loadMessageActionsLeftEnabled();
@@ -3612,6 +3621,7 @@
         syncCrossChannelMentionSocket();
         chatFontScale = loadChatFontScale();
         chatScrollbarEnabled = loadChatScrollbarEnabled();
+        profileHoverEnabled = loadProfileHoverEnabled();
         customBackgroundEnabled = loadCustomBackgroundEnabled();
         customBackgroundColor = loadCustomBackgroundColor();
         messageActionsLeftEnabled = loadMessageActionsLeftEnabled();
@@ -3716,6 +3726,7 @@
         }
 
         processAllMessages();
+        syncProfileHoverFeatureState();
         refreshReactionQuickAccessButtons();
         renderAfkPanel();
         updateStatsBox();
@@ -4198,6 +4209,16 @@
     function saveChatScrollbarEnabled(value) {
         chatScrollbarEnabled = !!value;
         writeStorageBoolean(STORAGE_KEY_CHAT_SCROLLBAR_ENABLED, chatScrollbarEnabled);
+    }
+
+    function loadProfileHoverEnabled() {
+        return readStorageBoolean(STORAGE_KEY_PROFILE_HOVER_ENABLED, false);
+    }
+
+    function saveProfileHoverEnabled(value) {
+        profileHoverEnabled = !!value;
+        writeStorageBoolean(STORAGE_KEY_PROFILE_HOVER_ENABLED, profileHoverEnabled);
+        syncProfileHoverFeatureState();
     }
 
     function loadCustomBackgroundEnabled() {
@@ -8903,6 +8924,12 @@
         if (userButton instanceof HTMLElement) {
             userButton.style.fontSize = scalePixels(14, safeScale);
             userButton.style.lineHeight = '1.35';
+            bindProfileHoverToSender(userButton);
+
+            const avatarButton = messageEl.querySelector(':scope > [class*="msgAvatar"]');
+            if (avatarButton instanceof HTMLElement) {
+                bindProfileHoverToAvatar(avatarButton, userButton.textContent);
+            }
         }
         metaSpans.forEach((span) => {
             if (span instanceof HTMLElement) span.style.fontSize = scalePixels(12, safeScale);
@@ -8913,6 +8940,280 @@
         }
         applyTr4kerPseudonymGradeColor(messageEl);
 
+    }
+
+    function getProfileHoverCacheKey(username) {
+        return normalizeName(username);
+    }
+
+    function toFiniteProfileNumber(value) {
+        const number = Number(value);
+        return Number.isFinite(number) && number >= 0 ? number : 0;
+    }
+
+    function normalizeProfileHoverRecord(payload, fallbackUsername) {
+        const payloadData = payload?.data && typeof payload.data === 'object' ? payload.data : payload;
+        const rawProfile = payloadData?.user && typeof payloadData.user === 'object' ? payloadData.user : payloadData;
+        if (!rawProfile || typeof rawProfile !== 'object') return null;
+
+        const uploaded = toFiniteProfileNumber(rawProfile.uploaded ?? rawProfile.upload);
+        const bonusUpload = toFiniteProfileNumber(rawProfile.bonus_upload ?? rawProfile.bonusUpload);
+        const downloaded = toFiniteProfileNumber(rawProfile.downloaded ?? rawProfile.download);
+        const explicitRatio = Number(rawProfile.ratio);
+
+        return {
+            username: String(rawProfile.username || rawProfile.name || fallbackUsername || '').trim() || fallbackUsername,
+            role: String(rawProfile.role || rawProfile.rank || '').trim(),
+            joinedAt: rawProfile.joined_at ?? rawProfile.joinedAt ?? rawProfile.created_at ?? rawProfile.createdAt ?? null,
+            avatarUrl: String(rawProfile.avatar_url || rawProfile.avatarUrl || rawProfile.avatar || '').trim(),
+            bannerUrl: String(rawProfile.banner_url || rawProfile.bannerUrl || rawProfile.banner || '').trim(),
+            isPrivate: rawProfile.profile_private === true || rawProfile.is_private === true ||
+                rawProfile.profile_visibility === 'private' || rawProfile.visibility === 'private',
+            hideRatio: rawProfile.hide_ratio === true,
+            uploaded,
+            bonusUpload,
+            downloaded,
+            ratio: Number.isFinite(explicitRatio)
+                ? explicitRatio
+                : (downloaded > 0 ? (uploaded + bonusUpload) / downloaded : (uploaded + bonusUpload > 0 ? Infinity : null))
+        };
+    }
+
+    function getSafeProfileHoverAvatarUrl(value) {
+        if (!value) return '';
+
+        try {
+            const url = new URL(value, location.href);
+            return /^https?:$/.test(url.protocol) ? url.href : '';
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function formatProfileHoverBytes(value) {
+        return formatTr4kerTopbarStatsBytes(value);
+    }
+
+    function formatProfileHoverRatio(value) {
+        if (value === Infinity) return '∞';
+        if (!Number.isFinite(value)) return '—';
+        return value.toLocaleString('fr-FR', { maximumFractionDigits: 2 });
+    }
+
+    function formatProfileHoverJoinedAt(value) {
+        if (value === null || value === undefined || value === '') return 'Non renseignée';
+
+        const numericValue = Number(value);
+        const date = Number.isFinite(numericValue) && numericValue > 0
+            ? new Date(numericValue < 100000000000 ? numericValue * 1000 : numericValue)
+            : new Date(value);
+
+        if (Number.isNaN(date.getTime())) return 'Non renseignée';
+        return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' }).format(date);
+    }
+
+    function renderProfileHoverCardContent(username, profile, errorMessage = '') {
+        if (errorMessage) {
+            const isPrivate = errorMessage === 'private';
+            return `
+                <div style="font-size:13px;font-weight:750;color:#f4f4f5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(username)}</div>
+                <div style="margin-top:8px;font-size:12px;line-height:1.45;color:#a1a1aa;">${isPrivate ? 'Profil privé ou accès non autorisé : aucune donnée n’est affichée.' : 'Profil indisponible pour le moment.'}</div>
+            `;
+        }
+
+        if (!profile) {
+            return `
+                <div style="font-size:13px;font-weight:750;color:#f4f4f5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(username)}</div>
+                <div style="margin-top:8px;font-size:12px;color:#a1a1aa;">Chargement du profil…</div>
+            `;
+        }
+
+        if (profile.isPrivate) {
+            return `
+                <div style="font-size:13px;font-weight:750;color:#f4f4f5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(profile.username)}</div>
+                <div style="margin-top:8px;font-size:12px;line-height:1.45;color:#a1a1aa;">Profil privé : Tr4ker ne communique pas ses statistiques.</div>
+            `;
+        }
+
+        const role = profile.role ? `<span style="font-size:10px;font-weight:700;color:#7dd3fc;background:rgba(14,165,233,.14);border:1px solid rgba(56,189,248,.22);border-radius:999px;padding:3px 6px;">${escapeHtml(profile.role)}</span>` : '';
+        const totalUpload = profile.uploaded + profile.bonusUpload;
+        const statsAreHidden = profile.hideRatio;
+        const avatarUrl = getSafeProfileHoverAvatarUrl(profile.avatarUrl);
+        const bannerUrl = getSafeProfileHoverAvatarUrl(profile.bannerUrl);
+        const avatar = avatarUrl
+            ? `<div style="position:relative;width:28px;height:28px;flex:0 0 28px;border-radius:9px;overflow:hidden;background:linear-gradient(135deg,#0e7490,#2563eb);color:#eff6ff;font-size:12px;font-weight:800;display:grid;place-items:center;">${escapeHtml(profile.username.slice(0, 1).toUpperCase() || '?')}<img data-tm-profile-hover-avatar src="${escapeHtml(avatarUrl)}" alt="" referrerpolicy="no-referrer" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#18181b;"></div>`
+            : `<div style="width:28px;height:28px;flex:0 0 28px;border-radius:9px;display:grid;place-items:center;background:linear-gradient(135deg,#0e7490,#2563eb);color:#eff6ff;font-size:12px;font-weight:800;">${escapeHtml(profile.username.slice(0, 1).toUpperCase() || '?')}</div>`;
+        const banner = bannerUrl
+            ? `<div data-tm-profile-hover-banner-url="${escapeHtml(bannerUrl)}" style="height:48px;margin:-11px -12px 10px;background-color:#18181b;background-position:center;background-size:cover;"></div>`
+            : '';
+
+        return `
+            ${banner}
+            <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+                ${avatar}
+                <div style="min-width:0;flex:1;">
+                    <div style="font-size:13px;font-weight:750;color:#f4f4f5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(profile.username)}</div>
+                    ${role ? `<div style="margin-top:3px;display:flex;align-items:center;min-width:0;">${role}</div>` : ''}
+                    <div style="margin-top:${role ? '4' : '2'}px;font-size:10px;color:#a1a1aa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Membre depuis ${escapeHtml(formatProfileHoverJoinedAt(profile.joinedAt))}</div>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:11px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);">
+                <div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:#71717a;">Ratio</div><div style="margin-top:2px;font-size:12px;font-weight:750;color:${statsAreHidden ? '#a1a1aa' : '#f4f4f5'};white-space:nowrap;">${statsAreHidden ? 'Masqué' : formatProfileHoverRatio(profile.ratio)}</div></div>
+                <div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:#71717a;">Upload</div><div style="margin-top:2px;font-size:12px;font-weight:750;color:${statsAreHidden ? '#a1a1aa' : '#86efac'};white-space:nowrap;">${statsAreHidden ? 'Masqué' : formatProfileHoverBytes(totalUpload)}</div></div>
+                <div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:#71717a;">Download</div><div style="margin-top:2px;font-size:12px;font-weight:750;color:${statsAreHidden ? '#a1a1aa' : '#fca5a5'};white-space:nowrap;">${statsAreHidden ? 'Masqué' : formatProfileHoverBytes(profile.downloaded)}</div></div>
+            </div>
+        `;
+    }
+
+    function ensureProfileHoverCard() {
+        if (profileHoverCard?.isConnected) return profileHoverCard;
+        if (!document.body) return null;
+
+        const card = document.createElement('aside');
+        card.id = PROFILE_HOVER_CARD_ID;
+        card.setAttribute('role', 'status');
+        card.setAttribute('aria-live', 'polite');
+        card.style.cssText = 'position:fixed;z-index:10001;display:none;width:min(284px,calc(100vw - 16px));box-sizing:border-box;padding:11px 12px;border:1px solid rgba(125,211,252,.24);border-radius:12px;overflow:hidden;background:rgba(18,18,22,.98);box-shadow:0 16px 38px rgba(0,0,0,.42),0 1px 0 rgba(255,255,255,.05) inset;backdrop-filter:blur(10px);pointer-events:none;';
+        document.body.appendChild(card);
+        profileHoverCard = card;
+        return card;
+    }
+
+    function bindProfileHoverCardAssets(card) {
+        const avatar = card.querySelector('[data-tm-profile-hover-avatar]');
+        if (avatar instanceof HTMLImageElement) {
+            avatar.addEventListener('error', () => avatar.remove(), { once: true });
+        }
+
+        const banner = card.querySelector('[data-tm-profile-hover-banner-url]');
+        if (!(banner instanceof HTMLElement)) return;
+
+        const bannerUrl = getSafeProfileHoverAvatarUrl(banner.dataset.tmProfileHoverBannerUrl);
+        if (!bannerUrl) return;
+        banner.style.backgroundImage = `linear-gradient(180deg,rgba(9,9,11,.08),rgba(18,18,22,.88)),url(${JSON.stringify(bannerUrl)})`;
+    }
+
+    function positionProfileHoverCard(sender, card) {
+        const rect = sender.getBoundingClientRect();
+        const margin = 8;
+        const cardWidth = Math.min(284, window.innerWidth - margin * 2);
+        const left = Math.max(margin, Math.min(window.innerWidth - cardWidth - margin, rect.left));
+        const estimatedHeight = 116;
+        const top = rect.bottom + margin + estimatedHeight <= window.innerHeight
+            ? rect.bottom + margin
+            : Math.max(margin, rect.top - estimatedHeight - margin);
+
+        card.style.left = `${Math.round(left)}px`;
+        card.style.top = `${Math.round(top)}px`;
+    }
+
+    function hideProfileHoverCard() {
+        window.clearTimeout(profileHoverHideTimer);
+        profileHoverHideTimer = null;
+        profileHoverActiveSender = null;
+        if (profileHoverCard instanceof HTMLElement) profileHoverCard.style.display = 'none';
+    }
+
+    function scheduleProfileHoverCardHide() {
+        window.clearTimeout(profileHoverHideTimer);
+        profileHoverHideTimer = window.setTimeout(hideProfileHoverCard, 130);
+    }
+
+    async function getProfileHoverRecord(username) {
+        const cacheKey = getProfileHoverCacheKey(username);
+        if (!cacheKey) throw new Error('Pseudo manquant.');
+        if (profileHoverCache.has(cacheKey)) return profileHoverCache.get(cacheKey);
+        if (profileHoverPendingRequests.has(cacheKey)) return profileHoverPendingRequests.get(cacheKey);
+
+        const request = fetch(`/api/users/${encodeURIComponent(username)}`, { credentials: 'same-origin' })
+            .then(async (response) => {
+                if (!response.ok) {
+                    const error = new Error(`HTTP ${response.status}`);
+                    error.code = response.status === 401 || response.status === 403 ? 'private' : 'unavailable';
+                    throw error;
+                }
+                const profile = normalizeProfileHoverRecord(await response.json(), username);
+                if (!profile) throw new Error('Profil invalide.');
+                profileHoverCache.set(cacheKey, profile);
+                return profile;
+            })
+            .finally(() => profileHoverPendingRequests.delete(cacheKey));
+
+        profileHoverPendingRequests.set(cacheKey, request);
+        return request;
+    }
+
+    function showProfileHoverCard(sender, knownUsername = '') {
+        if (!profileHoverEnabled || !(sender instanceof HTMLElement)) return;
+
+        const username = String(knownUsername || sender.textContent || '').trim();
+        if (!username) return;
+
+        window.clearTimeout(profileHoverHideTimer);
+        profileHoverActiveSender = sender;
+        const card = ensureProfileHoverCard();
+        if (!(card instanceof HTMLElement)) return;
+
+        positionProfileHoverCard(sender, card);
+        card.innerHTML = renderProfileHoverCardContent(username, null);
+        bindProfileHoverCardAssets(card);
+        card.style.display = 'block';
+
+        getProfileHoverRecord(username)
+            .then((profile) => {
+                if (profileHoverActiveSender !== sender || !card.isConnected) return;
+                card.innerHTML = renderProfileHoverCardContent(username, profile);
+                bindProfileHoverCardAssets(card);
+                positionProfileHoverCard(sender, card);
+            })
+            .catch((error) => {
+                if (profileHoverActiveSender !== sender || !card.isConnected) return;
+                card.innerHTML = renderProfileHoverCardContent(
+                    username,
+                    null,
+                    error?.code === 'private' ? 'private' : 'unavailable'
+                );
+                bindProfileHoverCardAssets(card);
+                positionProfileHoverCard(sender, card);
+            });
+    }
+
+    function bindProfileHoverToSender(sender) {
+        if (!(sender instanceof HTMLElement) || sender.dataset.tmProfileHoverBound === '1') return;
+
+        sender.dataset.tmProfileHoverBound = '1';
+        sender.addEventListener('mouseenter', () => showProfileHoverCard(sender));
+        sender.addEventListener('mouseleave', scheduleProfileHoverCardHide);
+        sender.addEventListener('click', hideProfileHoverCard);
+    }
+
+    function bindProfileHoverToAvatar(avatar, username) {
+        if (!(avatar instanceof HTMLElement) || avatar.dataset.tmProfileHoverBound === '1') return;
+
+        const safeUsername = String(username || '').trim();
+        if (!safeUsername) return;
+
+        avatar.dataset.tmProfileHoverBound = '1';
+        avatar.addEventListener('mouseenter', () => showProfileHoverCard(avatar, safeUsername));
+        avatar.addEventListener('mouseleave', scheduleProfileHoverCardHide);
+        avatar.addEventListener('click', hideProfileHoverCard);
+    }
+
+    function syncProfileHoverFeatureState() {
+        if (!profileHoverEnabled) {
+            hideProfileHoverCard();
+            return;
+        }
+
+        getActiveChatRoot()?.querySelectorAll('[class*="msgSender"]').forEach((sender) => {
+            bindProfileHoverToSender(sender);
+
+            const message = sender.closest(TR4KER_MESSAGE_SELECTOR);
+            const avatar = message?.querySelector(':scope > [class*="msgAvatar"]');
+            if (avatar instanceof HTMLElement) {
+                bindProfileHoverToAvatar(avatar, sender.textContent);
+            }
+        });
     }
 
     function getMessageMetaRow(messageEl) {
@@ -12467,6 +12768,7 @@
             customBackgroundColorInput: modal.querySelector('#tm-custom-background-color-input'),
             customBackgroundResetBtn: modal.querySelector('#tm-custom-background-reset'),
             chatScrollbarToggle: modal.querySelector('#tm-chat-scrollbar-toggle'),
+            profileHoverToggle: modal.querySelector('#tm-profile-hover-toggle'),
             messageActionsLeftToggle: modal.querySelector('#tm-message-actions-left-toggle'),
             chatInputToolbarInlineToggle: modal.querySelector('#tm-chat-input-toolbar-inline-toggle'),
             chatInputToolbarAlignRightToggle: modal.querySelector('#tm-chat-input-toolbar-align-right-toggle'),
@@ -13996,6 +14298,15 @@
             controls.setFeedback(chatScrollbarEnabled ? 'Ascenseur du chat activé.' : 'Ascenseur du chat désactivé.');
         });
 
+        elements.profileHoverToggle?.addEventListener('change', () => {
+            saveProfileHoverEnabled(elements.profileHoverToggle.checked);
+            controls.setFeedback(
+                profileHoverEnabled
+                    ? 'Carte profil au survol activée : les données seront demandées uniquement au survol d’un pseudo.'
+                    : 'Carte profil au survol désactivée.'
+            );
+        });
+
         elements.messageActionsLeftToggle?.addEventListener('change', () => {
             saveMessageActionsLeftEnabled(elements.messageActionsLeftToggle.checked);
             applyMessageActionsPositionState();
@@ -14616,6 +14927,15 @@
 
                 <div style="margin-top:8px;font-size:11px;color:#71717a;line-height:1.45;">
                     Ajoute une scrollbar visible uniquement sur la zone de messages de la page chat.
+                </div>
+
+                <label style="${styles.settingsCheckboxLabelWithMarginStyle}">
+                    <input id="tm-profile-hover-toggle" type="checkbox" ${profileHoverEnabled ? 'checked' : ''} style="${createSettingsCheckboxInputStyle(styles.accessibilityCheckboxAccentColor)}">
+                    <span>Carte profil au survol des pseudos</span>
+                </label>
+
+                <div style="margin-top:8px;font-size:11px;color:#71717a;line-height:1.45;">
+                    Affiche la date d’inscription, le ratio, l’upload et le download. L’API est appelée uniquement au survol d’un pseudo, puis le résultat est gardé en mémoire pour l’onglet.
                 </div>
                 ` : ''}
 
@@ -24443,6 +24763,7 @@
 
         if (!isChatPage()) {
             clearSavedPhrasesReplyContext();
+            hideProfileHoverCard();
         } else if (savedPhrasesReplyContext && savedPhrasesReplyContext.contextKey !== currentChatContextKey) {
             clearSavedPhrasesReplyContext();
         }
