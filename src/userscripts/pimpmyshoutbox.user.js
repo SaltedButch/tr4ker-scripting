@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    http://tampermonkey.net/
-// @version      3.01.13
+// @version      3.01.16
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -340,12 +340,12 @@
     // uniquement par la couleur native du bouton de pseudo : les badges sont
     // décoratifs et ne constituent pas une source fiable pour ce classement.
     const PSEUDONYM_GRADE_DEFINITIONS = Object.freeze([
-        { id: 'membre', label: 'Membre', nativeColors: ['#f472b6'], defaultColor: '#f472b6' },
-        { id: 'uploader-en-herbe', label: 'Uploader en herbe', nativeColors: ['#7dd3fc'], defaultColor: '#7dd3fc' },
-        { id: 'uploader', label: 'Uploader', nativeColors: ['#2563eb'], defaultColor: '#2563eb' },
-        { id: 'team', label: 'Team', nativeColors: ['#f87171'], defaultColor: '#f87171' },
-        { id: 'contributeur', label: 'Contributeur', nativeColors: ['#f4f4f5'], defaultColor: '#f4f4f5' },
-        { id: 'staff', label: 'Staff', nativeColors: ['#16a34a'], defaultColor: '#16a34a' }
+        { id: 'membre', label: 'Membre', apiRoleLabels: { user: 'Membre', membre: 'Membre' }, nativeColors: ['#f472b6'], defaultColor: '#f472b6' },
+        { id: 'uploader-en-herbe', label: 'Uploader en herbe', apiRoleLabels: { uploader_herbe: 'Uploader en herbe' }, nativeColors: ['#7dd3fc'], defaultColor: '#7dd3fc' },
+        { id: 'uploader', label: 'Uploader', apiRoleLabels: { uploader: 'Uploader' }, nativeColors: ['#2563eb'], defaultColor: '#2563eb' },
+        { id: 'team', label: 'Team', apiRoleLabels: { team: 'Team' }, nativeColors: ['#f87171'], defaultColor: '#f87171' },
+        { id: 'contributeur', label: 'Contributeur', apiRoleLabels: { contributeur: 'Contributeur' }, nativeColors: ['#f4f4f5'], defaultColor: '#f4f4f5' },
+        { id: 'staff', label: 'Staff', apiRoleLabels: { staff: 'Staff', moderator: 'Modérateur', admin: 'Administrateur' }, nativeColors: ['#16a34a'], defaultColor: '#16a34a' }
     ]);
     const PSEUDONYM_GRADE_EFFECT_DEFINITIONS = Object.freeze([
         { id: 'none', label: 'Aucun effet' },
@@ -4523,6 +4523,15 @@
     function getPseudonymGradeDefinition(gradeId) {
         const normalizedGradeId = String(gradeId || '').trim();
         return PSEUDONYM_GRADE_DEFINITIONS.find((grade) => grade.id === normalizedGradeId) || null;
+    }
+
+    function getPseudonymGradeDefinitionForApiRole(role) {
+        const normalizedRole = normalizeName(role);
+        if (!normalizedRole) return null;
+
+        return PSEUDONYM_GRADE_DEFINITIONS.find((grade) =>
+            Object.prototype.hasOwnProperty.call(grade.apiRoleLabels || {}, normalizedRole)
+        ) || null;
     }
 
     function getDefaultGradePseudonymColors() {
@@ -8964,6 +8973,7 @@
         return {
             username: String(rawProfile.username || rawProfile.name || fallbackUsername || '').trim() || fallbackUsername,
             role: String(rawProfile.role || rawProfile.rank || '').trim(),
+            roleColor: normalizeHexColor(rawProfile.role_color || rawProfile.roleColor, ''),
             joinedAt: rawProfile.joined_at ?? rawProfile.joinedAt ?? rawProfile.created_at ?? rawProfile.createdAt ?? null,
             avatarUrl: String(rawProfile.avatar_url || rawProfile.avatarUrl || rawProfile.avatar || '').trim(),
             bannerUrl: String(rawProfile.banner_url || rawProfile.bannerUrl || rawProfile.banner || '').trim(),
@@ -9000,6 +9010,26 @@
         return value.toLocaleString('fr-FR', { maximumFractionDigits: 2 });
     }
 
+    function getProfileHoverRolePresentation(profile) {
+        const grade = getPseudonymGradeDefinitionForApiRole(profile?.role);
+        if (grade) {
+            const roleKey = normalizeName(profile.role);
+            return {
+                label: grade.apiRoleLabels[roleKey] || grade.label,
+                color: normalizeHexColor(gradePseudonymColors[grade.id], grade.defaultColor),
+                effectId: getPseudonymGradeEffectDefinition(gradePseudonymEffects[grade.id])?.id || 'none'
+            };
+        }
+
+        const fallbackLabel = String(profile?.role || '').trim();
+        if (!fallbackLabel) return null;
+        return {
+            label: fallbackLabel,
+            color: normalizeHexColor(profile.roleColor, '#7dd3fc'),
+            effectId: 'none'
+        };
+    }
+
     function formatProfileHoverJoinedAt(value) {
         if (value === null || value === undefined || value === '') return 'Non renseignée';
 
@@ -9017,7 +9047,7 @@
             const isPrivate = errorMessage === 'private';
             return `
                 <div style="font-size:13px;font-weight:750;color:#f4f4f5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(username)}</div>
-                <div style="margin-top:8px;font-size:12px;line-height:1.45;color:#a1a1aa;">${isPrivate ? 'Profil privé ou accès non autorisé : aucune donnée n’est affichée.' : 'Profil indisponible pour le moment.'}</div>
+                <div style="margin-top:8px;font-size:12px;line-height:1.45;color:#a1a1aa;">${isPrivate ? 'Profil privé ou accès non autorisé.' : 'Profil indisponible.'}</div>
             `;
         }
 
@@ -9035,7 +9065,14 @@
             `;
         }
 
-        const role = profile.role ? `<span style="font-size:10px;font-weight:700;color:#7dd3fc;background:rgba(14,165,233,.14);border:1px solid rgba(56,189,248,.22);border-radius:999px;padding:3px 6px;">${escapeHtml(profile.role)}</span>` : '';
+        const rolePresentation = getProfileHoverRolePresentation(profile);
+        const roleEffectAttribute = rolePresentation?.effectId && rolePresentation.effectId !== 'none'
+            ? ` data-tm-grade-pseudonym-effect="${rolePresentation.effectId}"`
+            : '';
+        if (roleEffectAttribute) ensureGradePseudonymEffectsStyle();
+        const role = rolePresentation
+            ? `<span style="font-size:10px;font-weight:700;color:${rolePresentation.color};background:${hexToRgba(rolePresentation.color, 0.14)};border:1px solid ${hexToRgba(rolePresentation.color, 0.28)};border-radius:999px;padding:3px 6px;"><span${roleEffectAttribute} style="display:inline-block;color:${rolePresentation.color};--tm-grade-pseudonym-color:${rolePresentation.color};">${escapeHtml(rolePresentation.label)}</span></span>`
+            : '';
         const totalUpload = profile.uploaded + profile.bonusUpload;
         const statsAreHidden = profile.hideRatio;
         const avatarUrl = getSafeProfileHoverAvatarUrl(profile.avatarUrl);
@@ -9054,7 +9091,7 @@
                 <div style="min-width:0;flex:1;">
                     <div style="font-size:13px;font-weight:750;color:#f4f4f5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(profile.username)}</div>
                     ${role ? `<div style="margin-top:3px;display:flex;align-items:center;min-width:0;">${role}</div>` : ''}
-                    <div style="margin-top:${role ? '4' : '2'}px;font-size:10px;color:#a1a1aa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Membre depuis ${escapeHtml(formatProfileHoverJoinedAt(profile.joinedAt))}</div>
+                    <div style="margin-top:${role ? '4' : '2'}px;font-size:10px;color:#a1a1aa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Membre depuis le ${escapeHtml(formatProfileHoverJoinedAt(profile.joinedAt))}</div>
                 </div>
             </div>
             <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:11px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);">
@@ -9096,12 +9133,16 @@
     function positionProfileHoverCard(sender, card) {
         const rect = sender.getBoundingClientRect();
         const margin = 8;
-        const cardWidth = Math.min(284, window.innerWidth - margin * 2);
+        const cardBounds = card.getBoundingClientRect();
+        const cardWidth = Math.min(cardBounds.width || 284, window.innerWidth - margin * 2);
+        const cardHeight = Math.min(cardBounds.height || 150, window.innerHeight - margin * 2);
         const left = Math.max(margin, Math.min(window.innerWidth - cardWidth - margin, rect.left));
-        const estimatedHeight = 116;
-        const top = rect.bottom + margin + estimatedHeight <= window.innerHeight
-            ? rect.bottom + margin
-            : Math.max(margin, rect.top - estimatedHeight - margin);
+        const maxTop = Math.max(margin, window.innerHeight - cardHeight - margin);
+        const belowTop = rect.bottom + margin;
+        const aboveTop = rect.top - cardHeight - margin;
+        const top = belowTop <= maxTop
+            ? belowTop
+            : Math.max(margin, Math.min(maxTop, aboveTop));
 
         card.style.left = `${Math.round(left)}px`;
         card.style.top = `${Math.round(top)}px`;
@@ -9154,10 +9195,10 @@
         const card = ensureProfileHoverCard();
         if (!(card instanceof HTMLElement)) return;
 
-        positionProfileHoverCard(sender, card);
         card.innerHTML = renderProfileHoverCardContent(username, null);
         bindProfileHoverCardAssets(card);
         card.style.display = 'block';
+        positionProfileHoverCard(sender, card);
 
         getProfileHoverRecord(username)
             .then((profile) => {

@@ -17,6 +17,9 @@ Ce fichier suit l'état fonctionnel du userscript à partir de la version actuel
 - La carte profil respecte désormais l’option Tr4ker `hide_ratio` : ratio, upload et download sont indiqués comme masqués au lieu d’afficher des zéros.
 - Les bannières publiques de profil sont utilisées comme en-tête visuel de la carte au survol, avec un dégradé de lisibilité et un repli automatique si elles sont absentes.
 - La carte profil se ferme immédiatement au clic sur un pseudo ou un avatar, ainsi qu’à la sortie de la page chat.
+- Le placement de la carte profil est calculé sur sa hauteur réelle ; près de l’input, elle bascule au-dessus du message pour rester entièrement visible.
+- Les rôles API de la carte profil sont maintenant reliés à la table centrale des grades : libellés français propres et couleurs configurées dans `Pimp My Grade` sont réutilisés.
+- Le badge de grade de la carte profil reprend aussi l’effet configuré dans `Pimp My Grade`, sans animer le fond de la pastille.
 - Les alertes locales et inter-canaux d'un même message partagent maintenant son identifiant Tr4ker ; elles ne peuvent donc plus produire deux sons dans des onglets différents.
 - Le script ne crée plus de pastille de messages privés non lus dans la barre latérale et retire celles laissées par les versions précédentes ; seul le compteur natif de Tr4ker est affiché.
 - Les messages groupés mis en avant forment maintenant une zone visuelle continue, avec des bordures uniquement au début et à la fin du groupe.
