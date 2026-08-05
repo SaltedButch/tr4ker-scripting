@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    http://tampermonkey.net/
-// @version      3.01.16
+// @version      3.01.18
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -2686,6 +2686,7 @@
         const messageId = String(value.messageId || value.id || '').trim();
         const sender = String(value.sender || '').trim().slice(0, 160);
         const body = String(value.body || '').trim().slice(0, MAX_MENTION_INBOX_MESSAGE_LENGTH);
+        const replyContextText = String(value.replyContextText || '').trim().slice(0, MAX_MENTION_INBOX_MESSAGE_LENGTH);
         const channelId = String(value.channelId || '').trim();
         const channelName = String(value.channelName || value.contextLabel || '').trim().slice(0, 160);
         const channelSlug = String(value.channelSlug || '').trim();
@@ -2702,6 +2703,7 @@
             channelSlug,
             sender,
             body,
+            replyContextText,
             at,
             capturedAt,
             source: value.source === 'dom' ? 'dom' : (value.source === 'ws+dom' ? 'ws+dom' : 'ws'),
@@ -2895,6 +2897,7 @@
                 record.channelName,
                 record.sender,
                 record.body,
+                record.replyContextText,
                 record.at
             ].join(' ')).includes(normalizedQuery);
         });
@@ -2911,13 +2914,14 @@
         };
         const content = normalizedFormat === 'csv'
             ? [
-                ['id', 'messageId', 'canal', 'expediteur', 'message', 'date', 'source', 'raison', 'lu', 'archive'].join(','),
+                ['id', 'messageId', 'canal', 'expediteur', 'message', 'contexte_reponse', 'date', 'source', 'raison', 'lu', 'archive'].join(','),
                 ...records.map((record) => [
                     record.id,
                     record.messageId,
                     record.channelName,
                     record.sender,
                     record.body,
+                    record.replyContextText,
                     formatMentionInboxRecordTimestamp(record),
                     record.source,
                     record.reason,
@@ -3019,6 +3023,7 @@
                 ${records.length === 0 ? '<div style="font-size:12px;color:#a1a1aa;padding:12px 2px;">Aucune mention pour ce filtre.</div>' : records.map((record) => `
                     <article style="padding:10px;border-radius:10px;background:${record.isArchived ? 'rgba(113,113,122,.1)' : (record.isRead ? 'rgba(255,255,255,.035)' : 'rgba(37,99,235,.13)')};border:1px solid ${record.isRead || record.isArchived ? 'rgba(255,255,255,.07)' : 'rgba(59,130,246,.28)'};">
                         <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;"><strong style="font-size:12px;color:#e0f2fe;">${escapeHtml(record.sender)}</strong><span style="font-size:10px;color:#a1a1aa;">${escapeHtml(record.channelName)} · ${escapeHtml(formatMentionInboxRecordTimestamp(record))}</span></div>
+                        ${(record.reason === 'reply' || record.reason === 'mention+reply') && record.replyContextText ? `<div style="margin-top:7px;padding:6px 8px;border-left:2px solid rgba(96,165,250,.72);background:rgba(59,130,246,.08);color:#bfdbfe;font-size:11px;line-height:1.4;white-space:pre-wrap;word-break:break-word;">↩ En réponse à : ${escapeHtml(record.replyContextText)}</div>` : ''}
                         <div style="white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.45;margin-top:7px;">${escapeHtml(record.body)}</div>
                         <div style="display:flex;justify-content:flex-end;gap:7px;flex-wrap:wrap;margin-top:9px;">
                             <a href="${escapeHtml(getMentionInboxRecordHref(record))}" data-tm-inbox-open-id="${escapeHtml(record.id)}" style="color:#bfdbfe;font-size:11px;text-decoration:none;padding:6px 8px;border-radius:7px;background:#1e3a8a;">Ouvrir</a>
@@ -10106,6 +10111,39 @@
         return mentionRegex.test(normalizedMessageText);
     }
 
+    function getSocketMessageReplyContext(message) {
+        const parent = message?.parent;
+        if (!parent || typeof parent !== 'object') {
+            return { author: '', body: '' };
+        }
+
+        return {
+            author: String(
+                parent.sender || parent.author || parent.username || parent.user?.username || ''
+            ).trim(),
+            body: String(parent.body || parent.content || parent.text || '').trim()
+        };
+    }
+
+    function getSocketMessageMentionMatch(message, watchedUsername = mentionSettings.username) {
+        const normalizedWatchedUsername = normalizeMentionComparableText(watchedUsername).replace(/^@+/, '');
+        const directMentionMatched = messageTextMentionsUsername(message?.body, watchedUsername);
+        const replyContext = getSocketMessageReplyContext(message);
+        const replyMentionMatched = mentionSettings.includeReplyContext === true &&
+            !!normalizedWatchedUsername &&
+            normalizeMentionComparableText(replyContext.author).replace(/^@+/, '') === normalizedWatchedUsername;
+
+        return {
+            matched: directMentionMatched || replyMentionMatched,
+            directMentionMatched,
+            replyMentionMatched,
+            replyContext,
+            reason: directMentionMatched && replyMentionMatched
+                ? 'mention+reply'
+                : (replyMentionMatched ? 'reply' : 'mention')
+        };
+    }
+
     function rememberCrossChannelMentionMessage(messageId) {
         const key = String(messageId || '').trim();
         if (!key || crossChannelMentionSeenMessageIds.has(key)) return false;
@@ -10540,7 +10578,8 @@
 
         const conversationId = String(message.conv_id ?? '').trim();
         const messageId = String(message.id ?? `${conversationId}:${message.at || ''}:${message.sender || ''}:${message.body || ''}`);
-        if (!conversationId || !messageTextMentionsUsername(message.body)) return;
+        const mentionMatch = getSocketMessageMentionMatch(message);
+        if (!conversationId || !mentionMatch.matched) return;
         if (crossChannelMentionSeenMessageIds.has(messageId) || crossChannelMentionPendingMessageIds.has(messageId)) return;
 
         crossChannelMentionPendingMessageIds.add(messageId);
@@ -10555,6 +10594,12 @@
             const sender = String(message.sender || '').trim();
             if (normalizeName(sender) === watchedUsername || !rememberCrossChannelMentionMessage(messageId)) return;
 
+            const replyAuthor = String(mentionMatch.replyContext.author || '').trim().replace(/^@+/, '');
+            const replyBody = String(mentionMatch.replyContext.body || '').trim();
+            const replyContextText = [replyAuthor ? `@${replyAuthor}` : '', replyBody]
+                .filter(Boolean)
+                .join(' : ');
+
             upsertMentionInboxRecord({
                 id: messageId,
                 messageId,
@@ -10563,15 +10608,19 @@
                 channelSlug: channel.slug,
                 sender,
                 body: String(message.body || ''),
+                replyContextText,
                 at: String(message.at || ''),
                 capturedAt: Date.parse(String(message.at || '')) || Date.now(),
                 source: 'ws',
-                reason: 'mention'
+                reason: mentionMatch.reason
             });
 
             if (!isCurrentChannel) {
                 const excerpt = String(message.body || '').replace(/\s+/g, ' ').trim().slice(0, 92);
-                showToast(`@${mentionSettings.username} mentionné${sender ? ` par ${sender}` : ''} dans #${channel.name}${excerpt ? ` : ${excerpt}` : ''}`, false, 10000);
+                const notificationKind = mentionMatch.replyMentionMatched && !mentionMatch.directMentionMatched
+                    ? `répondu à @${mentionSettings.username}`
+                    : `mentionné @${mentionSettings.username}`;
+                showToast(`${sender || 'Un utilisateur'} a ${notificationKind} dans #${channel.name}${excerpt ? ` : ${excerpt}` : ''}`, false, 10000);
                 maybePlayCrossChannelMentionSound(messageId);
             }
         } finally {
