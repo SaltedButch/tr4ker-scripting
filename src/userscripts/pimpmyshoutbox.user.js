@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    http://tampermonkey.net/
-// @version      3.01.02
+// @version      3.01.06
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -333,16 +333,16 @@
     const DEFAULT_HIGHLIGHT_COLOR = '#f59e0b';
     const DEFAULT_HIGHLIGHT_OPACITY = 14;
     const DEFAULT_MENTION_COLOR = '#22c55e';
-    // Point unique de maintenance des grades Tr4ker : ajoute ou retire une
-    // entrée ici lors d'une évolution du site. Cette liste n'est pas éditable
-    // par les utilisateurs ; seuls leurs choix de couleurs le sont.
+    // Point unique de maintenance des grades Tr4ker. Le grade est déterminé
+    // uniquement par la couleur native du bouton de pseudo : les badges sont
+    // décoratifs et ne constituent pas une source fiable pour ce classement.
     const PSEUDONYM_GRADE_DEFINITIONS = Object.freeze([
-        { id: 'membre', label: 'Membre', badgeLabels: ['membre'], nativeColors: ['#f472b6'], defaultColor: '#f472b6' },
-        { id: 'uploader-en-herbe', label: 'Uploader en herbe', badgeLabels: ['uploader en herbe'], nativeColors: ['#7dd3fc'], defaultColor: '#7dd3fc' },
-        { id: 'uploader', label: 'Uploader', badgeLabels: ['uploader'], nativeColors: ['#2563eb'], defaultColor: '#2563eb' },
-        { id: 'team', label: 'Team', badgeLabels: ['team'], nativeColors: ['#f87171'], defaultColor: '#f87171' },
-        { id: 'contributeur', label: 'Contributeur', badgeLabels: ['contributeur'], nativeColors: ['#f4f4f5'], defaultColor: '#f4f4f5' },
-        { id: 'staff', label: 'Staff', badgeLabels: ['staff'], nativeColors: ['#16a34a'], defaultColor: '#16a34a' }
+        { id: 'membre', label: 'Membre', nativeColors: ['#f472b6'], defaultColor: '#f472b6' },
+        { id: 'uploader-en-herbe', label: 'Uploader en herbe', nativeColors: ['#7dd3fc'], defaultColor: '#7dd3fc' },
+        { id: 'uploader', label: 'Uploader', nativeColors: ['#2563eb'], defaultColor: '#2563eb' },
+        { id: 'team', label: 'Team', nativeColors: ['#f87171'], defaultColor: '#f87171' },
+        { id: 'contributeur', label: 'Contributeur', nativeColors: ['#f4f4f5'], defaultColor: '#f4f4f5' },
+        { id: 'staff', label: 'Staff', nativeColors: ['#16a34a'], defaultColor: '#16a34a' }
     ]);
     const PSEUDONYM_GRADE_EFFECT_DEFINITIONS = Object.freeze([
         { id: 'none', label: 'Aucun effet' },
@@ -4134,12 +4134,15 @@
         return nextValue;
     }
 
-    function buildMentionSoundClaimEventKey(signature) {
+    function buildMentionSoundClaimEventKey(signature, messageEl = null) {
+        const messageId = String(messageEl?.getAttribute?.('data-msg-id') || '').trim();
+        if (messageId) return `message:${messageId}`;
+
         if (!signature) return '';
 
         const hash = String(signature.hash || '').trim();
         const timestampKey = Math.max(0, Number(signature.messageTimestampKey) || 0);
-        return hash ? `${hash}:${timestampKey}` : '';
+        return hash ? `mention:${hash}:${timestampKey}` : '';
     }
 
     /**
@@ -7809,15 +7812,6 @@
         return `#${channels.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
     }
 
-    function getTr4kerMessageGradeBadgeLabels(messageEl) {
-        if (!(messageEl instanceof HTMLElement)) return [];
-
-        return [...messageEl.querySelectorAll('[class*="msgBadges"] img[alt], [class*="msgBadges"] img[title]')]
-            .flatMap((badge) => [badge.getAttribute('alt'), badge.getAttribute('title')])
-            .map((label) => normalizeMentionComparableText(label))
-            .filter(Boolean);
-    }
-
     function getTr4kerPseudonymElementNativeColor(element) {
         if (!(element instanceof HTMLElement)) return '';
 
@@ -7834,12 +7828,11 @@
     }
 
     function findTr4kerMessagePseudonymGrade(messageEl, sender) {
-        const badgeLabels = getTr4kerMessageGradeBadgeLabels(messageEl);
-        const badgeMatch = PSEUDONYM_GRADE_DEFINITIONS.find((grade) =>
-            grade.badgeLabels.some((label) => badgeLabels.includes(normalizeMentionComparableText(label)))
-        );
-        if (badgeMatch) return badgeMatch;
+        if (!(messageEl instanceof HTMLElement) || !(sender instanceof HTMLElement)) return null;
 
+        // Les badges affichés dans le chat sont sélectionnables par les
+        // utilisateurs. La couleur native du bouton expéditeur est la seule
+        // information de rôle stable exposée par cette vue de Tr4ker.
         const nativeColor = getTr4kerPseudonymElementNativeColor(sender);
         return PSEUDONYM_GRADE_DEFINITIONS.find((grade) =>
             grade.nativeColors.includes(nativeColor)
@@ -9891,25 +9884,8 @@
         ) || null;
     }
 
-    function updatePrivateMessageSidebarUnreadBadge(row, unreadCount, templateRow) {
-        if (!(row instanceof HTMLElement)) return;
-        let badge = row.querySelector('[data-tm-private-message-unread="1"], [class*="unreadBadge"]');
-        if (unreadCount <= 0) {
-            if (badge instanceof HTMLElement && badge.dataset.tmPrivateMessageUnread === '1') badge.remove();
-            return;
-        }
-
-        if (!(badge instanceof HTMLElement)) {
-            badge = document.createElement('span');
-            const templateBadge = templateRow?.querySelector('[class*="unreadBadge"]');
-            badge.className = templateBadge instanceof HTMLElement ? templateBadge.className : '';
-            badge.dataset.tmPrivateMessageUnread = '1';
-            if (!badge.className) {
-                badge.style.cssText = 'margin-left:auto;min-width:18px;padding:2px 6px;border-radius:999px;background:#2563eb;color:#fff;text-align:center;font-size:10px;font-weight:700;';
-            }
-            row.appendChild(badge);
-        }
-        badge.textContent = String(unreadCount);
+    function removePrivateMessageSidebarCustomUnreadBadges(root = document) {
+        root.querySelectorAll?.('[data-tm-private-message-unread="1"]').forEach((badge) => badge.remove());
     }
 
     function createPrivateMessageSidebarEntry(conversationId, conversation, message, templateRow) {
@@ -9951,7 +9927,6 @@
         if (!preview.className) preview.style.cssText = 'font-size:11px;opacity:.72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
         info.append(name, preview);
         row.appendChild(info);
-        updatePrivateMessageSidebarUnreadBadge(row, conversation.unreadCount, templateRow);
 
         const openConversation = () => {
             window.location.assign(`/communication?conv=${encodeURIComponent(conversationId)}`);
@@ -9971,6 +9946,7 @@
         const section = getPrivateMessageSidebarSection();
         const list = getPrivateMessageSidebarList(section);
         if (!id || !conversation || !(list instanceof HTMLElement)) return;
+        removePrivateMessageSidebarCustomUnreadBadges(list);
 
         const rows = Array.from(list.children).filter((child) => child instanceof HTMLElement);
         const templateRow = rows.find((row) => row.querySelector('[class*="navName"]')) || null;
@@ -9993,7 +9969,6 @@
                 info?.appendChild(preview);
             }
             if (preview instanceof HTMLElement && nextPreview) preview.textContent = nextPreview;
-            updatePrivateMessageSidebarUnreadBadge(existingRow, conversation.unreadCount, templateRow);
             return;
         }
 
@@ -10204,7 +10179,7 @@
     function maybePlayCrossChannelMentionSound(messageId) {
         if (!isMentionSoundScopeEnabled()) return;
 
-        const eventKey = `cross-channel:${hashString(String(messageId || ''))}`;
+        const eventKey = `message:${String(messageId || '').trim()}`;
         if (!claimMentionSoundPlayback(eventKey)) {
             logMentionDebug('cross-channel sound: already claimed by another tab', { eventKey });
             return;
@@ -11593,6 +11568,9 @@
         messageEl.style.removeProperty('background');
         messageEl.style.removeProperty('outline');
         messageEl.style.removeProperty('box-shadow');
+        messageEl.style.removeProperty('border-top');
+        messageEl.style.removeProperty('border-bottom');
+        messageEl.style.removeProperty('border-radius');
         messageEl.style.removeProperty('animation');
         messageEl.style.removeProperty('filter');
         messageEl.style.removeProperty('--tm-mention-color');
@@ -11612,6 +11590,59 @@
         }
     }
 
+    function getGroupedHighlightFrame(messageEl, username) {
+        const normalizedUsername = normalizeName(username);
+        const previousMessage = messageEl.previousElementSibling;
+        const nextMessage = messageEl.nextElementSibling;
+        const isSameAuthor = (candidate) => (
+            isChatMessage(candidate) &&
+            normalizeName(getLogicalUsername(candidate) || '') === normalizedUsername
+        );
+        const isGroupedMessage = isGroupedChatMessage(messageEl);
+        const hasPreviousGroupMember = isGroupedMessage && isSameAuthor(previousMessage);
+        const hasNextGroupMember = isSameAuthor(nextMessage) && isGroupedChatMessage(nextMessage);
+        const isGroupedFrame = isGroupedMessage || hasNextGroupMember;
+
+        return {
+            isGroupedFrame,
+            isFirst: isGroupedFrame && !hasPreviousGroupMember,
+            isLast: isGroupedFrame && !hasNextGroupMember
+        };
+    }
+
+    function applyGroupedHighlightFrame(messageEl, username, accentColor, edgeColor) {
+        const frame = getGroupedHighlightFrame(messageEl, username);
+
+        if (!frame.isGroupedFrame) {
+            messageEl.style.outline = `1px solid ${accentColor}`;
+            messageEl.style.boxShadow = `inset 3px 0 0 ${edgeColor}`;
+            messageEl.style.removeProperty('border-top');
+            messageEl.style.removeProperty('border-bottom');
+            messageEl.style.removeProperty('border-radius');
+            return;
+        }
+
+        // Une séquence groupée est un seul bloc visuel : pas de contour entre
+        // ses lignes, seulement un bord en tête et en pied de groupe.
+        messageEl.style.outline = 'none';
+        messageEl.style.boxShadow = `inset 3px 0 0 ${edgeColor}`;
+        messageEl.style.borderTop = frame.isFirst ? `1px solid ${accentColor}` : '0';
+        messageEl.style.borderBottom = frame.isLast ? `1px solid ${accentColor}` : '0';
+        messageEl.style.borderRadius = frame.isFirst
+            ? (frame.isLast ? '6px' : '6px 6px 0 0')
+            : (frame.isLast ? '0 0 6px 6px' : '0');
+    }
+
+    function refreshPreviousGroupedHighlight(messageEl, username, highlightConfig) {
+        const previousMessage = messageEl.previousElementSibling;
+        if (!isChatMessage(previousMessage)) return;
+        if (previousMessage.getAttribute('data-tm-highlight-user') !== username) return;
+
+        // Lorsqu'un nouveau message groupé arrive, le message précédent cesse
+        // d'être le bas du bloc : on recalcule son bord immédiatement.
+        applyHighlightStyle(previousMessage, username, highlightConfig);
+    }
+
     function applyHighlightStyle(messageEl, username, highlightConfig) {
         const color = normalizeHexColor(highlightConfig?.color, DEFAULT_HIGHLIGHT_COLOR);
         const opacityPercent = parseOpacityPercentInput(highlightConfig?.opacityPercent, DEFAULT_HIGHLIGHT_OPACITY);
@@ -11621,8 +11652,7 @@
 
         messageEl.style.removeProperty('display');
         messageEl.style.background = hexToRgba(color, baseAlpha);
-        messageEl.style.outline = `1px solid ${accentColor}`;
-        messageEl.style.boxShadow = `inset 3px 0 0 ${edgeColor}`;
+        applyGroupedHighlightFrame(messageEl, username, accentColor, edgeColor);
         messageEl.setAttribute('data-tm-highlight-user', username);
         messageEl.title = `Mis en avant : ${username}`;
     }
@@ -11952,7 +11982,7 @@
 
         mentionSoundNotifiedMessages.add(messageEl);
 
-        const soundEventKey = buildMentionSoundClaimEventKey(signature);
+        const soundEventKey = buildMentionSoundClaimEventKey(signature, messageEl);
         if (!claimMentionSoundPlayback(soundEventKey)) {
             logMentionDebug('skip: sound already claimed by another tab', {
                 signature,
@@ -12083,6 +12113,7 @@
         } else if (allowMentionAndHighlight && highlightConfig) {
             clearDebugStyle(messageEl);
             applyHighlightStyle(messageEl, normalized, highlightConfig);
+            refreshPreviousGroupedHighlight(messageEl, normalized, highlightConfig);
         } else {
             messageEl.style.removeProperty('display');
             clearDebugStyle(messageEl);
@@ -24383,6 +24414,7 @@
 
     function syncChatSidebarControls() {
         clearChatSidebarHighlightArtifacts();
+        removePrivateMessageSidebarCustomUnreadBadges();
         applyChatSidebarLayout();
     }
 

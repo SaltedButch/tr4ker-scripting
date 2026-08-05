@@ -10,6 +10,10 @@ Ce fichier suit l'état fonctionnel du userscript à partir de la version actuel
 
 ## Version en préparation
 
+- Les alertes locales et inter-canaux d'un même message partagent maintenant son identifiant Tr4ker ; elles ne peuvent donc plus produire deux sons dans des onglets différents.
+- Le script ne crée plus de pastille de messages privés non lus dans la barre latérale et retire celles laissées par les versions précédentes ; seul le compteur natif de Tr4ker est affiché.
+- Les messages groupés mis en avant forment maintenant une zone visuelle continue, avec des bordures uniquement au début et à la fin du groupe.
+- Le grade des pseudos est désormais déterminé exclusivement par la couleur native du bouton expéditeur ; les badges affichés par les utilisateurs sont ignorés.
 - Les lignes système des canaux ne récupèrent plus la mise en avant du pseudo du message précédent ; seuls les messages groupés héritent désormais de leur auteur.
 - Les entrées de la barre latérale (canaux, tickets et MP) sont maintenant nettoyées de toute surbrillance ambre résiduelle ; la sélection active conserve sa couleur native.
 - Les alertes sonores de mention sont maintenant réservées entre les onglets : un même message ne peut déclencher le son que dans un seul onglet.
