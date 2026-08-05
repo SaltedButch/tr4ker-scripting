@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    http://tampermonkey.net/
-// @version      3.01.00
+// @version      3.01.02
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -45,6 +45,8 @@
     const STORAGE_KEY_PRIVATE_MESSAGE_NOTIFICATIONS_ENABLED = 'tm_t4_private_message_notifications_enabled';
     const STORAGE_KEY_LAST_MENTION_SOUND_NOTIFICATION = 'tm_t4_last_mention_sound_notification';
     const STORAGE_KEY_RECENT_MENTION_SOUND_NOTIFICATIONS = 'tm_t4_recent_mention_sound_notifications';
+    const STORAGE_KEY_MENTION_SOUND_CLAIM = 'tm_t4_mention_sound_claim';
+    const SESSION_STORAGE_KEY_MENTION_SOUND_TAB_ID = 'tm_t4_mention_sound_tab_id';
     const STORAGE_KEY_CHAT_FONT_SCALE = 'tm_t4_chat_font_scale';
     const STORAGE_KEY_CHAT_SCROLLBAR_ENABLED = 'tm_t4_chat_scrollbar_enabled';
     const STORAGE_KEY_CUSTOM_BACKGROUND_ENABLED = 'tm_t4_custom_background_enabled';
@@ -338,7 +340,7 @@
         { id: 'membre', label: 'Membre', badgeLabels: ['membre'], nativeColors: ['#f472b6'], defaultColor: '#f472b6' },
         { id: 'uploader-en-herbe', label: 'Uploader en herbe', badgeLabels: ['uploader en herbe'], nativeColors: ['#7dd3fc'], defaultColor: '#7dd3fc' },
         { id: 'uploader', label: 'Uploader', badgeLabels: ['uploader'], nativeColors: ['#2563eb'], defaultColor: '#2563eb' },
-        { id: 'team', label: 'Team', badgeLabels: ['team'], nativeColors: ['#f87171'], defaultColor: '#dc2626' },
+        { id: 'team', label: 'Team', badgeLabels: ['team'], nativeColors: ['#f87171'], defaultColor: '#f87171' },
         { id: 'contributeur', label: 'Contributeur', badgeLabels: ['contributeur'], nativeColors: ['#f4f4f5'], defaultColor: '#f4f4f5' },
         { id: 'staff', label: 'Staff', badgeLabels: ['staff'], nativeColors: ['#16a34a'], defaultColor: '#16a34a' }
     ]);
@@ -721,6 +723,7 @@
     let mentionInboxChannelFilter = '';
     let mentionInboxSenderFilter = '';
     const afkTabId = loadAfkTabId();
+    const mentionSoundTabId = loadMentionSoundTabId();
 
     const savedPhrases = loadSavedPhrases();
     if (savedPhrasesStorageNeedsRepair) {
@@ -4109,6 +4112,62 @@
             record.hash === signature.hash &&
             record.messageTimestampKey === signature.messageTimestampKey
         );
+    }
+
+    function createMentionSoundTabId() {
+        if (window.crypto?.randomUUID) {
+            return window.crypto.randomUUID();
+        }
+
+        return `sound-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    }
+
+    function loadMentionSoundTabId() {
+        const existingValue = String(readStorageItem(SESSION_STORAGE_KEY_MENTION_SOUND_TAB_ID, sessionStorage) || '').trim();
+        if (existingValue) return existingValue;
+
+        const nextValue = createMentionSoundTabId();
+        if (!writeStorageItem(SESSION_STORAGE_KEY_MENTION_SOUND_TAB_ID, nextValue, sessionStorage)) {
+            return createMentionSoundTabId();
+        }
+
+        return nextValue;
+    }
+
+    function buildMentionSoundClaimEventKey(signature) {
+        if (!signature) return '';
+
+        const hash = String(signature.hash || '').trim();
+        const timestampKey = Math.max(0, Number(signature.messageTimestampKey) || 0);
+        return hash ? `${hash}:${timestampKey}` : '';
+    }
+
+    /**
+     * Réserve le son d'une notification pour cet onglet. La vérification juste
+     * après l'écriture rend la réservation coopérative entre les onglets qui
+     * reçoivent le même message au même instant : seul le dernier propriétaire
+     * confirmé peut lancer la lecture audio.
+     */
+    function claimMentionSoundPlayback(eventKey) {
+        const normalizedEventKey = String(eventKey || '').trim();
+        if (!normalizedEventKey) return true;
+
+        const currentClaim = readStorageJson(STORAGE_KEY_MENTION_SOUND_CLAIM, null);
+        if (currentClaim?.eventKey === normalizedEventKey) return false;
+
+        const claim = {
+            eventKey: normalizedEventKey,
+            tabId: mentionSoundTabId,
+            claimedAt: Date.now()
+        };
+        if (!writeStorageJson(STORAGE_KEY_MENTION_SOUND_CLAIM, claim)) {
+            // Sans accès au stockage partagé, conserver le comportement local
+            // plutôt que de couper complètement les alertes sonores.
+            return true;
+        }
+
+        const confirmedClaim = readStorageJson(STORAGE_KEY_MENTION_SOUND_CLAIM, null);
+        return confirmedClaim?.eventKey === claim.eventKey && confirmedClaim?.tabId === claim.tabId;
     }
 
     function clampChatFontScale(value) {
@@ -9007,6 +9066,16 @@
         return sender instanceof HTMLElement ? sender.textContent.trim() : null;
     }
 
+    function isGroupedChatMessage(messageEl) {
+        if (!(messageEl instanceof HTMLElement)) return false;
+
+        // Les classes CSS de Tr4ker sont hashées, mais conservent le fragment
+        // "grouped". Le spacer d'avatar est un second marqueur stable sur les
+        // captures actuellement disponibles.
+        return /(?:^|\s)[^\s]*grouped[^\s]*(?:\s|$)/i.test(messageEl.className) ||
+            messageEl.querySelector(':scope > [class*="msgAvatarSpacer"]') instanceof HTMLElement;
+    }
+
     function isChatMessage(el) {
         if (!(el instanceof HTMLElement)) return false;
 
@@ -10132,8 +10201,14 @@
         };
     }
 
-    function maybePlayCrossChannelMentionSound() {
+    function maybePlayCrossChannelMentionSound(messageId) {
         if (!isMentionSoundScopeEnabled()) return;
+
+        const eventKey = `cross-channel:${hashString(String(messageId || ''))}`;
+        if (!claimMentionSoundPlayback(eventKey)) {
+            logMentionDebug('cross-channel sound: already claimed by another tab', { eventKey });
+            return;
+        }
 
         const reservation = reserveMentionSoundCooldown();
         if (!reservation.allowed) return;
@@ -10180,7 +10255,7 @@
             if (!isCurrentChannel) {
                 const excerpt = String(message.body || '').replace(/\s+/g, ' ').trim().slice(0, 92);
                 showToast(`@${mentionSettings.username} mentionné${sender ? ` par ${sender}` : ''} dans #${channel.name}${excerpt ? ` : ${excerpt}` : ''}`, false, 10000);
-                maybePlayCrossChannelMentionSound();
+                maybePlayCrossChannelMentionSound(messageId);
             }
         } finally {
             crossChannelMentionPendingMessageIds.delete(messageId);
@@ -11497,12 +11572,17 @@
         const direct = getUsernameFromMessage(messageEl);
         if (direct) return direct;
 
+        // Seules les lignes explicitement groupées n'ont pas leur propre
+        // pseudo. Les messages système (changement de canal, information,
+        // séparateur, etc.) ne doivent surtout pas récupérer le pseudo d'un
+        // message plus ancien, sinon ils héritent de sa mise en avant.
+        if (!isGroupedChatMessage(messageEl)) return null;
+
         let prev = messageEl.previousElementSibling;
-        while (prev) {
-            if (isChatMessage(prev)) {
-                const prevUser = getUsernameFromMessage(prev);
-                if (prevUser) return prevUser;
-            }
+        while (isChatMessage(prev)) {
+            const prevUser = getUsernameFromMessage(prev);
+            if (prevUser) return prevUser;
+            if (!isGroupedChatMessage(prev)) return null;
             prev = prev.previousElementSibling;
         }
 
@@ -11871,6 +11951,15 @@
         }
 
         mentionSoundNotifiedMessages.add(messageEl);
+
+        const soundEventKey = buildMentionSoundClaimEventKey(signature);
+        if (!claimMentionSoundPlayback(soundEventKey)) {
+            logMentionDebug('skip: sound already claimed by another tab', {
+                signature,
+                soundEventKey
+            });
+            return;
+        }
 
         const cooldownReservation = reserveMentionSoundCooldown();
         const { cooldownSeconds, now, previousLastMentionSoundAt } = cooldownReservation;
@@ -24045,6 +24134,56 @@
         return { sidebar, chatArea };
     }
 
+    function isAmberSidebarHighlightColor(color) {
+        const match = String(color || '').match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
+        if (!match) return false;
+
+        const [, redRaw, greenRaw, blueRaw] = match;
+        const red = Number(redRaw);
+        const green = Number(greenRaw);
+        const blue = Number(blueRaw);
+
+        // La mise en avant par défaut est ambre/orangée. Les valeurs sont
+        // volontairement assez larges pour couvrir les transparences calculées
+        // par le navigateur tout en laissant intacte la sélection active bleue.
+        return red >= 28 && green >= 15 && red >= green * 1.18 && green >= blue * 1.3;
+    }
+
+    function clearChatSidebarHighlightArtifacts() {
+        const layout = getChatSidebarLayout();
+        if (!(layout?.sidebar instanceof HTMLElement)) return;
+
+        layout.sidebar.querySelectorAll('[class*="itemsWrap"] > [class*="navItem"]').forEach((entry) => {
+            if (!(entry instanceof HTMLElement)) return;
+
+            const hasHighlightMarker = [
+                'data-tm-highlight-user',
+                'data-tm-mention-highlight',
+                'data-tm-debug-user'
+            ].some((attribute) => entry.hasAttribute(attribute));
+            const hasAmberBackground = isAmberSidebarHighlightColor(window.getComputedStyle(entry).backgroundColor);
+            const wasCleaned = entry.dataset.tmSidebarHighlightCleaned === '1';
+
+            if (hasHighlightMarker) {
+                entry.removeAttribute('data-tm-highlight-user');
+                entry.removeAttribute('data-tm-mention-highlight');
+                entry.removeAttribute('data-tm-debug-user');
+                if (/^(Mis en avant|Mention @|Bloqué détecté)/.test(entry.title)) entry.removeAttribute('title');
+            }
+
+            if (!hasHighlightMarker && !hasAmberBackground && !wasCleaned) return;
+
+            // Une entrée de navigation n'est jamais un message de chat : elle
+            // ne doit pas conserver les styles de surbrillance, même après un
+            // rerendu partiel de React ou une mise à jour du userscript.
+            entry.dataset.tmSidebarHighlightCleaned = '1';
+            entry.style.setProperty('background', 'transparent', 'important');
+            entry.style.setProperty('outline', 'none', 'important');
+            entry.style.setProperty('box-shadow', 'none', 'important');
+            entry.style.setProperty('border-left-color', 'transparent', 'important');
+        });
+    }
+
     function clearChatSidebarResizeCursor() {
         document.body?.style.removeProperty('user-select');
         document.body?.style.removeProperty('cursor');
@@ -24243,6 +24382,7 @@
     }
 
     function syncChatSidebarControls() {
+        clearChatSidebarHighlightArtifacts();
         applyChatSidebarLayout();
     }
 
