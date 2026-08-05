@@ -20,6 +20,8 @@ Ce fichier suit l'état fonctionnel du userscript à partir de la version actuel
 - Le placement de la carte profil est calculé sur sa hauteur réelle ; près de l’input, elle bascule au-dessus du message pour rester entièrement visible.
 - Les rôles API de la carte profil sont maintenant reliés à la table centrale des grades : libellés français propres et couleurs configurées dans `Pimp My Grade` sont réutilisés.
 - Le badge de grade de la carte profil reprend aussi l’effet configuré dans `Pimp My Grade`, sans animer le fond de la pastille.
+- La boîte « Mentions à relire » prend maintenant en compte les réponses reçues dans les canaux surveillés quand l’option dédiée est activée, avec le motif « Réponse » ou « Mention + réponse ».
+- Les entrées de type réponse dans « Mentions à relire » affichent maintenant le pseudo et le texte du message cité, et ce contexte est inclus dans les exports et la recherche.
 - Les alertes locales et inter-canaux d'un même message partagent maintenant son identifiant Tr4ker ; elles ne peuvent donc plus produire deux sons dans des onglets différents.
 - Le script ne crée plus de pastille de messages privés non lus dans la barre latérale et retire celles laissées par les versions précédentes ; seul le compteur natif de Tr4ker est affiché.
 - Les messages groupés mis en avant forment maintenant une zone visuelle continue, avec des bordures uniquement au début et à la fin du groupe.
