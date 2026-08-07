@@ -1,0 +1,13 @@
+{
+  "name": "pimpmyshoutbox-next",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "node ./esbuild.config.mjs",
+    "check": "npm run build && node --check ./dist/pimpmyshoutbox-next.user.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}
