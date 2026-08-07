@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    http://tampermonkey.net/
-// @version      3.01.18
+// @version      3.01.19
 // @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -337,10 +337,10 @@
     const DEFAULT_HIGHLIGHT_OPACITY = 14;
     const DEFAULT_MENTION_COLOR = '#22c55e';
     // Point unique de maintenance des grades Tr4ker. Le grade est déterminé
-    // uniquement par la couleur native du bouton de pseudo : les badges sont
-    // décoratifs et ne constituent pas une source fiable pour ce classement.
+    // uniquement par la couleur native du bouton de pseudo
     const PSEUDONYM_GRADE_DEFINITIONS = Object.freeze([
         { id: 'membre', label: 'Membre', apiRoleLabels: { user: 'Membre', membre: 'Membre' }, nativeColors: ['#f472b6'], defaultColor: '#f472b6' },
+        { id: 'helper', label: 'Helper', apiRoleLabels: { helper: 'Helper' }, nativeColors: ['#ffffff'], defaultColor: '#ffffff' },
         { id: 'uploader-en-herbe', label: 'Uploader en herbe', apiRoleLabels: { uploader_herbe: 'Uploader en herbe' }, nativeColors: ['#7dd3fc'], defaultColor: '#7dd3fc' },
         { id: 'uploader', label: 'Uploader', apiRoleLabels: { uploader: 'Uploader' }, nativeColors: ['#2563eb'], defaultColor: '#2563eb' },
         { id: 'team', label: 'Team', apiRoleLabels: { team: 'Team' }, nativeColors: ['#f87171'], defaultColor: '#f87171' },
