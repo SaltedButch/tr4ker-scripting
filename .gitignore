@@ -4,3 +4,4 @@ __pycache__/
 next/**/dist/
 next/**/node_modules/
 SOURCE TR4KER/
+.idea
