@@ -23,6 +23,7 @@ simple découpe de plages de lignes.
 | Messages, pseudo logique et contexte | 8820–8950, 9419–9445, 11937–11955 | `core/tr4ker-platform.js` | Les features reçoivent un objet message normalisé. |
 | Observer des messages | 22805–22820 | `core/message-stream.js` | Un seul observer, abonnement et replay par feature. |
 | Navigation SPA et changements de contexte | 24831–25090 | `core/route-watcher.js` + `core/application.js` | Une seule interception d'historique et un tick de résilience. |
+| Modal de configuration transversale | 11600–16090 | `core/settings-modal.js` | Coque, raccourci global et rendu automatique des déclarations des features. |
 
 ## Ce qui reste explicitement hors du core
 
@@ -50,6 +51,7 @@ context.input     // get/getValue/write/insert/enforceLimit
 context.text      // normalizeName, hashString, clipboard, etc.
 context.messages  // subscribe(callback, { replay })
 context.ui.toast  // show(message, { error, duration })
+context.ui.settings // open/close/toggle de la configuration globale
 context.shortcuts // declaration et liaison des raccourcis
 ```
 
@@ -83,10 +85,21 @@ un message : ces décisions appartiennent aux features.
 5. Toute permission Tampermonkey ou tout domaine `@connect` reste inventorié
    dans la feature avant d'être agrégé dans le metadata final du bundle.
 
+## Configuration globale
+
+Le core fournit la coque de la modal, sans option métier propre. Le raccourci
+global est `Ctrl+Alt+C` sous Windows/Linux et `Ctrl+⌘+C` sur macOS. Tant qu'il
+n'existe aucune feature enregistrée, la modal explique simplement qu'aucune
+feature n'a encore été migrée. Lorsqu'une feature est présente, sa catégorie,
+son toggle et ses astuces sont rendus automatiquement depuis sa déclaration.
+La coque enregistre également sa taille et sa position ; les onglets sont sur
+le côté lorsque la modal est plus haute que large, sinon en haut à l'horizontale.
+
 ## Ordre de migration conseillé
 
 1. Récapitulatif des crédits, puis apparence : peu de dépendances au chat.
-2. Phrases sauvegardées et outils de saisie : validation du service `input`.
-3. Blacklist, mise en avant et typographie : validation du flux de messages.
-4. Mentions / AFK : validation de l'état et des notifications multi-onglets.
-5. Emoji, réactions, médias et topbar : composants les plus couplés à la UI.
+2. Blacklist : première feature migrée, validation du flux de messages et du panneau flottant.
+3. Phrases sauvegardées et outils de saisie : validation du service `input`.
+4. Mise en avant et typographie : deuxième usage du flux de messages.
+5. Mentions / AFK : validation de l'état et des notifications multi-onglets.
+6. Emoji, réactions, médias et topbar : composants les plus couplés à la UI.

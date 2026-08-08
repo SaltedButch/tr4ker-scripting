@@ -27,6 +27,13 @@ Le bundle de développement est créé dans `dist/pimpmyshoutbox-next.user.js`.
 Il porte volontairement le nom **Next (development)** et ne doit pas remplacer
 le script V3 publié.
 
+Une fois installé, le raccourci `Ctrl+Alt+C` sous Windows/Linux ou `Ctrl+⌘+C`
+sous macOS ouvre la configuration globale. Elle est volontairement vide tant
+qu'aucune feature n'a été migrée. La fenêtre peut être déplacée avec son en-tête
+et redimensionnée depuis son coin inférieur droit ; sa position et sa taille
+sont conservées localement. Ses onglets passent automatiquement en haut à
+l'horizontale lorsqu'elle est plus large que haute.
+
 ## Ajouter une feature
 
 1. Copier `feature.template.js` dans `src/features/<nom>/feature.js`.
@@ -54,6 +61,12 @@ Les catégories admises sont définies dans `src/core/settings-categories.js` :
 `general`, `chat`, `mentions`, `media`, `shortcuts`, `appearance` et
 `statistics`. Le registre les valide et expose
 `getFeaturesForSettingsCategory(categoryId)` pour la future modal.
+
+Chaque feature est rendue selon le même standard dans sa catégorie : son
+`label` forme le titre de la carte, une checkbox **Activer la feature** est
+placée dessous, et les réglages déclarés dans `settings.render` ne s’affichent
+que lorsqu’elle est active. L’identifiant technique n’est jamais affiché aux
+utilisateurs.
 
 ## Raccourcis
 
@@ -105,6 +118,17 @@ Les types disponibles sont `info`, `tip` et `warning`. Le token
 puis remplacé automatiquement par le libellé adapté à la plateforme (`Alt+P`
 ou `⌘P`, par exemple).
 
-Les premières migrations devront viser des fonctionnalités indépendantes,
-comme le récapitulatif de crédits ou les options d’apparence, avant les zones
-transverses (modal de réglages, observer des messages, barres d’outils).
+## Mode debug
+
+Le noyau expose l’état global du mode debug aux features via
+`context.globals.isDebugModeEnabled()`. Une feature qui doit réagir au
+changement sans rechargement peut s’abonner avec
+`context.globals.subscribeToDebugMode(callback)` et enregistrer la fonction de
+désabonnement par `context.addCleanup(...)`. Le template contient un exemple
+commenté.
+
+Après la blacklist, les prochaines migrations viseront des fonctionnalités
+indépendantes comme le récapitulatif de crédits ou les options d’apparence,
+avant les zones les plus transverses (mentions/AFK, barres d’outils, médias).
+
+La première feature migrée est la [blacklist](./src/features/blacklist/README.md).

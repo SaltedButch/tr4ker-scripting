@@ -37,7 +37,8 @@ export function createFeatureContext({ appId, feature, getPage, logger, services
         http: services.http,
         input: services.input,
         text: services.text,
-        ui: { toast: services.toast },
+        globals: services.generalSettings,
+        ui: { toast: services.toast, settings: services.settings },
         isEnabled() {
             const storedValue = services.storage.get(enabledStorageKey);
             return storedValue === null ? feature.defaultEnabled !== false : storedValue === 'true';

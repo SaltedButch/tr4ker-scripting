@@ -20,6 +20,9 @@ export function defineFeature(definition) {
     if (definition.settings?.category && !isSettingsCategory(definition.settings.category)) {
         throw new Error(`Feature '${definition.id}' uses the unknown settings category '${definition.settings.category}'.`);
     }
+    if (definition.settings?.render && typeof definition.settings.render !== 'function') {
+        throw new Error(`Feature '${definition.id}' settings render must be a function.`);
+    }
     if (definition.shortcuts !== undefined && !Array.isArray(definition.shortcuts)) {
         throw new Error(`Feature '${definition.id}' shortcuts must be an array.`);
     }
@@ -133,6 +136,9 @@ export function createFeatureRegistry({ appId, getPage, logger, services }) {
         },
         getRegisteredFeatures() {
             return [...features.values()];
+        },
+        getActiveContext(featureId) {
+            return activeContexts.get(featureId) || null;
         },
         getFeaturesForSettingsCategory(categoryId) {
             if (!isSettingsCategory(categoryId)) {

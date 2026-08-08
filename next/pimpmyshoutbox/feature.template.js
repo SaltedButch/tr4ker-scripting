@@ -2,6 +2,7 @@ import { defineFeature } from './src/core/feature-registry.js';
 
 export default defineFeature({
     id: 'my-feature',
+    // Devient le titre visible de la carte dans la configuration.
     label: 'Ma nouvelle feature',
     defaultEnabled: true,
     pages: ['chat'],
@@ -12,7 +13,12 @@ export default defineFeature({
         // Une des catégories déclarées dans src/core/settings-categories.js.
         category: 'chat',
         // Les réglages de la catégorie sont triés par cet ordre, puis par label.
-        order: 100
+        order: 100,
+        // Facultatif : le core appelle ce rendu uniquement quand la feature est activée.
+        // La checkbox « Activer la feature » et le titre sont fournis automatiquement.
+        render(container, { context, refresh }) {
+            // Ajouter ici les contrôles métier propres à la feature.
+        }
     },
     shortcuts: [
         {
@@ -43,6 +49,17 @@ export default defineFeature({
     ],
 
     setup(context) {
+        // Mode debug global (clé V3 tm_t4_debug_mode).
+        // if (context.globals.isDebugModeEnabled()) {
+        //     context.logger.debug('[Ma nouvelle feature] Diagnostic utile');
+        // }
+        //
+        // Pour réagir immédiatement à son activation/désactivation :
+        // const unsubscribeDebug = context.globals.subscribeToDebugMode((enabled) => {
+        //     // Activer ou retirer les marqueurs/logs de debug de la feature.
+        // });
+        // context.addCleanup(unsubscribeDebug);
+
         context.shortcuts.bind('open-panel', (event, shortcut) => {
             // …
         });

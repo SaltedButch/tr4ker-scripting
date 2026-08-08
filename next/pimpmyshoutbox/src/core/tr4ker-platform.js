@@ -127,6 +127,15 @@ export function createTr4kerPlatform() {
         };
     }
 
+    function findMessageElement(target) {
+        let current = target instanceof HTMLElement ? target : null;
+        while (current && current !== document.body) {
+            if (isMessage(current)) return current;
+            current = current.parentElement;
+        }
+        return null;
+    }
+
     return Object.freeze({
         hostname: HOSTNAME,
         messageSelector: MESSAGE_SELECTOR,
@@ -141,6 +150,7 @@ export function createTr4kerPlatform() {
         isMessage,
         getChatMessagesRoot,
         getMessages,
+        findMessageElement,
         getCurrentChatContext,
         getMessageDetails
     });

@@ -10,6 +10,12 @@ function detectMacPlatform() {
     return /mac|iphone|ipad|ipod/i.test(platform);
 }
 
+export function hasPlatformModifier(event, { isMac = detectMacPlatform() } = {}) {
+    return isMac
+        ? event.metaKey === true && event.altKey !== true
+        : event.altKey === true && event.metaKey !== true;
+}
+
 function normalizeKey(value) {
     return String(value || '').trim().toLowerCase();
 }
@@ -69,6 +75,7 @@ export function createFeatureShortcutApi({ feature, addListener }) {
 
     return {
         definitions: [...shortcuts.values()],
+        hasPlatformModifier,
         format(shortcutId) {
             const shortcut = shortcuts.get(shortcutId);
             if (!shortcut) throw new Error(`Unknown shortcut '${shortcutId}' in feature '${feature.id}'.`);
