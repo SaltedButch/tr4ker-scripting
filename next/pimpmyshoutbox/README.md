@@ -18,7 +18,11 @@ L'analyse des responsabilités V3 et les contrats du noyau sont documentés dans
 
 ## Démarrer
 
+Node.js **22** est requis (le fichier `.nvmrc` permet à nvm de sélectionner la
+bonne version) :
+
 ```bash
+nvm use
 npm install
 npm run check
 ```

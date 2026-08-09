@@ -34,3 +34,9 @@ jobs:
 
       - name: Check userscript syntax
         run: python3 tools/check_userscripts_syntax.py
+
+      - name: Check PimpMyShoutbox Next build
+        working-directory: next/pimpmyshoutbox
+        run: |
+          npm ci
+          npm run check

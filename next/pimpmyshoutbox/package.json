@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "engines": {
+    "node": ">=22 <23"
+  },
   "scripts": {
     "build": "node ./esbuild.config.mjs",
     "check": "npm run build && node --check ./dist/pimpmyshoutbox-next.user.js"
