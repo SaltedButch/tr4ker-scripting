@@ -23,6 +23,7 @@ const featureGlobPlugin = {
             for await (const f of glob('src/features/*/feature.js', { cwd: root })) {
                 files.push(f);
             }
+            files.sort((left, right) => left.localeCompare(right, 'en'));
 
             const imports = files
                 .map((f, i) => `import feature${i} from '${path.resolve(root, f).replace(/\\/g, '/')}';`)
