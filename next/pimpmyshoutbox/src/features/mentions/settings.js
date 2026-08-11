@@ -59,7 +59,7 @@ export function renderMentionSettings(container, runtime) {
     opacity.addEventListener('change', () => save({ opacityPercent: opacity.value }));
     const blink = makeInput('number', settings.blinkSeconds, { min: 0, max: 30, step: .5, width: '74px' });
     blink.addEventListener('change', () => save({ blinkSeconds: blink.value }));
-    visualRow.append(color, document.createTextNode('Couleur'), opacity, document.createTextNode('% opacité'), blink, document.createTextNode('s clignotement'));
+    visualRow.append(color, document.createTextNode('Couleur'), opacity, document.createTextNode('% d\'opacité'), blink, document.createTextNode('s de clignotement'));
     container.append(visualRow);
 
     const preview = document.createElement('div');

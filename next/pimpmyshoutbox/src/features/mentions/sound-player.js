@@ -1,4 +1,8 @@
 let audioContext = null;
+// Les oscillateurs Web Audio sont volontairement très doux à leur gain brut.
+// Ce coefficient fait de 100 % un véritable niveau d’alerte, tout en laissant
+// la main à l’utilisateur via le curseur de volume.
+const BUILT_IN_SOUND_GAIN_BOOST = 3.5;
 
 function getAudioContext() {
     const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
@@ -77,7 +81,10 @@ export function createMentionSoundPlayer({ http }) {
             oscillator.frequency.setValueAtTime(fromFrequency, start);
             oscillator.frequency.exponentialRampToValueAtTime(Math.max(40, toFrequency), stop);
             gain.gain.setValueAtTime(.0001, start);
-            gain.gain.exponentialRampToValueAtTime(Math.max(.0002, peakGain * volume), start + Math.min(attack, duration / 2));
+            gain.gain.exponentialRampToValueAtTime(
+                Math.max(.0002, Math.min(.55, peakGain * volume * BUILT_IN_SOUND_GAIN_BOOST)),
+                start + Math.min(attack, duration / 2)
+            );
             gain.gain.exponentialRampToValueAtTime(.0001, releaseOffset === null ? stop : start + Math.min(duration, releaseOffset));
             oscillator.connect(gain);
             gain.connect(context.destination);
