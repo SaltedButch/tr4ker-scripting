@@ -5,6 +5,7 @@
 // @description  Architecture modulaire de développement de PimpMyShoutbox
 // @author       Butchered
 // @match        https://tr4ker.net/*
-// @grant        none
+// @grant        GM_xmlhttpRequest
+// @connect      cdn.pixabay.com
 // @run-at       document-start
 // ==/UserScript==

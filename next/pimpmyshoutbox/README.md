@@ -31,6 +31,13 @@ Le bundle de développement est créé dans `dist/pimpmyshoutbox-next.user.js`.
 Il porte volontairement le nom **Next (development)** et ne doit pas remplacer
 le script V3 publié.
 
+Pour executer le build esbuild :
+```bash
+cd next/pimpmyshoutbox
+nvm use
+npm run check
+```
+
 Une fois installé, le raccourci `Ctrl+Alt+C` sous Windows/Linux ou `Ctrl+⌘+C`
 sous macOS ouvre la configuration globale. Elle est volontairement vide tant
 qu'aucune feature n'a été migrée. La fenêtre peut être déplacée avec son en-tête
@@ -42,8 +49,8 @@ l'horizontale lorsqu'elle est plus large que haute.
 
 1. Copier `feature.template.js` dans `src/features/<nom>/feature.js`.
 2. Donner un `id` stable, préfixé par le domaine fonctionnel si nécessaire.
-3. Déclarer les pages concernées, les clés de stockage et la catégorie de réglages.
-4. Enregistrer la feature dans `src/entry.js`.
+3. Déclarer les pages concernées, les clés de stockage, le domaine et la catégorie de réglages.
+4. Placer le fichier dans `src/features/<nom>/feature.js` : il sera découvert automatiquement au build.
 5. Vérifier qu’une désactivation et un changement de route retirent bien son UI.
 
 Le registre expose `setEnabled(featureId, enabled)` pour la future modal de
@@ -52,19 +59,20 @@ les modules migrés pourront conserver leurs clés V3 métier dans `storageKeys`
 
 ## Catégories de réglages
 
-Une feature choisit l’onglet de ses réglages dans sa déclaration :
+Une feature choisit son domaine puis sa catégorie de réglages dans sa déclaration :
 
 ```js
 settings: {
+  area: 'shoutbox',
   category: 'media',
   order: 30
 }
 ```
 
-Les catégories admises sont définies dans `src/core/settings-categories.js` :
-`general`, `chat`, `mentions`, `media`, `shortcuts`, `appearance` et
-`statistics`. Le registre les valide et expose
-`getFeaturesForSettingsCategory(categoryId)` pour la future modal.
+Les domaines admis sont `shoutbox`, `site`, `profile`, `tools` et `appearance`.
+Les catégories admises sont définies dans `src/core/settings-categories.js`.
+Le registre valide les deux niveaux et expose les méthodes de regroupement
+correspondantes pour la modal.
 
 Chaque feature est rendue selon le même standard dans sa catégorie : son
 `label` forme le titre de la carte, une checkbox **Activer la feature** est
@@ -135,4 +143,7 @@ Après la blacklist, les prochaines migrations viseront des fonctionnalités
 indépendantes comme le récapitulatif de crédits ou les options d’apparence,
 avant les zones les plus transverses (mentions/AFK, barres d’outils, médias).
 
-La première feature migrée est la [blacklist](./src/features/blacklist/README.md).
+Les features actuellement migrées sont la [blacklist](./src/features/blacklist/README.md)
+et les [mentions WebSocket](./src/features/mentions/README.md). La boîte de
+réception et les notifications de MP seront des modules séparés ; le suivi des
+mentions est déjà alimenté directement par le flux temps réel Tr4ker.

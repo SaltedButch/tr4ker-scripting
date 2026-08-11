@@ -1,11 +1,12 @@
-import { SETTINGS_CATEGORIES } from './settings-categories.js';
+import { SETTINGS_AREAS } from './settings-categories.js';
 import { createSettingsHelpTab } from './settings-help.js';
 import { formatShortcut, matchesShortcut } from './shortcuts.js';
 
 const MODAL_ID = 'tm-t4-next-settings-modal';
 const OVERLAY_ID = 'tm-t4-next-settings-overlay';
 const STYLE_ID = 'tm-t4-next-settings-style';
-const ACTIVE_CATEGORY_STORAGE_KEY = 'tm-t4-next:settings:active-category';
+const ACTIVE_AREA_STORAGE_KEY = 'tm-t4-next:settings:active-area';
+const ACTIVE_CATEGORY_STORAGE_KEY = 'tm-t4-next:settings:active-subcategory';
 const BOUNDS_STORAGE_KEY = 'tm-t4-next:settings:bounds';
 const OPEN_SHORTCUT = Object.freeze({ key: 'C', modifiers: ['ctrl', 'platform'] });
 const MIN_WIDTH_PX = 380;
@@ -34,6 +35,10 @@ function ensureStyle() {
         #${MODAL_ID} .tm-t4-next-settings-tab:hover, #${MODAL_ID} .tm-t4-next-settings-tab[data-active="true"] { background:#3f3f46; color:#fff; }
         #${MODAL_ID} .tm-t4-next-settings-content { flex:1; overflow:auto; padding:22px; }
         #${MODAL_ID} .tm-t4-next-settings-content h2 { margin:0 0 18px; font-size:17px; }
+        #${MODAL_ID} .tm-t4-next-settings-subcategory-tabs { display:flex; gap:6px; overflow:auto; margin:-4px 0 18px; padding:3px 0; }
+        #${MODAL_ID} .tm-t4-next-settings-subcategory-tab { flex:0 0 auto; border:1px solid rgba(255,255,255,.12); border-radius:999px; background:#27272a; color:#c4c4cc; padding:6px 10px; cursor:pointer; font-size:12px; }
+        #${MODAL_ID} .tm-t4-next-settings-subcategory-tab:hover, #${MODAL_ID} .tm-t4-next-settings-subcategory-tab[data-active="true"] { border-color:rgba(96,165,250,.65); background:rgba(37,99,235,.22); color:#eff6ff; }
+        #${MODAL_ID} .tm-t4-next-settings-subcategory-heading { margin:-3px 0 12px; color:#d4d4d8; font-size:13px; font-weight:700; }
         #${MODAL_ID} .tm-t4-next-settings-empty { display:grid; min-height:180px; place-items:center; color:#a1a1aa; text-align:center; }
         #${MODAL_ID} .tm-t4-next-settings-card { margin:0 0 12px; padding:14px; border:1px solid rgba(255,255,255,.10); border-radius:11px; background:#222225; }
         #${MODAL_ID} .tm-t4-next-settings-card-title { display:flex; align-items:center; gap:10px; margin:0 0 12px; font-size:15px; font-weight:750; }
@@ -179,16 +184,14 @@ export function createSettingsModal({ registry, storage, globalSettings, logger 
         syncTabsLayout(modal);
     }
 
-    function getVisibleCategories() {
-        return SETTINGS_CATEGORIES.filter((category) => (
-            category.id !== 'general'
-            &&
-            registry.getFeaturesForSettingsCategory(category.id).length > 0
+    function getVisibleAreas() {
+        return SETTINGS_AREAS.filter((area) => (
+            registry.getFeaturesForSettingsArea(area.id).length > 0
         ));
     }
 
     function getActiveTab(tabs) {
-        const storedId = storage.get(ACTIVE_CATEGORY_STORAGE_KEY);
+        const storedId = storage.get(ACTIVE_AREA_STORAGE_KEY);
         return tabs.find((tab) => tab.id === storedId) || tabs[0] || null;
     }
 
@@ -265,20 +268,54 @@ export function createSettingsModal({ registry, storage, globalSettings, logger 
         }
     }
 
-    function renderCategory(content, category) {
+    function renderArea(content, area) {
         content.replaceChildren();
-        if (!category) {
+        const categories = registry.getSettingsCategoriesForArea(area.id);
+        if (categories.length === 0) {
             const empty = document.createElement('div');
             empty.className = 'tm-t4-next-settings-empty';
-            empty.textContent = 'Aucune feature n’est encore migrée vers PimpMyShoutbox Next.';
+            empty.textContent = 'Aucune feature n’est encore disponible dans ce domaine.';
             content.append(empty);
             return;
         }
-        renderFeatureCards(
-            content,
-            registry.getFeaturesForSettingsCategory(category.id),
-            () => renderCategory(content, category)
-        );
+        const title = document.createElement('h2');
+        title.textContent = area.label;
+        content.append(title);
+
+        const storedCategoryId = storage.get(ACTIVE_CATEGORY_STORAGE_KEY);
+        const activeCategory = categories.find((category) => category.id === storedCategoryId) || categories[0];
+        const renderActiveCategory = () => {
+            storage.set(ACTIVE_CATEGORY_STORAGE_KEY, activeCategory.id);
+            renderArea(content, area);
+        };
+
+        if (categories.length > 1) {
+            const subcategoryTabs = document.createElement('nav');
+            subcategoryTabs.className = 'tm-t4-next-settings-subcategory-tabs';
+            subcategoryTabs.setAttribute('aria-label', `Catégories ${area.label}`);
+            for (const category of categories) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'tm-t4-next-settings-subcategory-tab';
+                button.textContent = category.label;
+                button.dataset.active = String(category.id === activeCategory.id);
+                button.addEventListener('click', () => {
+                    storage.set(ACTIVE_CATEGORY_STORAGE_KEY, category.id);
+                    renderArea(content, area);
+                });
+                subcategoryTabs.append(button);
+            }
+            content.append(subcategoryTabs);
+        } else {
+            const heading = document.createElement('div');
+            heading.className = 'tm-t4-next-settings-subcategory-heading';
+            heading.textContent = activeCategory.label;
+            content.append(heading);
+        }
+
+        const features = registry.getFeaturesForSettingsCategory(activeCategory.id)
+            .filter((feature) => feature.settings.area === area.id);
+        renderFeatureCards(content, features, renderActiveCategory);
     }
 
     function renderGeneral(content) {
@@ -347,10 +384,10 @@ export function createSettingsModal({ registry, storage, globalSettings, logger 
         resizeHandle.addEventListener('pointerdown', (event) => startInteraction(event, 'resize'));
         modal.append(header, layout, resizeHandle);
 
-        const categories = getVisibleCategories();
+        const areas = getVisibleAreas();
         const tabsDefinition = [
             globalSettings.tab,
-            ...categories.map((category) => ({ ...category, type: 'category' })),
+            ...areas.map((area) => ({ ...area, type: 'area' })),
             helpTab
         ];
         const activeTab = getActiveTab(tabsDefinition);
@@ -367,13 +404,13 @@ export function createSettingsModal({ registry, storage, globalSettings, logger 
                 }
                 if (tabDefinition.type === 'help') helpTab.render(content);
                 else if (tabDefinition.type === 'general') renderGeneral(content);
-                else renderCategory(content, tabDefinition);
+                else renderArea(content, tabDefinition);
             });
             tabs.append(button);
         }
         if (activeTab?.type === 'help') helpTab.render(content);
         else if (activeTab?.type === 'general') renderGeneral(content);
-        else renderCategory(content, activeTab);
+        else renderArea(content, activeTab);
 
         document.body.append(overlay, modal);
         const savedBounds = normalizeBounds(storage.readJson(BOUNDS_STORAGE_KEY));

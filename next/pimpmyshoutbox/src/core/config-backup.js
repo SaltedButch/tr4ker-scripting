@@ -44,9 +44,11 @@ const V3_STORAGE_KEYS = [
 ];
 
 const NEXT_STORAGE_KEYS = [
-    'tm-t4-next:settings:active-category',
+    'tm-t4-next:settings:active-area',
+    'tm-t4-next:settings:active-subcategory',
     'tm-t4-next:settings:bounds',
-    'tm-t4-next:feature:blacklist:enabled'
+    'tm-t4-next:feature:blacklist:enabled',
+    'tm-t4-next:feature:mentions:enabled'
 ];
 
 const STORAGE_KEYS = Object.freeze([...new Set([...V3_STORAGE_KEYS, ...NEXT_STORAGE_KEYS])]);

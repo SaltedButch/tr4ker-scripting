@@ -147,7 +147,8 @@ export default defineFeature({
     defaultEnabled: true,
     pages: ['chat'],
     settings: {
-        category: 'chat',
+        area: 'shoutbox',
+        category: 'filtering',
         order: 10,
         render: renderFeatureSettings
     },

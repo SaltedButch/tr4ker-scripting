@@ -10,6 +10,8 @@ export default defineFeature({
         // 'tm_t4_my_feature_enabled'
     ],
     settings: {
+        // Domaine de premier niveau : shoutbox, site, profile, tools ou appearance.
+        area: 'shoutbox',
         // Une des catégories déclarées dans src/core/settings-categories.js.
         category: 'chat',
         // Les réglages de la catégorie sont triés par cet ordre, puis par label.

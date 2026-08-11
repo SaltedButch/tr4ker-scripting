@@ -1,6 +1,6 @@
 import { createFeatureContext } from './feature-context.js';
 import { resolveFeatureHints, validateFeatureHints } from './feature-hints.js';
-import { isSettingsCategory } from './settings-categories.js';
+import { getSettingsCategory, SETTINGS_CATEGORIES, isSettingsArea, isSettingsCategory } from './settings-categories.js';
 import { validateShortcut } from './shortcuts.js';
 
 function matchesPage(feature, page) {
@@ -19,6 +19,9 @@ export function defineFeature(definition) {
     }
     if (definition.settings?.category && !isSettingsCategory(definition.settings.category)) {
         throw new Error(`Feature '${definition.id}' uses the unknown settings category '${definition.settings.category}'.`);
+    }
+    if (definition.settings?.area && !isSettingsArea(definition.settings.area)) {
+        throw new Error(`Feature '${definition.id}' uses the unknown settings area '${definition.settings.area}'.`);
     }
     if (definition.settings?.render && typeof definition.settings.render !== 'function') {
         throw new Error(`Feature '${definition.id}' settings render must be a function.`);
@@ -40,6 +43,9 @@ export function defineFeature(definition) {
         shortcuts: definition.shortcuts || []
     });
 
+    const settingsCategory = definition.settings?.category || 'general';
+    const settingsArea = definition.settings?.area || getSettingsCategory(settingsCategory)?.area || 'tools';
+
     return Object.freeze({
         defaultEnabled: true,
         pages: [],
@@ -47,7 +53,8 @@ export function defineFeature(definition) {
         hints: [],
         ...definition,
         settings: {
-            category: 'general',
+            category: settingsCategory,
+            area: settingsArea,
             order: 100,
             ...definition.settings
         }
@@ -151,6 +158,27 @@ export function createFeatureRegistry({ appId, getPage, logger, services }) {
                     left.settings.order - right.settings.order
                     || left.label.localeCompare(right.label, 'fr')
                 ));
+        },
+        getFeaturesForSettingsArea(areaId) {
+            if (!isSettingsArea(areaId)) {
+                throw new Error(`Unknown settings area '${areaId}'.`);
+            }
+            return [...features.values()]
+                .filter((feature) => feature.settings.category !== 'general' && feature.settings.area === areaId)
+                .sort((left, right) => (
+                    left.settings.order - right.settings.order
+                    || left.label.localeCompare(right.label, 'fr')
+                ));
+        },
+        getSettingsCategoriesForArea(areaId) {
+            if (!isSettingsArea(areaId)) {
+                throw new Error(`Unknown settings area '${areaId}'.`);
+            }
+            return SETTINGS_CATEGORIES
+                .filter((category) => category.id !== 'general' && [...features.values()].some((feature) => (
+                    feature.settings.area === areaId && feature.settings.category === category.id
+                )))
+                .sort((left, right) => left.order - right.order);
         },
         getFeatureHints(featureId, platformOptions) {
             const feature = features.get(featureId);
