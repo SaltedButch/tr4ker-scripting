@@ -143,7 +143,7 @@ Après la blacklist, les prochaines migrations viseront des fonctionnalités
 indépendantes comme le récapitulatif de crédits ou les options d’apparence,
 avant les zones les plus transverses (mentions/AFK, barres d’outils, médias).
 
-Les features actuellement migrées sont la [blacklist](./src/features/blacklist/README.md)
-et les [mentions WebSocket](./src/features/mentions/README.md). La boîte de
-réception et les notifications de MP seront des modules séparés ; le suivi des
-mentions est déjà alimenté directement par le flux temps réel Tr4ker.
+Les features actuellement migrées sont la [blacklist](./src/features/blacklist/README.md),
+les [mentions](./src/features/mentions/README.md), la [carte de profil](./src/features/profile-hover/)
+et [Pimp My Grade](./src/features/pimp-my-grade/README.md). Les outils médias
+Klipy, T9 Emoj et ImgBB sont également migrés dans Shoutbox → Médias.

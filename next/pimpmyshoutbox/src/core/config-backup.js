@@ -11,6 +11,7 @@ const V3_STORAGE_KEYS = [
     'tm_t4_settings_bubble_enabled', 'tm_t4_debug_mode',
     'tm_highlighted_shout_users_t4', 'tm_t4_mention_highlight_settings',
     'tm_t4_cross_channel_mention_enabled', 'tm_t4_cross_channel_mention_channels',
+    'tm_t4_mention_inbox_v1', 'tm_t4_mention_inbox_enabled',
     'tm_t4_chat_font_scale', 'tm_t4_chat_scrollbar_enabled',
     'tm_t4_profile_hover_enabled', 'tm_t4_custom_background_enabled',
     'tm_t4_custom_background_color', 'tm_t4_message_actions_left_enabled',
@@ -31,7 +32,8 @@ const V3_STORAGE_KEYS = [
     'tm_t4_topbar_burger_enabled', 'tm_t4_linkify_urls', 'tm_t4_embed_url_images',
     'tm_t4_saved_phrases', 'tm_t4_saved_phrases_enabled',
     'tm_t4_saved_phrases_replace_input', 'tm_t4_klipy_gifs_enabled',
-    'tm_t4_t9_emoj_enabled', 'tm_t4_emoji_usage_counts',
+    'tm_t4_t9_emoj_enabled', 'tm_t4_image_hosting_enabled',
+    'tm_t4_image_hosting_expiration_seconds', 'tm_t4_emoji_usage_counts',
     'tm_t4_reaction_usage_counts', 'tm_t4_emoji_quick_access_limit',
     'tm_t4_reaction_quick_access_limit', 'tm_t4_quick_access_mode',
     'tm_t4_manual_emoji_favorites', 'tm_t4_manual_reaction_favorites',
@@ -48,7 +50,12 @@ const NEXT_STORAGE_KEYS = [
     'tm-t4-next:settings:active-subcategory',
     'tm-t4-next:settings:bounds',
     'tm-t4-next:feature:blacklist:enabled',
-    'tm-t4-next:feature:mentions:enabled'
+    'tm-t4-next:feature:mentions:enabled',
+    'tm-t4-next:feature:profile-hover:enabled',
+    'tm-t4-next:feature:pimp-my-grade:enabled',
+    'tm-t4-next:feature:klipy-gifs:enabled',
+    'tm-t4-next:feature:t9-emoj:enabled',
+    'tm-t4-next:feature:imgbb-upload:enabled'
 ];
 
 const STORAGE_KEYS = Object.freeze([...new Set([...V3_STORAGE_KEYS, ...NEXT_STORAGE_KEYS])]);

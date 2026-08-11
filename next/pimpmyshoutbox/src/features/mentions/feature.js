@@ -1,7 +1,10 @@
 import { CONFIGURATION_IMPORTED_EVENT } from '../../core/config-backup.js';
 import { createCrossTabSoundCoordinator } from '../../core/cross-tab-sound-coordinator.js';
 import { defineFeature } from '../../core/feature-registry.js';
+import { createMentionChannelCatalog } from './channel-catalog.js';
 import { createMentionHighlighter } from './highlighter.js';
+import { createMentionInbox, MENTION_INBOX_ENABLED_STORAGE_KEY, MENTION_INBOX_STORAGE_KEY } from './inbox.js';
+import { createMentionInboxPanel } from './inbox-panel.js';
 import { renderMentionSettings } from './settings.js';
 import { createMentionSoundPlayer } from './sound-player.js';
 import { createMentionSocketMonitor } from './socket-monitor.js';
@@ -25,7 +28,11 @@ export default defineFeature({
     storageKeys: [
         MENTION_SETTINGS_STORAGE_KEY,
         'tm_t4_last_mention_sound_notification',
-        'tm_t4_recent_mention_sound_notifications'
+        'tm_t4_recent_mention_sound_notifications',
+        'tm_t4_cross_channel_mention_enabled',
+        'tm_t4_cross_channel_mention_channels',
+        MENTION_INBOX_STORAGE_KEY,
+        MENTION_INBOX_ENABLED_STORAGE_KEY
     ],
     settings: {
         area: 'shoutbox',
@@ -43,8 +50,8 @@ export default defineFeature({
         },
         {
             id: 'sound',
-            title: 'Son multi-onglets',
-            text: 'Pour une même mention, un seul onglet Tr4ker est autorisé à jouer le son. Si le stockage partagé du navigateur est indisponible, le son est volontairement ignoré pour éviter les doublons.',
+            title: 'Notifications sonores',
+            text: 'Chaque nouvelle mention déclenche une seule alerte sonore.',
             kind: 'warning',
             order: 20
         }
@@ -57,6 +64,7 @@ export default defineFeature({
             }
         `);
         const state = createMentionState({ storage: context.storage });
+        const channels = createMentionChannelCatalog({ storage: context.storage });
         const highlighter = createMentionHighlighter({ platform: context.platform });
         const player = createMentionSoundPlayer({ http: context.http });
         const coordinator = createCrossTabSoundCoordinator({
@@ -65,6 +73,15 @@ export default defineFeature({
             logger: context.logger
         });
         const mentionIds = new Set();
+        let inboxPanel = null;
+        const inbox = createMentionInbox({
+            storage: context.storage,
+            onUpdate: () => inboxPanel?.sync()
+        });
+        inboxPanel = createMentionInboxPanel({
+            inbox,
+            toast: (message) => context.ui.toast.show(message)
+        });
 
         function rememberMentionId(messageId) {
             const id = String(messageId || '').trim();
@@ -93,6 +110,30 @@ export default defineFeature({
             refresh() {
                 highlighter.refresh(state.get(), isTrackedMention);
             },
+            getCrossChannelEnabled: () => channels.isEnabled(),
+            setCrossChannelEnabled(enabled) {
+                channels.setEnabled(enabled);
+            },
+            async getChannels() {
+                await channels.refresh();
+                return channels.getAll();
+            },
+            isChannelSelected: (channelId) => channels.isChannelSelected(channelId),
+            setChannelSelected(channelId, enabled) {
+                channels.setChannelSelected(channelId, enabled);
+            },
+            selectAllChannels() {
+                channels.selectAll();
+            },
+            isInboxEnabled: () => inbox.isEnabled(),
+            setInboxEnabled(enabled) {
+                inbox.setEnabled(enabled);
+                inboxPanel.sync();
+            },
+            getInboxUnreadCount: () => inbox.unreadCount(),
+            openInbox() {
+                inboxPanel.open();
+            },
             playTest() {
                 return player.play(state.get());
             }
@@ -113,38 +154,76 @@ export default defineFeature({
             if (!played && context.globals.isDebugModeEnabled()) context.logger.debug('[Mentions] audio playback unavailable.');
         }
 
+        async function handleSocketMention(mention) {
+            const catalog = await channels.refresh();
+            const channel = catalog.get(mention.conversationId);
+            const isCurrent = channels.isCurrent(channel, mention.conversationId);
+            // Sans catalogue de canaux, on ne devine pas qu’un événement est
+            // inter-canaux : on ne le traite que s’il s’agit explicitement de
+            // la conversation ouverte (cas des MP via ?conv=…).
+            if (!channel && !isCurrent) return;
+            // Le canal ouvert est toujours suivi. Pour les autres, la liste de
+            // checkboxes V3 décide si l’événement doit être conservé.
+            if (channel && !isCurrent && (!channels.isEnabled() || !channels.isChannelSelected(channel.id))) return;
+
+            rememberMentionId(mention.id);
+            runtime.refresh();
+            if (channel && !isCurrent) {
+                if (inbox.isEnabled()) {
+                    inbox.add({
+                        id: mention.id,
+                        messageId: mention.id,
+                        channelId: channel.id,
+                        channelName: `#${channel.name}`,
+                        sender: mention.sender,
+                        body: mention.body,
+                        replyContextText: mention.replyContextText,
+                        at: mention.receivedAt,
+                        capturedAt: Date.parse(mention.receivedAt) || Date.now(),
+                        reason: mention.reason
+                    });
+                }
+                const excerpt = String(mention.body || '').replace(/\s+/g, ' ').trim().slice(0, 100);
+                context.ui.toast.show(`${mention.sender || 'Un utilisateur'} vous a mentionné dans #${channel.name}${excerpt ? ` : ${excerpt}` : ''}`, { duration: 10000 });
+            }
+            void notifyMention(mention);
+        }
+
         socketMonitor = createMentionSocketMonitor({
             getSettings: () => state.get(),
             text: context.text,
             logger: context.logger,
-            onMention(mention) {
-                rememberMentionId(mention.id);
-                // If the current conversation is open, this finds the DOM node
-                // by id and paints it. It never reads text from that node.
-                runtime.refresh();
-                void notifyMention(mention);
-            }
+            onMention(mention) { void handleSocketMention(mention); }
         });
         context.addCleanup(() => socketMonitor.stop());
         context.messages.subscribe((message) => {
             if (isTrackedMention(message)) highlighter.apply(message, state.get());
         });
         context.on(window, 'storage', (event) => {
-            if (event.key !== MENTION_SETTINGS_STORAGE_KEY) return;
-            state.reload();
-            highlighter.refresh(state.get(), isTrackedMention);
-            socketMonitor.sync();
+            if (event.key === MENTION_SETTINGS_STORAGE_KEY) {
+                state.reload();
+                highlighter.refresh(state.get(), isTrackedMention);
+                socketMonitor.sync();
+            }
+            if (event.key === MENTION_INBOX_STORAGE_KEY || event.key === MENTION_INBOX_ENABLED_STORAGE_KEY) {
+                inbox.reload();
+                inboxPanel.sync();
+            }
         });
         context.on(window, CONFIGURATION_IMPORTED_EVENT, () => {
             state.reload();
+            inbox.reload();
             highlighter.refresh(state.get(), isTrackedMention);
             socketMonitor.sync();
+            inboxPanel.sync();
         });
         highlighter.refresh(state.get(), isTrackedMention);
+        inboxPanel.sync();
         socketMonitor.sync();
 
         return () => {
             highlighter.destroy();
+            inboxPanel.destroy();
             if (activeRuntime === runtime) activeRuntime = null;
         };
     }

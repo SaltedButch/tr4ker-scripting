@@ -10,6 +10,7 @@ export const SETTINGS_CATEGORIES = Object.freeze([
     { id: 'general', label: 'Général', area: 'tools', order: 10 },
     { id: 'filtering', label: 'Filtrage', area: 'shoutbox', order: 20 },
     { id: 'chat', label: 'Chat', area: 'shoutbox', order: 30 },
+    { id: 'shoutbox-appearance', label: 'Affichage', area: 'shoutbox', order: 35 },
     { id: 'mentions', label: 'Mentions', area: 'shoutbox', order: 40 },
     { id: 'media', label: 'Médias', area: 'shoutbox', order: 50 },
     { id: 'shortcuts', label: 'Raccourcis', area: 'shoutbox', order: 60 },

@@ -240,9 +240,13 @@ export function createSettingsModal({ registry, storage, globalSettings, logger 
             toggleRow.className = 'tm-t4-next-settings-card-toggle';
             const toggle = document.createElement('input');
             toggle.type = 'checkbox';
-            toggle.checked = storage.get(`tm-t4-next:feature:${feature.id}:enabled`) === null
-                ? feature.defaultEnabled !== false
-                : storage.get(`tm-t4-next:feature:${feature.id}:enabled`) === 'true';
+            const enabledStorageKey = `tm-t4-next:feature:${feature.id}:enabled`;
+            const storedEnabled = storage.get(enabledStorageKey);
+            toggle.checked = storedEnabled === null
+                ? feature.legacyEnabledStorageKey
+                    ? storage.readBoolean(feature.legacyEnabledStorageKey, feature.defaultEnabled !== false)
+                    : feature.defaultEnabled !== false
+                : storedEnabled === 'true';
             toggle.addEventListener('change', () => {
                 registry.setEnabled(feature.id, toggle.checked);
                 refresh();

@@ -2,10 +2,13 @@ function escapeRegExp(value) {
     return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function getReplyAuthor(message) {
+function getReplyContext(message) {
     const parent = message?.parent;
-    if (!parent || typeof parent !== 'object') return '';
-    return String(parent.sender || parent.author || parent.username || parent.user?.username || '').trim();
+    if (!parent || typeof parent !== 'object') return { author: '', body: '' };
+    return {
+        author: String(parent.sender || parent.author || parent.username || parent.user?.username || '').trim(),
+        body: String(parent.body || parent.content || parent.text || '').trim()
+    };
 }
 
 function buildFallbackMessageId(message) {
@@ -38,11 +41,13 @@ export function createMentionSocketMonitor({ getSettings, text, onMention, logge
         if (!watchedUsername) return { matched: false };
         const mentionRegex = new RegExp(`(^|[^\\p{L}\\p{N}_])@${escapeRegExp(watchedUsername)}(?=$|[^\\p{L}\\p{N}_])`, 'u');
         const directMentionMatched = mentionRegex.test(text.normalizeComparableText(message?.body));
+        const replyContext = getReplyContext(message);
         const replyMentionMatched = settings.includeReplyContext
-            && text.normalizeComparableText(getReplyAuthor(message)).replace(/^@+/, '') === watchedUsername;
+            && text.normalizeComparableText(replyContext.author).replace(/^@+/, '') === watchedUsername;
         return {
             matched: directMentionMatched || replyMentionMatched,
-            reason: directMentionMatched && replyMentionMatched ? 'mention+reply' : (replyMentionMatched ? 'reply' : 'mention')
+            reason: directMentionMatched && replyMentionMatched ? 'mention+reply' : (replyMentionMatched ? 'reply' : 'mention'),
+            replyContext
         };
     }
 
@@ -78,7 +83,11 @@ export function createMentionSocketMonitor({ getSettings, text, onMention, logge
             sender,
             body: String(payload.body || ''),
             receivedAt: String(payload.at || ''),
-            reason: match.reason
+            reason: match.reason,
+            replyContextText: [
+                match.replyContext.author ? `@${match.replyContext.author.replace(/^@+/, '')}` : '',
+                match.replyContext.body
+            ].filter(Boolean).join(' : ')
         });
     }
 

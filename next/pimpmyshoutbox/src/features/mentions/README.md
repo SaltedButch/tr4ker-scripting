@@ -20,6 +20,15 @@ Les sons intégrés proposent plusieurs signatures (ping, doux, cloche, double,
 carillon et pop). Leur volume, de 0 à 100 %, s’applique aussi aux fichiers
 Pixabay personnalisés.
 
+## Canaux et boîte de réception
+
+La liste des canaux est récupérée à la volée depuis `/api/channels`, comme dans
+la V3. Le canal actuellement ouvert reste toujours suivi ; l’option
+**Surveiller aussi les canaux non ouverts** active les checkboxes de sélection.
+Une mention venant d’un autre canal affiche un toast avec son extrait. Si la
+boîte de réception est activée, elle est aussi conservée dans
+`tm_t4_mention_inbox_v1` et accessible depuis la bulle ✉.
+
 La boîte de réception V3 et les notifications de messages privés restent des
 modules séparés. Le transport WebSocket est néanmoins déjà centralisé dans ce
 module pour les mentions : il ne dépend plus du canal ouvert ni de l’analyse du

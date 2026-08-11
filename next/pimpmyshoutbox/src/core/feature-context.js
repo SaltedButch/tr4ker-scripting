@@ -36,15 +36,24 @@ export function createFeatureContext({ appId, feature, getPage, logger, services
         storage: services.storage,
         http: services.http,
         input: services.input,
+        mediaToolbar: services.mediaToolbar,
         text: services.text,
+        grades: services.grades,
         globals: services.generalSettings,
         ui: { toast: services.toast, settings: services.settings },
         isEnabled() {
             const storedValue = services.storage.get(enabledStorageKey);
-            return storedValue === null ? feature.defaultEnabled !== false : storedValue === 'true';
+            if (storedValue !== null) return storedValue === 'true';
+            if (feature.legacyEnabledStorageKey) {
+                return services.storage.readBoolean(feature.legacyEnabledStorageKey, feature.defaultEnabled !== false);
+            }
+            return feature.defaultEnabled !== false;
         },
         setEnabled(enabled) {
             services.storage.set(enabledStorageKey, String(Boolean(enabled)));
+            if (feature.legacyEnabledStorageKey) {
+                services.storage.writeBoolean(feature.legacyEnabledStorageKey, enabled);
+            }
         },
         on(target, eventName, handler, options) {
             target.addEventListener(eventName, handler, options);

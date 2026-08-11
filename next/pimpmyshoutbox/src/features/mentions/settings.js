@@ -105,6 +105,81 @@ export function renderMentionSettings(container, runtime) {
     const separator = document.createElement('div');
     separator.style.cssText = 'border-top:1px solid rgba(255,255,255,.10);margin:14px 0 10px;';
     container.append(separator);
+    const crossTitle = document.createElement('div');
+    crossTitle.textContent = 'Mentions dans les autres canaux';
+    crossTitle.style.cssText = 'font-weight:700;font-size:12px;color:#e4e4e7;';
+    container.append(crossTitle);
+    const cross = makeLabel('Surveiller aussi les canaux non ouverts');
+    cross.input.checked = runtime.getCrossChannelEnabled();
+    container.append(cross.label);
+    const channelTools = document.createElement('div');
+    channelTools.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;margin:7px 0;';
+    const channelInfo = document.createElement('span');
+    channelInfo.style.cssText = 'font-size:11px;color:#a1a1aa;line-height:1.4;';
+    channelInfo.textContent = 'Choisis les canaux dont les mentions doivent être suivies.';
+    const selectAll = document.createElement('button');
+    selectAll.type = 'button'; selectAll.textContent = 'Tout sélectionner';
+    selectAll.style.cssText = 'border:0;border-radius:7px;background:#27272a;color:#e4e4e7;padding:6px 8px;cursor:pointer;font-size:11px;font-weight:700;';
+    channelTools.append(channelInfo, selectAll);
+    const channelList = document.createElement('div');
+    channelList.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:6px;margin-top:7px;';
+    const renderChannels = async () => {
+        channelList.replaceChildren();
+        if (!runtime.getCrossChannelEnabled()) {
+            channelTools.style.display = 'none';
+            channelList.style.display = 'none';
+            return;
+        }
+        channelTools.style.display = 'flex';
+        channelList.style.display = 'grid';
+        channelList.textContent = 'Chargement des canaux…';
+        channelList.style.fontSize = '11px';
+        channelList.style.color = '#a1a1aa';
+        const channels = await runtime.getChannels();
+        if (!runtime.getCrossChannelEnabled()) return;
+        channelList.replaceChildren();
+        channelList.style.color = '';
+        if (channels.length === 0) {
+            channelList.textContent = 'Aucun canal disponible pour le moment.';
+            return;
+        }
+        for (const channel of channels) {
+            const label = document.createElement('label');
+            label.style.cssText = 'display:flex;align-items:center;gap:7px;padding:7px 8px;border:1px solid rgba(255,255,255,.07);border-radius:8px;background:rgba(255,255,255,.025);cursor:pointer;font-size:11px;color:#d4d4d8;';
+            const input = document.createElement('input');
+            input.type = 'checkbox'; input.checked = runtime.isChannelSelected(channel.id); input.style.accentColor = '#22c55e';
+            input.addEventListener('change', () => runtime.setChannelSelected(channel.id, input.checked));
+            const name = document.createElement('span'); name.textContent = `#${channel.name}`;
+            label.append(input, name);
+            channelList.append(label);
+        }
+    };
+    cross.input.addEventListener('change', () => {
+        runtime.setCrossChannelEnabled(cross.input.checked);
+        renderChannels();
+    });
+    selectAll.addEventListener('click', () => {
+        runtime.selectAllChannels();
+        renderChannels();
+        runtime.toast('Tous les canaux sont maintenant surveillés.');
+    });
+    container.append(channelTools, channelList);
+    void renderChannels();
+
+    const inboxToggle = makeLabel('Afficher la boîte de réception des mentions');
+    inboxToggle.input.checked = runtime.isInboxEnabled();
+    inboxToggle.input.addEventListener('change', () => runtime.setInboxEnabled(inboxToggle.input.checked));
+    container.append(inboxToggle.label);
+    const inboxButton = document.createElement('button');
+    inboxButton.type = 'button';
+    inboxButton.textContent = `Mentions à relire (${runtime.getInboxUnreadCount()})`;
+    inboxButton.style.cssText = 'border:0;border-radius:7px;background:#1d4ed8;color:#fff;padding:7px 10px;cursor:pointer;font-weight:700;font-size:12px;';
+    inboxButton.addEventListener('click', () => runtime.openInbox());
+    container.append(inboxButton);
+
+    const soundSeparator = document.createElement('div');
+    soundSeparator.style.cssText = 'border-top:1px solid rgba(255,255,255,.10);margin:14px 0 10px;';
+    container.append(soundSeparator);
     const soundTitle = document.createElement('div');
     soundTitle.textContent = 'Son de notification';
     soundTitle.style.cssText = 'font-weight:700;font-size:12px;color:#e4e4e7;';
@@ -159,12 +234,12 @@ export function renderMentionSettings(container, runtime) {
     test.style.cssText = 'justify-self:start;border:0;border-radius:7px;background:#2563eb;color:#fff;padding:7px 10px;cursor:pointer;font-weight:700;';
     test.addEventListener('click', async () => {
         const played = await runtime.playTest();
-        runtime.toast(played ? 'Son de test joué.' : 'Le navigateur a bloqué ou n’a pas pu jouer le son.', !played);
+        runtime.toast(played ? 'Son de test joué.' : 'Impossible de jouer le son. Réessaie après avoir interagi avec la page.', !played);
     });
     soundOptions.append(test);
     const explanation = document.createElement('div');
     explanation.style.cssText = 'font-size:11px;line-height:1.45;color:#a1a1aa;';
-    explanation.textContent = 'Les mentions sont suivies en temps réel dans tous les canaux via WebSocket. Une mention réelle est réservée atomiquement à un seul onglet. Les tests sont volontaires et ne sont pas partagés.';
+    explanation.textContent = 'Les mentions des canaux sélectionnés peuvent déclencher une alerte sonore et être ajoutées à la boîte de réception.';
     soundOptions.append(explanation);
     container.append(soundOptions);
 }

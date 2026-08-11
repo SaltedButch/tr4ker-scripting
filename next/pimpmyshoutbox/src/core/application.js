@@ -1,8 +1,10 @@
 import { createChatInputService } from './chat-input.js';
 import { createConfigurationBackup } from './config-backup.js';
 import { createFeatureRegistry } from './feature-registry.js';
+import { createGradeService } from './grades.js';
 import { createHttpClient } from './http.js';
 import { createMessageStream } from './message-stream.js';
+import { createMediaToolbar } from './media-toolbar.js';
 import { createRouteWatcher } from './route-watcher.js';
 import { createGeneralSettings } from './settings-general.js';
 import { createSettingsModal } from './settings-modal.js';
@@ -21,6 +23,8 @@ export function createApplication({ appId, logger = console }) {
         messages,
         http: createHttpClient(),
         input: createChatInputService(platform),
+        mediaToolbar: createMediaToolbar({ platform, storage }),
+        grades: createGradeService({ storage }),
         text,
         toast: createToastService()
     };
@@ -78,6 +82,7 @@ export function createApplication({ appId, logger = console }) {
             registry.stop();
             messages.stop();
             services.toast.destroy();
+            services.mediaToolbar.destroy();
         }
     };
 }
