@@ -1,5 +1,5 @@
 import { createApplication } from './core/application.js';
-import blacklistFeature from './features/blacklist/feature.js';
+import registerFeatures from 'features:glob';
 
 function bootstrap() {
     const app = createApplication({
@@ -7,7 +7,7 @@ function bootstrap() {
         logger: console
     });
 
-    app.features.register(blacklistFeature);
+    registerFeatures(app);
     app.start();
 
     window.addEventListener('pagehide', () => app.stop(), { once: true });
