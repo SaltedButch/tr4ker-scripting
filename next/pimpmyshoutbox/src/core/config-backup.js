@@ -39,6 +39,7 @@ const V3_STORAGE_KEYS = [
     'tm_t4_manual_emoji_favorites', 'tm_t4_manual_reaction_favorites',
     'tm_t4_chat_input_toolbar_inline', 'tm_t4_chat_input_toolbar_align_right',
     'tm_t4_chat_sidebar_width', 'tm_t4_chat_sidebar_collapsed',
+    'tm_t4_youtube_inline_enabled',
     'tm_t4_image_hosting_enabled', 'tm_t4_image_hosting_expiration_seconds',
     'tm_t4_credit_recap_enabled', 'tm_t4_private_message_notifications_enabled',
     'tm_t4_afk_channels', 'tm_t4_afk_panel_position',
@@ -55,7 +56,11 @@ const NEXT_STORAGE_KEYS = [
     'tm-t4-next:feature:pimp-my-grade:enabled',
     'tm-t4-next:feature:klipy-gifs:enabled',
     'tm-t4-next:feature:t9-emoj:enabled',
-    'tm-t4-next:feature:imgbb-upload:enabled'
+    'tm-t4-next:feature:imgbb-upload:enabled',
+    'tm-t4-next:feature:adult-mode:enabled',
+    'tm-t4-next:feature:highlight-users:enabled',
+    'tm-t4-next:feature:chat-sidebar:enabled',
+    'tm-t4-next:feature:youtube-player:enabled'
 ];
 
 const STORAGE_KEYS = Object.freeze([...new Set([...V3_STORAGE_KEYS, ...NEXT_STORAGE_KEYS])]);

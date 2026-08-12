@@ -63,6 +63,24 @@ export function createTr4kerPlatform() {
         return firstMessage.parentElement;
     }
 
+    function getChatSidebarLayout() {
+        if (!isChatPage()) return null;
+
+        const sidebar = [...document.querySelectorAll('aside')].find((candidate) => {
+            const parent = candidate.parentElement;
+            if (!isHtmlElement(parent) || !candidate.querySelector('button[aria-label="Retour"]')) return false;
+            return [...parent.children].some((child) => (
+                isHtmlElement(child) && [...child.classList].some((className) => className.includes('chatArea'))
+            ));
+        });
+        if (!isHtmlElement(sidebar) || !isHtmlElement(sidebar.parentElement)) return null;
+
+        const chatArea = [...sidebar.parentElement.children].find((child) => (
+            isHtmlElement(child) && [...child.classList].some((className) => className.includes('chatArea'))
+        ));
+        return isHtmlElement(chatArea) ? { sidebar, chatArea } : null;
+    }
+
     function getMessages(root = getChatMessagesRoot()) {
         if (!isHtmlElement(root)) return [];
         const candidates = root.matches(MESSAGE_SELECTOR)
@@ -148,7 +166,9 @@ export function createTr4kerPlatform() {
         getChatInput,
         isChatInputCandidate,
         isMessage,
+        isGroupedMessage,
         getChatMessagesRoot,
+        getChatSidebarLayout,
         getMessages,
         findMessageElement,
         getCurrentChatContext,

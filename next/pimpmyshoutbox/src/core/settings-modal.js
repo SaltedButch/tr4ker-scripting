@@ -42,6 +42,13 @@ function ensureStyle() {
         #${MODAL_ID} .tm-t4-next-settings-empty { display:grid; min-height:180px; place-items:center; color:#a1a1aa; text-align:center; }
         #${MODAL_ID} .tm-t4-next-settings-card { margin:0 0 12px; padding:14px; border:1px solid rgba(255,255,255,.10); border-radius:11px; background:#222225; }
         #${MODAL_ID} .tm-t4-next-settings-card-title { display:flex; align-items:center; gap:10px; margin:0 0 12px; font-size:15px; font-weight:750; }
+        #${MODAL_ID} .tm-t4-next-settings-feature-card { padding:0; overflow:hidden; }
+        #${MODAL_ID} .tm-t4-next-settings-feature-card .tm-t4-next-settings-card-title { gap:8px; min-height:48px; margin:0; padding:0 14px; }
+        #${MODAL_ID} .tm-t4-next-settings-card-expander { display:flex; flex:1; align-items:center; min-width:0; gap:9px; padding:0; border:0; background:transparent; color:#f4f4f5; font:inherit; text-align:left; cursor:pointer; }
+        #${MODAL_ID} .tm-t4-next-settings-card-expander:hover { color:#fff; }
+        #${MODAL_ID} .tm-t4-next-settings-card-expander-icon { color:#a1a1aa; font-size:12px; transition:transform .16s ease; }
+        #${MODAL_ID} .tm-t4-next-settings-card-expander[aria-expanded="true"] .tm-t4-next-settings-card-expander-icon { transform:rotate(90deg); }
+        #${MODAL_ID} .tm-t4-next-settings-feature-card .tm-t4-next-settings-card-body { padding:0 14px 14px; }
         #${MODAL_ID} .tm-t4-next-settings-card-toggle { display:flex; align-items:center; gap:8px; margin:0 0 13px; color:#e4e4e7; cursor:pointer; }
         #${MODAL_ID} .tm-t4-next-settings-hint-trigger { width:23px; height:23px; margin-left:auto; border:1px solid rgba(255,255,255,.16); border-radius:999px; background:#3f3f46; color:#d4d4d8; cursor:help; font-size:13px; font-weight:700; line-height:1; }
         #${MODAL_ID} .tm-t4-next-settings-hint-trigger:hover, #${MODAL_ID} .tm-t4-next-settings-hint-trigger:focus { color:#fff; border-color:rgba(147,197,253,.8); }
@@ -67,6 +74,7 @@ export function createSettingsModal({ registry, storage, globalSettings, logger 
     let shortcutInstalled = false;
     let resizeObserver = null;
     let activeInteraction = null;
+    const expandedFeatureIds = new Set();
     const helpTab = createSettingsHelpTab({ registry });
 
     function clamp(value, minimum, maximum) {
@@ -208,19 +216,30 @@ export function createSettingsModal({ registry, storage, globalSettings, logger 
             lastFocusedElement.focus();
         }
         lastFocusedElement = null;
+        expandedFeatureIds.clear();
     }
 
     function renderFeatureCards(content, features, refresh) {
         for (const feature of features) {
             const card = document.createElement('section');
-            card.className = 'tm-t4-next-settings-card';
+            card.className = 'tm-t4-next-settings-card tm-t4-next-settings-feature-card';
 
             const titleRow = document.createElement('div');
             titleRow.className = 'tm-t4-next-settings-card-title';
-            const featureTitle = document.createElement('h3');
+            const expandButton = document.createElement('button');
+            expandButton.type = 'button';
+            expandButton.className = 'tm-t4-next-settings-card-expander';
+            expandButton.setAttribute('aria-expanded', String(expandedFeatureIds.has(feature.id)));
+            expandButton.setAttribute('aria-label', `Afficher les réglages de ${feature.label || feature.id}`);
+            const expandIcon = document.createElement('span');
+            expandIcon.className = 'tm-t4-next-settings-card-expander-icon';
+            expandIcon.setAttribute('aria-hidden', 'true');
+            expandIcon.textContent = '›';
+            const featureTitle = document.createElement('span');
             featureTitle.textContent = feature.label || feature.id;
-            featureTitle.style.cssText = 'margin:0;flex:1;font:inherit;';
-            titleRow.append(featureTitle);
+            featureTitle.style.cssText = 'min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+            expandButton.append(expandIcon, featureTitle);
+            titleRow.append(expandButton);
 
             const hints = registry.getFeatureHints(feature.id);
             if (hints.length > 0) {
@@ -234,40 +253,58 @@ export function createSettingsModal({ registry, storage, globalSettings, logger 
                 )).join('\n\n');
                 titleRow.append(hintTrigger);
             }
-            card.append(titleRow);
+            const body = document.createElement('div');
+            body.className = 'tm-t4-next-settings-card-body';
+            const renderBody = () => {
+                body.replaceChildren();
+                const toggleRow = document.createElement('label');
+                toggleRow.className = 'tm-t4-next-settings-card-toggle';
+                const toggle = document.createElement('input');
+                toggle.type = 'checkbox';
+                const enabledStorageKey = `tm-t4-next:feature:${feature.id}:enabled`;
+                const storedEnabled = storage.get(enabledStorageKey);
+                toggle.checked = storedEnabled === null
+                    ? feature.legacyEnabledStorageKey
+                        ? storage.readBoolean(feature.legacyEnabledStorageKey, feature.defaultEnabled !== false)
+                        : feature.defaultEnabled !== false
+                    : storedEnabled === 'true';
+                toggle.addEventListener('change', () => {
+                    registry.setEnabled(feature.id, toggle.checked);
+                    refresh();
+                });
+                toggleRow.append(toggle, document.createTextNode('Activer la feature'));
+                body.append(toggleRow);
 
-            const toggleRow = document.createElement('label');
-            toggleRow.className = 'tm-t4-next-settings-card-toggle';
-            const toggle = document.createElement('input');
-            toggle.type = 'checkbox';
-            const enabledStorageKey = `tm-t4-next:feature:${feature.id}:enabled`;
-            const storedEnabled = storage.get(enabledStorageKey);
-            toggle.checked = storedEnabled === null
-                ? feature.legacyEnabledStorageKey
-                    ? storage.readBoolean(feature.legacyEnabledStorageKey, feature.defaultEnabled !== false)
-                    : feature.defaultEnabled !== false
-                : storedEnabled === 'true';
-            toggle.addEventListener('change', () => {
-                registry.setEnabled(feature.id, toggle.checked);
-                refresh();
-            });
-            toggleRow.append(toggle, document.createTextNode('Activer la feature'));
-            card.append(toggleRow);
-
-            if (toggle.checked && typeof feature.settings.render === 'function') {
-                const customSettings = document.createElement('div');
-                customSettings.className = 'tm-t4-next-settings-feature-content';
-                try {
-                    feature.settings.render(customSettings, {
-                        context: registry.getActiveContext(feature.id),
-                        refresh
-                    });
-                    card.append(customSettings);
-                } catch (error) {
-                    logger.error(`[PimpMyShoutbox Next] Settings render failed for '${feature.id}'.`, error);
+                if (toggle.checked && typeof feature.settings.render === 'function') {
+                    const customSettings = document.createElement('div');
+                    customSettings.className = 'tm-t4-next-settings-feature-content';
+                    try {
+                        feature.settings.render(customSettings, {
+                            context: registry.getActiveContext(feature.id),
+                            refresh
+                        });
+                        body.append(customSettings);
+                    } catch (error) {
+                        logger.error(`[PimpMyShoutbox Next] Settings render failed for '${feature.id}'.`, error);
+                    }
                 }
-            }
+            };
+            const setExpanded = (expanded) => {
+                card.dataset.expanded = String(expanded);
+                expandButton.setAttribute('aria-expanded', String(expanded));
+                expandButton.setAttribute('aria-label', `${expanded ? 'Masquer' : 'Afficher'} les réglages de ${feature.label || feature.id}`);
+                if (expanded) {
+                    expandedFeatureIds.add(feature.id);
+                    renderBody();
+                } else {
+                    expandedFeatureIds.delete(feature.id);
+                    body.replaceChildren();
+                }
+            };
+            expandButton.addEventListener('click', () => setExpanded(!expandedFeatureIds.has(feature.id)));
 
+            card.append(titleRow, body);
+            setExpanded(expandedFeatureIds.has(feature.id));
             content.append(card);
         }
     }
