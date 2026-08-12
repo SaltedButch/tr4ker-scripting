@@ -270,6 +270,7 @@ export default defineFeature({
     label: 'Barre de menu — Hommage à T9',
     defaultEnabled: true,
     legacyEnabledStorageKey: 'tm_t4_topbar_stats_enabled',
+    exclusiveWith: ['matrix-header', 'sober-header'],
     pages: [],
     storageKeys: ['tm_t4_topbar_stats_enabled', ALL_SITE_STORAGE_KEY],
     settings: { area: 'site', category: 'appearance', order: 10, render: renderT9HeaderSettings },
@@ -309,7 +310,8 @@ export default defineFeature({
             const notificationButton = getNotificationButton();
             const header = notificationButton?.closest('header[role="banner"]');
             const allSite = context.storage.readBoolean(ALL_SITE_STORAGE_KEY, true);
-            if (!context.platform.isTr4kerPage() || (!allSite && !context.platform.isChatPage()) || !(header instanceof HTMLElement)) {
+            const matrixEnabled = context.storage.get('tm-t4-next:feature:matrix-header:enabled') === 'true';
+            if (matrixEnabled || !context.platform.isTr4kerPage() || (!allSite && !context.platform.isChatPage()) || !(header instanceof HTMLElement)) {
                 destroy();
                 return;
             }

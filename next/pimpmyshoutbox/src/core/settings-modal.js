@@ -46,6 +46,8 @@ function ensureStyle() {
         #${MODAL_ID} .tm-t4-next-settings-feature-card .tm-t4-next-settings-card-title { gap:8px; min-height:48px; margin:0; padding:0 14px; }
         #${MODAL_ID} .tm-t4-next-settings-card-expander { display:flex; flex:1; align-items:center; min-width:0; gap:9px; padding:0; border:0; background:transparent; color:#f4f4f5; font:inherit; text-align:left; cursor:pointer; }
         #${MODAL_ID} .tm-t4-next-settings-card-expander:hover { color:#fff; }
+        #${MODAL_ID} .tm-t4-next-settings-feature-card[data-feature-enabled="true"] .tm-t4-next-settings-card-expander { color:#86efac; }
+        #${MODAL_ID} .tm-t4-next-settings-feature-card[data-feature-enabled="false"] .tm-t4-next-settings-card-expander { color:#fca5a5; }
         #${MODAL_ID} .tm-t4-next-settings-card-expander-icon { color:#a1a1aa; font-size:12px; transition:transform .16s ease; }
         #${MODAL_ID} .tm-t4-next-settings-card-expander[aria-expanded="true"] .tm-t4-next-settings-card-expander-icon { transform:rotate(90deg); }
         #${MODAL_ID} .tm-t4-next-settings-feature-card .tm-t4-next-settings-card-body { padding:0 14px 14px; }
@@ -221,8 +223,16 @@ export function createSettingsModal({ registry, storage, globalSettings, logger 
 
     function renderFeatureCards(content, features, refresh) {
         for (const feature of features) {
+            const enabledStorageKey = `tm-t4-next:feature:${feature.id}:enabled`;
+            const storedEnabled = storage.get(enabledStorageKey);
+            const isEnabled = storedEnabled === null
+                ? feature.legacyEnabledStorageKey
+                    ? storage.readBoolean(feature.legacyEnabledStorageKey, feature.defaultEnabled !== false)
+                    : feature.defaultEnabled !== false
+                : storedEnabled === 'true';
             const card = document.createElement('section');
             card.className = 'tm-t4-next-settings-card tm-t4-next-settings-feature-card';
+            card.dataset.featureEnabled = String(isEnabled);
 
             const titleRow = document.createElement('div');
             titleRow.className = 'tm-t4-next-settings-card-title';
@@ -261,13 +271,7 @@ export function createSettingsModal({ registry, storage, globalSettings, logger 
                 toggleRow.className = 'tm-t4-next-settings-card-toggle';
                 const toggle = document.createElement('input');
                 toggle.type = 'checkbox';
-                const enabledStorageKey = `tm-t4-next:feature:${feature.id}:enabled`;
-                const storedEnabled = storage.get(enabledStorageKey);
-                toggle.checked = storedEnabled === null
-                    ? feature.legacyEnabledStorageKey
-                        ? storage.readBoolean(feature.legacyEnabledStorageKey, feature.defaultEnabled !== false)
-                        : feature.defaultEnabled !== false
-                    : storedEnabled === 'true';
+                toggle.checked = isEnabled;
                 toggle.addEventListener('change', () => {
                     registry.setEnabled(feature.id, toggle.checked);
                     refresh();

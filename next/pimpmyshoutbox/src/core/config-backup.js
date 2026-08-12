@@ -61,7 +61,9 @@ const NEXT_STORAGE_KEYS = [
     'tm-t4-next:feature:highlight-users:enabled',
     'tm-t4-next:feature:chat-sidebar:enabled',
     'tm-t4-next:feature:youtube-player:enabled',
-    'tm-t4-next:feature:t9-header:enabled'
+    'tm-t4-next:feature:t9-header:enabled',
+    'tm-t4-next:feature:matrix-header:enabled',
+    'tm-t4-next:feature:sober-header:enabled'
 ];
 
 const STORAGE_KEYS = Object.freeze([...new Set([...V3_STORAGE_KEYS, ...NEXT_STORAGE_KEYS])]);

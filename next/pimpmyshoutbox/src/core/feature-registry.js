@@ -29,6 +29,9 @@ export function defineFeature(definition) {
     if (definition.shortcuts !== undefined && !Array.isArray(definition.shortcuts)) {
         throw new Error(`Feature '${definition.id}' shortcuts must be an array.`);
     }
+    if (definition.exclusiveWith !== undefined && !Array.isArray(definition.exclusiveWith)) {
+        throw new Error(`Feature '${definition.id}' exclusiveWith must be an array.`);
+    }
 
     const shortcutIds = new Set();
     for (const shortcut of definition.shortcuts || []) {
@@ -51,6 +54,7 @@ export function defineFeature(definition) {
         pages: [],
         shortcuts: [],
         hints: [],
+        exclusiveWith: [],
         ...definition,
         settings: {
             category: settingsCategory,
@@ -139,6 +143,20 @@ export function createFeatureRegistry({ appId, getPage, logger, services }) {
             const context = activeContexts.get(featureId)
                 || createFeatureContext({ appId, feature, getPage, logger, services });
             context.setEnabled(enabled);
+
+            if (enabled) {
+                for (const conflictingFeatureId of feature.exclusiveWith) {
+                    const conflictingFeature = features.get(conflictingFeatureId);
+                    if (!conflictingFeature) {
+                        logger.warn(`[PimpMyShoutbox Next] Feature '${featureId}' declares unknown exclusive feature '${conflictingFeatureId}'.`);
+                        continue;
+                    }
+                    const conflictingContext = activeContexts.get(conflictingFeatureId)
+                        || createFeatureContext({ appId, feature: conflictingFeature, getPage, logger, services });
+                    conflictingContext.setEnabled(false);
+                    refreshFeature(conflictingFeature);
+                }
+            }
             refreshFeature(feature);
         },
         getRegisteredFeatures() {
