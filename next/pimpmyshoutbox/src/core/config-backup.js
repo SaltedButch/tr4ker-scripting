@@ -70,6 +70,7 @@ const NEXT_STORAGE_KEYS = [
     'tm-t4-next:feature:chat-toolbar-layout:enabled',
     'tm-t4-next:feature:double-click-reply:enabled',
     'tm-t4-next:feature:message-editing:enabled',
+    'tm-t4-next:feature:saved-phrases:enabled',
     'tm-t4-next:feature:chat-image-zoom:enabled'
 ];
 
