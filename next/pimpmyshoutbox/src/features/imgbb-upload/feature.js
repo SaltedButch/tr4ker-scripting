@@ -8,6 +8,10 @@ const API_KEY_STORAGE = 'tm_t4_imgbb_api_key';
 const EXPIRATION_STORAGE = 'tm_t4_image_hosting_expiration_seconds';
 const MAX_BYTES = 32 * 1024 * 1024;
 const EXPIRATIONS = new Set([0, 600, 3600, 86400, 604800, 2592000, 15552000]);
+const EXPIRATION_OPTIONS = Object.freeze([
+    [0, 'Permanent'], [600, '10 min'], [3600, '1 h'], [86400, '1 jour'],
+    [604800, '7 jours'], [2592000, '30 jours'], [15552000, '180 jours']
+]);
 
 function fileLabel(file) { return `${file.name || 'image'} (${(file.size / 1024 / 1024).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Mo)`; }
 function imageFiles(files) { return [...(files || [])].filter((file) => file instanceof File && /^image\//i.test(file.type || '') && file.size > 0 && file.size <= MAX_BYTES); }
@@ -29,6 +33,11 @@ export default defineFeature({
         const button = createMediaButton({ label: '↑ Up-Img', title: 'Uploader ou insérer une image', colors: { background: 'linear-gradient(135deg,rgba(2,132,199,.84),rgba(14,116,144,.84))', border: 'rgba(125,211,252,.30)', text: '#ecfeff' } });
         const menu = createMediaMenu({ width: 520, maxHeight: '76vh' }); menu.setAttribute('aria-label', 'Upload d’image');
         const title = document.createElement('strong'); title.textContent = 'Upload d’image';
+        const expirationRow = document.createElement('label'); expirationRow.style.cssText = 'display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:10px;font-size:12px;color:#cbd5e1;';
+        expirationRow.append(document.createTextNode('Durée de vie'));
+        const expirationSelect = document.createElement('select'); expirationSelect.setAttribute('aria-label', 'Durée de vie des images'); expirationSelect.style.cssText = 'background:rgba(15,23,42,.75);color:#f8fafc;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:8px 9px;outline:none;font-size:12px;cursor:pointer;';
+        for (const [value, label] of EXPIRATION_OPTIONS) { const option = document.createElement('option'); option.value = String(value); option.textContent = label; expirationSelect.append(option); }
+        expirationRow.append(expirationSelect);
         const drop = document.createElement('div'); drop.tabIndex = 0; drop.style.cssText = 'margin-top:10px;padding:14px;border:1px dashed rgba(56,189,248,.5);border-radius:13px;background:rgba(14,165,233,.08);color:#e0f2fe;';
         const dropTitle = document.createElement('div'); dropTitle.textContent = 'Collez, glissez ou choisissez une image'; dropTitle.style.fontWeight = '700';
         const pick = createMediaButton({ label: 'Choisir une image', title: 'Choisir une image', colors: { background: '#0284c7', text: '#fff' } }); pick.style.marginTop = '9px';
@@ -46,10 +55,11 @@ export default defineFeature({
         const purge = createMediaButton({ label: 'Vérifier / purger', title: 'Vérifier les liens du catalogue', colors: { background: '#3f3f46', text: '#fff' } });
         const clear = createMediaButton({ label: 'Vider local', title: 'Vider le catalogue local', colors: { background: '#3f3f46', text: '#fca5a5' } }); catalogActions.append(purge, clear); catalogHeader.append(catalogTitle, catalogActions);
         const catalogList = document.createElement('div'); catalogList.style.cssText = 'display:grid;gap:7px;margin-top:8px;max-height:250px;overflow:auto;padding-right:2px;';
-        menu.append(title, drop, pending, insertAfter, upload, directRow, catalogHeader, catalogList, feedback);
+        menu.append(title, expirationRow, drop, pending, insertAfter, upload, directRow, catalogHeader, catalogList, feedback);
         let files = [];
         const renderPending = () => { pending.replaceChildren(); if (!files.length) { pending.textContent = 'Aucune image sélectionnée.'; } else { for (const file of files) { const row = document.createElement('div'); row.textContent = fileLabel(file); pending.append(row); } } window.requestAnimationFrame(() => { if (menu.dataset.tmOpen === '1') positionMediaMenu(menu, button); }); };
         const setFeedback = (message, error = false) => { feedback.textContent = message; feedback.style.color = error ? '#fca5a5' : '#cbd5f5'; };
+        const syncExpiration = () => { expirationSelect.value = String(expiration(context.storage)); };
         const refreshCatalog = renderImageCatalog(catalogList, runtime, { limit: 8, compact: true, onChange: (message, error = false) => { setFeedback(message, error); refreshCatalog(); } });
         const addFiles = (nextFiles) => { const accepted = imageFiles(nextFiles); const rejected = [...(nextFiles || [])].length - accepted.length; files = [...files, ...accepted]; renderPending(); if (rejected) setFeedback(`Certaines images sont invalides ou dépassent 32 Mo.`, true); };
         async function uploadFiles() {
@@ -67,6 +77,12 @@ export default defineFeature({
             } catch (error) { setFeedback(error.message || 'Upload ImgBB impossible.', true); } finally { upload.disabled = false; }
         }
         pick.addEventListener('click', () => input.click()); input.addEventListener('change', () => { addFiles(input.files); input.value = ''; });
+        expirationSelect.addEventListener('change', () => {
+            const selected = expirationSelect.selectedOptions[0]?.textContent || 'Permanent';
+            context.storage.set(EXPIRATION_STORAGE, expirationSelect.value);
+            syncExpiration();
+            setFeedback(`Durée de vie : ${selected}.`);
+        });
         drop.addEventListener('dragover', (event) => { event.preventDefault(); if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'; });
         drop.addEventListener('drop', (event) => { event.preventDefault(); addFiles(event.dataTransfer?.files); });
         drop.addEventListener('paste', (event) => { const next = event.clipboardData?.files; if (next?.length) { event.preventDefault(); addFiles(next); } }); upload.addEventListener('click', () => void uploadFiles());
@@ -74,7 +90,7 @@ export default defineFeature({
         directUrl.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); addDirect.click(); } });
         purge.addEventListener('click', async () => { setFeedback('Vérification des liens images…'); const result = await catalog.purge(); setFeedback(result.message, !result.ok); refreshCatalog(); });
         clear.addEventListener('click', () => { if (!window.confirm('Vider le catalogue local ?')) return; const result = catalog.clear(); setFeedback(result.message, !result.ok); refreshCatalog(); });
-        button.addEventListener('click', () => { if (menu.dataset.tmOpen === '1') hideMediaMenu(menu); else { showMediaMenu(menu, button); renderPending(); } });
+        button.addEventListener('click', () => { if (menu.dataset.tmOpen === '1') hideMediaMenu(menu); else { syncExpiration(); showMediaMenu(menu, button); renderPending(); } });
         context.on(document, 'paste', (event) => { const target = event.target; if (!(target instanceof HTMLElement) || target !== context.input.get()) return; if (!event.clipboardData?.files?.length) return; event.preventDefault(); addFiles(event.clipboardData.files); showMediaMenu(menu, button); });
         context.on(document, 'click', (event) => { if (event.target instanceof Node && !menu.contains(event.target) && !button.contains(event.target)) hideMediaMenu(menu); });
         context.on(document, 'keydown', (event) => { if (event.key === 'Escape') hideMediaMenu(menu); });
