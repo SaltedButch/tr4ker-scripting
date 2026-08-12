@@ -5,6 +5,7 @@ const SPACE_ATTR = 'data-tm-t4-media-toolbar-space';
 const STYLE_ID = 'tm-t4-next-media-toolbar-style';
 const INLINE_STORAGE_KEY = 'tm_t4_chat_input_toolbar_inline';
 const ALIGN_RIGHT_STORAGE_KEY = 'tm_t4_chat_input_toolbar_align_right';
+const LAYOUT_FEATURE_ENABLED_STORAGE_KEY = 'tm-t4-next:feature:chat-toolbar-layout:enabled';
 const RESERVED_HEIGHT_PX = 46;
 const DOCKED_GAP_PX = 6;
 
@@ -34,8 +35,9 @@ export function createMediaToolbar({ platform, storage }) {
     const mounts = new Map();
     let lastRailHost = null;
 
-    const isInline = () => storage.readBoolean(INLINE_STORAGE_KEY, false);
-    const isAlignedRight = () => storage.readBoolean(ALIGN_RIGHT_STORAGE_KEY, false);
+    const isLayoutEnabled = () => storage.get(LAYOUT_FEATURE_ENABLED_STORAGE_KEY) !== 'false';
+    const isInline = () => isLayoutEnabled() && storage.readBoolean(INLINE_STORAGE_KEY, false);
+    const isAlignedRight = () => isLayoutEnabled() && storage.readBoolean(ALIGN_RIGHT_STORAGE_KEY, false);
 
     function getContext() {
         const input = platform.getChatInput();

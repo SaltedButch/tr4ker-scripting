@@ -65,6 +65,11 @@ const NEXT_STORAGE_KEYS = [
     'tm-t4-next:feature:matrix-header:enabled',
     'tm-t4-next:feature:sober-header:enabled',
     'tm-t4-next:feature:custom-background:enabled',
+    'tm-t4-next:feature:message-actions-left:enabled',
+    'tm-t4-next:feature:chat-font-size:enabled',
+    'tm-t4-next:feature:chat-toolbar-layout:enabled',
+    'tm-t4-next:feature:double-click-reply:enabled',
+    'tm-t4-next:feature:message-editing:enabled',
     'tm-t4-next:feature:chat-image-zoom:enabled'
 ];
 

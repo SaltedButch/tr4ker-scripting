@@ -317,7 +317,7 @@ export function createSettingsModal({ registry, storage, globalSettings, logger 
         }
     }
 
-    function renderArea(content, area) {
+    function renderArea(content, area, requestedCategoryId = null) {
         content.replaceChildren();
         const categories = registry.getSettingsCategoriesForArea(area.id);
         if (categories.length === 0) {
@@ -332,11 +332,11 @@ export function createSettingsModal({ registry, storage, globalSettings, logger 
         content.append(title);
 
         const categoryStorageKey = activeCategoryStorageKey(area.id);
-        const storedCategoryId = storage.get(categoryStorageKey);
+        const storedCategoryId = requestedCategoryId || (area.id === 'site' ? 'appearance' : storage.get(categoryStorageKey));
         const activeCategory = categories.find((category) => category.id === storedCategoryId) || categories[0];
         const renderActiveCategory = () => {
             storage.set(categoryStorageKey, activeCategory.id);
-            renderArea(content, area);
+            renderArea(content, area, activeCategory.id);
         };
 
         if (categories.length > 1) {
@@ -351,7 +351,7 @@ export function createSettingsModal({ registry, storage, globalSettings, logger 
                 button.dataset.active = String(category.id === activeCategory.id);
                 button.addEventListener('click', () => {
                     storage.set(categoryStorageKey, category.id);
-                    renderArea(content, area);
+                    renderArea(content, area, category.id);
                 });
                 subcategoryTabs.append(button);
             }
