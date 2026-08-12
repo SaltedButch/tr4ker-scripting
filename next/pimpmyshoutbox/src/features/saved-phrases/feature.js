@@ -1,6 +1,7 @@
 import { CONFIGURATION_IMPORTED_EVENT } from '../../core/config-backup.js';
 import { defineFeature } from '../../core/feature-registry.js';
 import { createMediaButton, createMediaMenu, hideMediaMenu, positionMediaMenu, showMediaMenu } from '../../core/media-menu.js';
+import { createSavedPhrasesManager } from './manager.js';
 import { renderSavedPhrasesSettings } from './settings.js';
 import { createSavedPhrasesStore, downloadSavedPhrases, STORAGE_KEYS } from './store.js';
 
@@ -84,11 +85,11 @@ export default defineFeature({
             context.ui.toast.show(result.message, { error: !result.ok });
             if (result.ok) closeMenus();
         };
-        const openSettings = () => {
+        let manager = null;
+        const openManager = () => {
             closeMenus();
-            context.storage.set('tm-t4-next:settings:active-area', 'shoutbox');
-            context.storage.set('tm-t4-next:settings:active-subcategory:shoutbox', 'chat');
-            context.ui.settings.open();
+            context.ui.settings.close();
+            manager?.open();
         };
 
         const renderMenu = ({ focusFirst = false } = {}) => {
@@ -125,7 +126,7 @@ export default defineFeature({
             if (entries.length > MAX_VISIBLE_PHRASES) {
                 const all = makeTextButton(`Toutes les réponses (${entries.length})`, '#4c1d95'); all.style.cssText += 'width:100%;margin-top:7px;text-align:left;'; all.addEventListener('click', () => openPicker()); menu.append(all);
             }
-            const manage = makeTextButton('Gérer les réponses rapides'); manage.style.cssText += 'width:100%;margin-top:7px;text-align:left;'; manage.addEventListener('click', openSettings); menu.append(manage);
+            const manage = makeTextButton('Gérer les réponses rapides'); manage.style.cssText += 'width:100%;margin-top:7px;text-align:left;'; manage.addEventListener('click', openManager); menu.append(manage);
             if (menu.dataset.tmOpen === '1') positionMediaMenu(menu, toggle);
             if (focusFirst) window.requestAnimationFrame(() => menu.querySelector('[data-tm-saved-phrase-choice="1"]')?.focus());
         };
@@ -153,7 +154,7 @@ export default defineFeature({
                 if (picker.dataset.tmOpen === '1') positionMediaMenu(picker, toggle);
             };
             search.addEventListener('input', render); search.addEventListener('keydown', (event) => { if (event.key === 'Escape') hideMediaMenu(picker); });
-            const manage = makeTextButton('Gérer les réponses rapides'); manage.style.marginTop = '10px'; manage.addEventListener('click', openSettings);
+            const manage = makeTextButton('Gérer les réponses rapides'); manage.style.marginTop = '10px'; manage.addEventListener('click', openManager);
             picker.append(title, search, list, manage); render(); showMediaMenu(picker, toggle); window.requestAnimationFrame(() => search.focus());
         };
 
@@ -168,16 +169,27 @@ export default defineFeature({
             addMenu.append(title, text, keywords, save); showMediaMenu(addMenu, addButton); window.requestAnimationFrame(() => { text.focus(); text.setSelectionRange(text.value.length, text.value.length); });
         };
 
-        const runtime = {
-            maxLength: store.maxLength,
-            list: store.list,
-            add: (...args) => { const result = store.add(...args); renderMenu(); refreshToolbar(); return result; },
-            update: (...args) => { const result = store.update(...args); renderMenu(); refreshToolbar(); return result; },
-            remove: (...args) => { const result = store.remove(...args); renderMenu(); refreshToolbar(); return result; },
+        const syncAfterChange = () => { renderMenu(); refreshToolbar(); };
+        manager = createSavedPhrasesManager({
+            store,
             getReplaceInput: () => context.storage.readBoolean(STORAGE_KEYS.replaceInput, false),
             setReplaceInput: (enabled) => context.storage.writeBoolean(STORAGE_KEYS.replaceInput, enabled),
             download: () => downloadSavedPhrases(store.exportPayload()),
-            importPayload: (payload) => { const result = store.importPayload(payload); renderMenu(); refreshToolbar(); return result; }
+            onChange: syncAfterChange,
+            toast: (message) => context.ui.toast.show(message)
+        });
+
+        const runtime = {
+            maxLength: store.maxLength,
+            list: store.list,
+            add: (...args) => { const result = store.add(...args); syncAfterChange(); return result; },
+            update: (...args) => { const result = store.update(...args); syncAfterChange(); return result; },
+            remove: (...args) => { const result = store.remove(...args); syncAfterChange(); return result; },
+            getReplaceInput: () => context.storage.readBoolean(STORAGE_KEYS.replaceInput, false),
+            setReplaceInput: (enabled) => context.storage.writeBoolean(STORAGE_KEYS.replaceInput, enabled),
+            download: () => downloadSavedPhrases(store.exportPayload()),
+            importPayload: (payload) => { const result = store.importPayload(payload); syncAfterChange(); return result; },
+            openManager
         };
         context.savedPhrases = runtime;
 
@@ -219,6 +231,7 @@ export default defineFeature({
         return () => {
             delete context.savedPhrases;
             context.mediaToolbar.unmount('saved-phrases');
+            manager?.destroy();
             menu.remove(); picker.remove(); addMenu.remove();
         };
     },
