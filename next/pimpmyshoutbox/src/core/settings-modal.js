@@ -13,6 +13,10 @@ const MIN_WIDTH_PX = 380;
 const MIN_HEIGHT_PX = 260;
 const VIEWPORT_MARGIN_PX = 8;
 
+function activeCategoryStorageKey(areaId) {
+    return `${ACTIVE_CATEGORY_STORAGE_KEY}:${areaId}`;
+}
+
 function ensureStyle() {
     let style = document.getElementById(STYLE_ID);
     if (style instanceof HTMLStyleElement) return;
@@ -327,10 +331,11 @@ export function createSettingsModal({ registry, storage, globalSettings, logger 
         title.textContent = area.label;
         content.append(title);
 
-        const storedCategoryId = storage.get(ACTIVE_CATEGORY_STORAGE_KEY);
+        const categoryStorageKey = activeCategoryStorageKey(area.id);
+        const storedCategoryId = storage.get(categoryStorageKey);
         const activeCategory = categories.find((category) => category.id === storedCategoryId) || categories[0];
         const renderActiveCategory = () => {
-            storage.set(ACTIVE_CATEGORY_STORAGE_KEY, activeCategory.id);
+            storage.set(categoryStorageKey, activeCategory.id);
             renderArea(content, area);
         };
 
@@ -345,7 +350,7 @@ export function createSettingsModal({ registry, storage, globalSettings, logger 
                 button.textContent = category.label;
                 button.dataset.active = String(category.id === activeCategory.id);
                 button.addEventListener('click', () => {
-                    storage.set(ACTIVE_CATEGORY_STORAGE_KEY, category.id);
+                    storage.set(categoryStorageKey, category.id);
                     renderArea(content, area);
                 });
                 subcategoryTabs.append(button);

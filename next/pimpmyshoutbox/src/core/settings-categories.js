@@ -14,7 +14,7 @@ export const SETTINGS_CATEGORIES = Object.freeze([
     { id: 'mentions', label: 'Mentions', area: 'shoutbox', order: 40 },
     { id: 'media', label: 'Médias', area: 'shoutbox', order: 50 },
     { id: 'shortcuts', label: 'Raccourcis', area: 'shoutbox', order: 60 },
-    { id: 'appearance', label: 'Apparence', area: 'appearance', order: 60 },
+    { id: 'appearance', label: 'Apparence', area: 'site', order: 60 },
     { id: 'statistics', label: 'Statistiques', area: 'site', order: 70 },
     { id: 'site', label: 'Réglages du site', area: 'site', order: 80 },
     { id: 'profile', label: 'Profil', area: 'profile', order: 90 },
