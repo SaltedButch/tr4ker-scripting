@@ -72,6 +72,8 @@ const NEXT_STORAGE_KEYS = [
     'tm-t4-next:feature:message-editing:enabled',
     'tm-t4-next:feature:saved-phrases:enabled',
     'tm-t4-next:feature:emoji-favorites:enabled',
+    'tm-t4-next:feature:channel-unread-badges:enabled',
+    'tm_t4_hidden_channel_unread_badges_channels',
     'tm-t4-next:feature:chat-image-zoom:enabled'
 ];
 
