@@ -3,9 +3,9 @@ import { defineFeature } from '../../core/feature-registry.js';
 import { renderMultiChannelViewSettings } from './settings.js';
 
 const OPEN_IDS_STORAGE_KEY = 'tm_t4_multi_channel_view_open_ids';
-const ROOT_ID = 'tm-t4-next-multi-channel-view';
-const EXIT_ID = 'tm-t4-next-multi-channel-view-exit';
 const PLUS_ATTR = 'data-tm-t4-multi-channel-plus';
+const PANE_ATTR = 'data-tm-t4-multi-channel-pane';
+const NATIVE_ATTR = 'data-tm-t4-multi-channel-native';
 const STYLE_ID = 'tm-t4-next-multi-channel-view-style';
 const MAX_CHANNELS = 4;
 
@@ -15,11 +15,20 @@ function comparable(value) {
 
 function safeOpenedIds(storage) {
     const raw = storage.readJson(OPEN_IDS_STORAGE_KEY, []);
-    return Array.isArray(raw) ? [...new Set(raw.map((id) => String(id || '').trim()).filter(Boolean))].slice(0, MAX_CHANNELS) : [];
+    return Array.isArray(raw) ? [...new Set(raw.map((id) => String(id || '').trim()).filter(Boolean))].slice(0, MAX_CHANNELS - 1) : [];
 }
 
 function saveOpenedIds(storage, ids) {
-    storage.writeJson(OPEN_IDS_STORAGE_KEY, [...new Set(ids.map((id) => String(id || '').trim()).filter(Boolean))].slice(0, MAX_CHANNELS));
+    storage.writeJson(OPEN_IDS_STORAGE_KEY, [...new Set(ids.map((id) => String(id || '').trim()).filter(Boolean))].slice(0, MAX_CHANNELS - 1));
+}
+
+function findChild(element, selector) {
+    return element instanceof HTMLElement ? element.querySelector(selector) : null;
+}
+
+function cloneShell(element, fallbackTag = 'div') {
+    if (element instanceof HTMLElement) return element.cloneNode(false);
+    return document.createElement(fallbackTag);
 }
 
 function getChannelRows(platform) {
@@ -42,22 +51,9 @@ async function fetchChannels() {
         id: String(channel?.id ?? '').trim(),
         slug: String(channel?.slug ?? '').trim(),
         name: String(channel?.name ?? channel?.slug ?? '').trim(),
+        description: String(channel?.description ?? '').trim(),
         isMember: channel?.is_member === true
     })).filter((channel) => channel.id && channel.slug && channel.name);
-}
-
-function formatTime(value) {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
-    return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-}
-
-function messageAuthor(message) {
-    return String(message?.sender ?? message?.author?.username ?? message?.username ?? 'Utilisateur').trim() || 'Utilisateur';
-}
-
-function messageBody(message) {
-    return String(message?.body ?? message?.content ?? '').trim();
 }
 
 async function fetchMessages(channelId) {
@@ -67,6 +63,161 @@ async function fetchMessages(channelId) {
     return (Array.isArray(payload?.messages) ? payload.messages : []).reverse();
 }
 
+function formatTime(value) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function senderName(message) {
+    return String(message?.sender ?? message?.author?.username ?? message?.username ?? 'Utilisateur').trim() || 'Utilisateur';
+}
+
+function avatarInitial(name) {
+    return String(name || '?').trim().slice(0, 1).toLocaleUpperCase('fr') || '?';
+}
+
+function appendMessageBody(container, body) {
+    const source = String(body || '');
+    const imagePattern = /\[img\](https?:\/\/[^\s\]]+)\[\/img\]/gi;
+    let offset = 0;
+    for (const match of source.matchAll(imagePattern)) {
+        if (match.index > offset) container.append(document.createTextNode(source.slice(offset, match.index)));
+        const image = document.createElement('img');
+        image.src = match[1]; image.alt = ''; image.loading = 'lazy'; image.referrerPolicy = 'no-referrer';
+        image.style.cssText = 'display:block;max-width:min(100%,420px);max-height:320px;border-radius:8px;object-fit:contain;';
+        container.append(image); offset = match.index + match[0].length;
+    }
+    if (offset < source.length || !container.childNodes.length) container.append(document.createTextNode(source.slice(offset) || 'Message supprimé'));
+}
+
+function createSocket(onPacket) {
+    let socket = null;
+    let retryTimer = null;
+    let stopped = false;
+    const queue = [];
+    const connect = () => {
+        if (stopped || socket?.readyState === WebSocket.OPEN || socket?.readyState === WebSocket.CONNECTING) return;
+        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        socket = new WebSocket(`${protocol}//${location.host}/api/ws`);
+        socket.addEventListener('open', () => { while (queue.length) socket?.send(queue.shift()); });
+        socket.addEventListener('message', (event) => {
+            try {
+                const payload = JSON.parse(event.data);
+                if (payload?.type === 'ping') { socket?.send(JSON.stringify({ type: 'pong' })); return; }
+                onPacket(payload);
+            } catch { /* paquet non exploitable */ }
+        });
+        socket.addEventListener('close', () => {
+            if (!stopped) retryTimer = window.setTimeout(connect, 1500);
+        }, { once: true });
+    };
+    return Object.freeze({
+        connect,
+        send(packet) { queue.push(JSON.stringify(packet)); connect(); if (socket?.readyState === WebSocket.OPEN) socket.send(queue.shift()); },
+        close() { stopped = true; if (retryTimer) window.clearTimeout(retryTimer); socket?.close(); }
+    });
+}
+
+function getNativeWindow(chatArea) {
+    return [...(chatArea?.children || [])].find((element) => element instanceof HTMLElement
+        && !element.hasAttribute(PANE_ATTR) && [...element.classList].some((name) => name.includes('window'))) || null;
+}
+
+function createTemplates(nativeWindow) {
+    const header = findChild(nativeWindow, ':scope > [class*="header"]');
+    const headerLeft = findChild(header, '[class*="headerLeft"]');
+    const icon = findChild(header, '[class*="convIcon"]');
+    const titleGroup = findChild(header, '[class*="convTitleGroup"]');
+    const titleRow = findChild(header, '[class*="convTitleRow"]');
+    const title = findChild(header, '[class*="convTitle"]');
+    const description = findChild(header, '[class*="convDescription"]');
+    const list = findChild(nativeWindow, ':scope > [class*="messageList"]');
+    const message = findChild(list, '[data-msg-id]');
+    const avatar = findChild(message, ':scope > [class*="msgAvatar"], :scope > [class*="msgAvatarSpacer"]');
+    const avatarSpacer = findChild(list, '[class*="msgAvatarSpacer"]');
+    const avatarImage = findChild(message, '[class*="msgAvatarImg"]');
+    const content = findChild(message, '[class*="msgContent"]');
+    const meta = findChild(message, '[class*="msgMeta"]');
+    const sender = findChild(message, '[class*="msgSender"]');
+    const time = findChild(message, '[class*="msgTime"]');
+    const bubble = findChild(message, '[class*="msgBubble"]');
+    const actions = findChild(message, '[data-msg-actions]');
+    const actionButton = findChild(actions, 'button');
+    const inputWrapper = findChild(nativeWindow, ':scope > [class*="inputWrapper"]');
+    const inputArea = findChild(inputWrapper, '[class*="inputArea"]');
+    const inputField = findChild(inputWrapper, '[class*="inputField"]');
+    const input = findChild(inputWrapper, 'textarea');
+    const sendButton = findChild(inputWrapper, '[class*="sendBtn"]');
+    return { nativeWindow, header, headerLeft, icon, titleGroup, titleRow, title, description, list, message, avatar, avatarSpacer, avatarImage, content, meta, sender, time, bubble, actions, actionButton, inputWrapper, inputArea, inputField, input, sendButton };
+}
+
+function createIcon(name) {
+    const icon = document.createElement('span'); icon.className = 'material-symbols-outlined'; icon.textContent = name; return icon;
+}
+
+function cloneHeader(templates, channel, onClose) {
+    const header = cloneShell(templates.header); const left = cloneShell(templates.headerLeft); const icon = cloneShell(templates.icon, 'span');
+    icon.textContent = 'tag';
+    const group = cloneShell(templates.titleGroup); const row = cloneShell(templates.titleRow); const title = cloneShell(templates.title, 'span');
+    title.textContent = channel.name; row.append(title); group.append(row);
+    if (channel.description) { const description = cloneShell(templates.description, 'span'); description.textContent = channel.description; group.append(description); }
+    left.append(icon, group);
+    const close = document.createElement('button'); close.type = 'button'; close.className = 'tm-t4-mcv-pane-close'; close.title = `Fermer #${channel.name}`; close.setAttribute('aria-label', close.title); close.append(createIcon('close')); close.addEventListener('click', onClose);
+    header.append(left, close); return header;
+}
+
+function createMessageElement(templates, message, previousMessage, onReply, onReaction) {
+    const row = cloneShell(templates.message); row.setAttribute('data-msg-id', String(message?.id ?? '')); row.dataset.tmT4MultiChannelMessageId = String(message?.id ?? '');
+    const name = senderName(message); const grouped = previousMessage && senderName(previousMessage) === name;
+    if (grouped) row.className = `${row.className} tm-t4-mcv-grouped`;
+    const avatar = cloneShell(grouped ? templates.avatarSpacer : templates.avatar, grouped ? 'div' : 'button'); avatar.replaceChildren();
+    if (!grouped) {
+        avatar.title = name; avatar.setAttribute('aria-label', `Profil de ${name}`);
+        if (message?.avatar_url) { const image = cloneShell(templates.avatarImage, 'img'); image.src = message.avatar_url; image.alt = ''; avatar.append(image); } else avatar.textContent = avatarInitial(name);
+    }
+    const content = cloneShell(templates.content); const meta = cloneShell(templates.meta); const sender = cloneShell(templates.sender, 'button'); sender.type = 'button'; sender.textContent = name;
+    const roleColor = message?.sender_role === 'admin' ? '#16a34a' : message?.sender_role === 'moderator' ? '#f59e0b' : '';
+    if (roleColor) sender.style.color = roleColor;
+    const time = cloneShell(templates.time, 'span'); time.textContent = formatTime(message?.created_at ?? message?.at);
+    if (!grouped) meta.append(sender, time);
+    if (message?.parent) {
+        const quote = document.createElement('div'); quote.className = 'tm-t4-mcv-quote'; quote.textContent = `↪ réponse à @${message.parent.sender || 'utilisateur'} : ${message.parent.body || 'message supprimé'}`; content.append(quote);
+    }
+    const bubble = cloneShell(templates.bubble); bubble.replaceChildren(); appendMessageBody(bubble, message?.body); content.append(meta, bubble);
+    const reactions = message?.reactions && typeof message.reactions === 'object' ? Object.entries(message.reactions).filter(([, count]) => Number(count) > 0) : [];
+    if (reactions.length) {
+        const bar = document.createElement('div'); bar.className = 'tm-t4-mcv-reactions';
+        for (const [emoji, count] of reactions) { const button = document.createElement('button'); button.type = 'button'; button.textContent = `${emoji} ${count}`; button.title = `Réagir avec ${emoji}`; button.addEventListener('click', () => onReaction(message, emoji)); bar.append(button); }
+        content.append(bar);
+    }
+    const actions = cloneShell(templates.actions); const reply = cloneShell(templates.actionButton, 'button'); reply.type = 'button'; reply.title = 'Répondre'; reply.setAttribute('aria-label', reply.title); reply.replaceChildren(createIcon('reply')); reply.addEventListener('click', () => onReply(message)); actions.append(reply); content.append(actions); row.append(avatar, content); return row;
+}
+
+function createPane(templates, channel, state, { onClose, onSend, onReaction }) {
+    const pane = cloneShell(templates.nativeWindow); pane.setAttribute(PANE_ATTR, channel.id); pane.setAttribute('aria-label', `Canal #${channel.name}`);
+    const list = cloneShell(templates.list); list.dataset.tmT4MultiChannelMessages = channel.id;
+    const inputWrapper = cloneShell(templates.inputWrapper); const inputArea = cloneShell(templates.inputArea); const inputField = cloneShell(templates.inputField); const input = cloneShell(templates.input, 'textarea');
+    input.value = ''; input.placeholder = `Message dans #${channel.name}…`; input.removeAttribute('data-tm-chat-input-toolbar-sync-bound'); input.dataset.tmT4MultiChannelInput = channel.id;
+    const activateInput = () => {
+        document.querySelectorAll('textarea[data-tm-t4-multi-channel-input-active="1"]').forEach((element) => element.removeAttribute('data-tm-t4-multi-channel-input-active'));
+        input.setAttribute('data-tm-t4-multi-channel-input-active', '1');
+    };
+    input.addEventListener('focus', activateInput); pane.addEventListener('pointerdown', activateInput, true);
+    const send = cloneShell(templates.sendButton, 'button'); send.type = 'button'; send.disabled = false; send.setAttribute('aria-label', 'Envoyer'); send.replaceChildren(createIcon('send'));
+    const replyBanner = document.createElement('div'); replyBanner.className = 'tm-t4-mcv-reply-banner'; replyBanner.hidden = true;
+    const sendCurrent = () => { const body = input.value.trim(); if (!body) return; onSend(channel, body, state.replyTo); state.replyTo = null; replyBanner.hidden = true; input.value = ''; };
+    send.addEventListener('click', sendCurrent); input.addEventListener('keydown', (event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendCurrent(); } });
+    inputField.append(input); inputArea.append(inputField, send); inputWrapper.append(replyBanner, inputArea);
+    const renderMessages = () => {
+        const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+        list.replaceChildren(); let previous = null;
+        for (const message of state.messages) { list.append(createMessageElement(templates, message, previous, (replyTo) => { state.replyTo = replyTo; replyBanner.hidden = false; replyBanner.textContent = `Réponse à ${senderName(replyTo)} · cliquer pour annuler`; replyBanner.onclick = () => { state.replyTo = null; replyBanner.hidden = true; }; input.focus(); }, onReaction)); previous = message; }
+        if (nearBottom) list.scrollTop = list.scrollHeight;
+    };
+    pane.append(cloneHeader(templates, channel, onClose), list, inputWrapper); renderMessages();
+    return { pane, list, input, renderMessages };
+}
+
 export default defineFeature({
     id: 'multi-channel-view',
     label: 'Mosaïque de canaux · Alpha',
@@ -74,160 +225,138 @@ export default defineFeature({
     pages: ['chat'],
     storageKeys: [OPEN_IDS_STORAGE_KEY],
     settings: { area: 'shoutbox', category: 'shoutbox-appearance', order: 30, render: renderMultiChannelViewSettings },
-    hints: [{ id: 'purpose', title: 'Fonctionnalité alpha', text: 'Utilisez le bouton + d’un canal pour l’ajouter à une mosaïque. Cette fonctionnalité est encore en cours de développement et certaines interactions du chat ne sont pas encore disponibles.', kind: 'warning', order: 10 }],
+    hints: [{ id: 'purpose', title: 'Fonctionnalité alpha', text: 'Le canal actif reste natif. Utilisez le bouton + d’un canal pour ouvrir jusqu’à trois panneaux supplémentaires.', kind: 'warning', order: 10 }],
     setup(context) {
         let channels = [];
         let openedIds = safeOpenedIds(context.storage);
+        const panelStates = new Map();
         let socket = null;
-        const queuedPackets = [];
-
-        const sendPacket = (packet) => {
-            const encoded = JSON.stringify(packet);
-            if (socket?.readyState === WebSocket.OPEN) { socket.send(encoded); return; }
-            queuedPackets.push(encoded);
-            if (socket?.readyState === WebSocket.CONNECTING) return;
-            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-            socket = new WebSocket(`${protocol}//${location.host}/api/ws`);
-            socket.addEventListener('open', () => {
-                while (queuedPackets.length) socket?.send(queuedPackets.shift());
-            }, { once: true });
-            socket.addEventListener('message', (event) => {
-                try {
-                    const payload = JSON.parse(event.data);
-                    if (payload?.type === 'ping') socket?.send(JSON.stringify({ type: 'pong' }));
-                } catch { /* paquet non exploitable : le rafraîchissement reste la source de vérité */ }
-            });
-        };
 
         context.ensureStyle(STYLE_ID, `
-            #${ROOT_ID}{position:absolute;inset:0;z-index:12;display:grid;gap:8px;padding:8px;background:#111113;color:#f4f4f5;overflow:hidden}
-            #${ROOT_ID}[data-count="2"]{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
-            #${ROOT_ID}[data-count="3"]{grid-template-columns:minmax(0,1.32fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,1fr)}
-            #${ROOT_ID}[data-count="3"] .tm-t4-mcv-pane:first-of-type{grid-row:1 / span 2}
-            #${ROOT_ID}[data-count="4"]{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr))}
-            #${ROOT_ID} .tm-t4-mcv-pane{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;border:1px solid rgba(255,255,255,.13);border-radius:10px;background:#18181b;box-shadow:0 8px 20px rgba(0,0,0,.24)}
-            #${ROOT_ID} .tm-t4-mcv-header{display:flex;align-items:center;min-height:42px;padding:0 45px 0 14px;border-bottom:1px solid rgba(255,255,255,.1);background:#202025;color:#f4f4f5;font:700 14px/1.2 system-ui}
-            #${ROOT_ID} .tm-t4-mcv-messages{flex:1;min-height:0;overflow:auto;padding:10px;background:#111113}
-            #${ROOT_ID} .tm-t4-mcv-message{padding:7px 9px;border-radius:7px;color:#e4e4e7;font:13px/1.45 system-ui;word-break:break-word}
-            #${ROOT_ID} .tm-t4-mcv-message:hover{background:rgba(255,255,255,.045)}
-            #${ROOT_ID} .tm-t4-mcv-message-author{margin-right:7px;color:#f472b6;font-weight:700}
-            #${ROOT_ID} .tm-t4-mcv-message-time{margin-right:8px;color:#71717a;font-size:11px}
-            #${ROOT_ID} .tm-t4-mcv-empty{padding:18px 10px;color:#a1a1aa;font:13px/1.45 system-ui;text-align:center}
-            #${ROOT_ID} .tm-t4-mcv-compose{display:flex;gap:7px;padding:8px;border-top:1px solid rgba(255,255,255,.1);background:#202025}
-            #${ROOT_ID} .tm-t4-mcv-compose textarea{flex:1;min-width:0;min-height:34px;max-height:86px;resize:vertical;border:1px solid rgba(255,255,255,.17);border-radius:7px;background:#111113;color:#f4f4f5;padding:7px 8px;font:13px/1.3 system-ui}
-            #${ROOT_ID} .tm-t4-mcv-send{align-self:flex-end;border:0;border-radius:7px;background:#2563eb;color:#fff;padding:8px 10px;cursor:pointer;font:700 12px/1 system-ui}
-            #${ROOT_ID} .tm-t4-mcv-send:disabled{opacity:.55;cursor:wait}
-            #${ROOT_ID} .tm-t4-mcv-pane-close,#${ROOT_ID} .tm-t4-mcv-exit{position:absolute;z-index:2;display:grid;place-items:center;border:1px solid rgba(255,255,255,.18);border-radius:7px;background:rgba(24,24,27,.9);color:#fff;cursor:pointer;font:700 17px/1 system-ui}
-            #${ROOT_ID} .tm-t4-mcv-pane-close{top:8px;right:8px;width:28px;height:28px}
-            #${ROOT_ID} .tm-t4-mcv-exit{top:14px;right:14px;width:32px;height:32px;background:#7f1d1d;box-shadow:0 3px 13px rgba(0,0,0,.42)}
-            [${PLUS_ATTR}="1"]{display:inline-grid!important;place-items:center!important;flex:0 0 auto!important;width:22px!important;height:22px!important;margin-left:auto!important;padding:0!important;border:1px solid rgba(96,165,250,.34)!important;border-radius:6px!important;background:rgba(30,58,138,.42)!important;color:#bfdbfe!important;cursor:pointer!important;font:700 17px/1 system-ui!important}
-            @media(max-width:760px){#${ROOT_ID}{position:fixed;inset:8px;z-index:1000100;grid-template-columns:1fr!important;grid-template-rows:repeat(var(--tm-mcv-count),minmax(0,1fr))!important}#${ROOT_ID}[data-count="3"] .tm-t4-mcv-pane:first-of-type{grid-row:auto}}
+            [data-tm-t4-multi-channel-layout="2"]{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr)!important;gap:8px!important;padding:8px!important;overflow:hidden!important}
+            [data-tm-t4-multi-channel-layout="3"]{display:grid!important;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr) minmax(0,1fr)!important;gap:8px!important;padding:8px!important;overflow:hidden!important}
+            [data-tm-t4-multi-channel-layout="4"]{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:repeat(2,minmax(0,1fr))!important;gap:8px!important;padding:8px!important;overflow:hidden!important}
+            [data-tm-t4-multi-channel-layout] > [class*="mobileBar"]{display:none!important}
+            [data-tm-t4-multi-channel-layout] > [${NATIVE_ATTR}], [data-tm-t4-multi-channel-layout] > [${PANE_ATTR}]{display:flex!important;width:auto!important;max-width:none!important;min-width:0!important;min-height:0!important;height:auto!important;overflow:hidden!important;border:1px solid rgba(255,255,255,.12);border-radius:10px;box-shadow:0 8px 22px rgba(0,0,0,.24)}
+            [${PANE_ATTR}] [class*="messageList"]{min-height:0!important}
+            [${PANE_ATTR}] [class*="inputWrapper"]{flex:0 0 auto!important}
+            .tm-t4-mcv-pane-close{display:inline-grid;place-items:center;width:30px;height:30px;padding:0;margin-left:auto;flex:0 0 auto;border:1px solid rgba(255,255,255,.16);border-radius:8px;background:rgba(39,39,42,.94);color:#fff;cursor:pointer;transition:background .16s ease,transform .16s ease}.tm-t4-mcv-pane-close:hover{background:#7f1d1d}.tm-t4-mcv-pane-close:active{transform:scale(.91)}
+            [${PLUS_ATTR}="1"]{display:inline-grid!important;place-items:center!important;flex:0 0 auto!important;width:28px!important;height:28px!important;margin:0 2px 0 auto!important;padding:0!important;border:1px solid rgba(96,165,250,.4)!important;border-radius:8px!important;background:linear-gradient(145deg,rgba(30,64,175,.9),rgba(30,41,59,.96))!important;color:#dbeafe!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.13),0 3px 9px rgba(0,0,0,.2)!important;cursor:pointer!important;font:500 19px/1 system-ui!important;transition:transform .14s ease,background .14s ease,border-color .14s ease,box-shadow .14s ease!important}
+            [${PLUS_ATTR}="1"]:hover{border-color:rgba(147,197,253,.82)!important;background:linear-gradient(145deg,rgba(37,99,235,1),rgba(30,64,175,.96))!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 5px 13px rgba(30,64,175,.35)!important;transform:translateY(-1px)}
+            [${PLUS_ATTR}="1"]:active,[${PLUS_ATTR}="1"][data-state="opening"]{transform:scale(.88)!important;background:linear-gradient(145deg,rgba(22,163,74,.95),rgba(21,128,61,.95))!important;border-color:rgba(134,239,172,.86)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 2px 7px rgba(20,83,45,.36)!important}
+            [${PLUS_ATTR}="1"]:focus-visible{outline:2px solid #bfdbfe!important;outline-offset:2px}.tm-t4-mcv-quote{margin:5px 0;padding:5px 7px;border-left:2px solid rgba(96,165,250,.7);border-radius:4px;background:rgba(59,130,246,.08);color:#cbd5e1;font-size:11px;line-height:1.35}
+            .tm-t4-mcv-reactions{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}.tm-t4-mcv-reactions button{border:1px solid rgba(251,191,36,.2);border-radius:999px;background:rgba(113,63,18,.26);color:#fef3c7;padding:2px 6px;cursor:pointer;font-size:11px}.tm-t4-mcv-reply-banner{margin:0 8px 5px;padding:5px 8px;border-radius:6px;background:rgba(30,64,175,.28);color:#dbeafe;cursor:pointer;font-size:11px}
+            @media(max-width:760px){[data-tm-t4-multi-channel-layout]{display:block!important;overflow:auto!important}[data-tm-t4-multi-channel-layout] > [${NATIVE_ATTR}],[data-tm-t4-multi-channel-layout] > [${PANE_ATTR}]{min-height:78vh!important;margin-bottom:8px}}
         `);
 
         const getChannel = (id) => channels.find((channel) => channel.id === String(id)) || null;
-        const root = () => document.getElementById(ROOT_ID);
-        const exitButton = () => document.getElementById(EXIT_ID);
-        const closeAll = () => { openedIds = []; saveOpenedIds(context.storage, openedIds); root()?.remove(); exitButton()?.remove(); };
-        const ensureExitButton = () => {
-            if (exitButton() instanceof HTMLButtonElement) return;
-            const exit = document.createElement('button'); exit.type = 'button'; exit.id = EXIT_ID; exit.textContent = '×'; exit.title = 'Fermer la mosaïque et revenir au chat'; exit.setAttribute('aria-label', exit.title);
-            exit.style.cssText = 'position:fixed!important;top:14px!important;right:14px!important;z-index:2147483647!important;display:grid!important;place-items:center!important;width:38px!important;height:38px!important;border:1px solid rgba(255,255,255,.25)!important;border-radius:9px!important;background:#991b1b!important;color:#fff!important;box-shadow:0 5px 18px rgba(0,0,0,.55)!important;cursor:pointer!important;font:700 24px/1 system-ui!important;';
-            exit.addEventListener('click', closeAll); document.body.append(exit);
-        };
-        const removeChannel = (id) => {
-            openedIds = openedIds.filter((entry) => entry !== String(id)); saveOpenedIds(context.storage, openedIds);
-            if (openedIds.length < 2) { closeAll(); return; }
-            render();
-        };
-        const render = () => {
-            const active = openedIds.map(getChannel).filter(Boolean);
-            if (active.length < 2) { closeAll(); return; }
-            let overlay = root();
-            if (!(overlay instanceof HTMLElement)) {
-                overlay = document.createElement('section'); overlay.id = ROOT_ID; overlay.setAttribute('aria-label', 'Mosaïque de canaux');
-                const chatArea = context.platform.getChatSidebarLayout()?.chatArea;
-                if (!(chatArea instanceof HTMLElement)) return;
-                chatArea.append(overlay);
-            }
-            overlay.dataset.count = String(active.length); overlay.style.setProperty('--tm-mcv-count', String(active.length)); overlay.replaceChildren();
-            ensureExitButton();
-            for (const channel of active) {
-                const pane = document.createElement('section'); pane.className = 'tm-t4-mcv-pane'; pane.setAttribute('aria-label', `Canal #${channel.name}`);
-                const close = document.createElement('button'); close.type = 'button'; close.className = 'tm-t4-mcv-pane-close'; close.textContent = '×'; close.title = `Fermer #${channel.name}`; close.setAttribute('aria-label', close.title); close.addEventListener('click', () => removeChannel(channel.id));
-                const header = document.createElement('div'); header.className = 'tm-t4-mcv-header'; header.textContent = `# ${channel.name}`;
-                const messages = document.createElement('div'); messages.className = 'tm-t4-mcv-messages';
-                const compose = document.createElement('form'); compose.className = 'tm-t4-mcv-compose';
-                const input = document.createElement('textarea'); input.placeholder = `Écrire dans #${channel.name}`; input.setAttribute('aria-label', input.placeholder);
-                const send = document.createElement('button'); send.type = 'submit'; send.className = 'tm-t4-mcv-send'; send.textContent = 'Envoyer';
-                const renderMessages = async () => {
-                    try {
-                        const items = await fetchMessages(channel.id);
-                        messages.replaceChildren();
-                        if (!items.length) {
-                            const empty = document.createElement('div'); empty.className = 'tm-t4-mcv-empty'; empty.textContent = 'Aucun message.'; messages.append(empty);
-                        }
-                        for (const item of items) {
-                            const row = document.createElement('div'); row.className = 'tm-t4-mcv-message';
-                            const author = document.createElement('span'); author.className = 'tm-t4-mcv-message-author'; author.textContent = messageAuthor(item);
-                            const time = document.createElement('span'); time.className = 'tm-t4-mcv-message-time'; time.textContent = formatTime(item?.created_at);
-                            const body = document.createElement('span'); body.textContent = messageBody(item) || 'Message supprimé';
-                            row.append(author, time, body); messages.append(row);
-                        }
-                        messages.scrollTop = messages.scrollHeight;
-                    } catch {
-                        messages.replaceChildren(); const error = document.createElement('div'); error.className = 'tm-t4-mcv-empty'; error.textContent = 'Impossible de charger les messages.'; messages.append(error);
-                    }
-                };
-                compose.addEventListener('submit', (event) => {
-                    event.preventDefault(); const body = input.value.trim(); if (!body) return;
-                    send.disabled = true; sendPacket({ type: 'msg.send', conv_id: channel.id, body }); input.value = '';
-                    window.setTimeout(() => { send.disabled = false; void renderMessages(); }, 500);
-                });
-                compose.append(input, send); pane.append(header, close, messages, compose); overlay.append(pane); void renderMessages();
-            }
-        };
-        const currentChannelId = () => {
+        const getNativeId = () => {
             const queryId = String(new URLSearchParams(location.search).get('conv') || '').trim();
             if (queryId && getChannel(queryId)) return queryId;
-            const currentSlug = location.pathname.match(/^\/communication\/channels\/([^/]+)/)?.[1] || '';
-            if (currentSlug) return channels.find((channel) => channel.slug === currentSlug)?.id || '';
-            const currentName = comparable(context.platform.getCurrentChatContext()?.name);
-            return channels.find((channel) => comparable(channel.name) === currentName)?.id || '';
+            const slug = location.pathname.match(/^\/communication\/channels\/([^/]+)/)?.[1];
+            if (slug) return channels.find((channel) => channel.slug === slug)?.id || '';
+            const name = comparable(context.platform.getCurrentChatContext()?.name);
+            return channels.find((channel) => comparable(channel.name) === name)?.id || '';
+        };
+        const getLayout = () => context.platform.getChatSidebarLayout();
+        const clearLayout = () => {
+            const chatArea = getLayout()?.chatArea;
+            if (chatArea) {
+                delete chatArea.dataset.tmT4MultiChannelLayout;
+                const nativeWindow = chatArea.querySelector(`[${NATIVE_ATTR}]`);
+                nativeWindow?.removeAttribute(NATIVE_ATTR);
+                nativeWindow?.style.removeProperty('grid-column'); nativeWindow?.style.removeProperty('grid-row'); nativeWindow?.style.removeProperty('align-self');
+            }
+            document.querySelectorAll(`[${PANE_ATTR}]`).forEach((pane) => pane.remove()); panelStates.clear();
+            context.messages.refresh({ scan: false });
+        };
+        const placePanel = (element, count, index) => {
+            if (!(element instanceof HTMLElement)) return;
+            const slots = count === 2
+                ? [['1', '1'], ['2', '1']]
+                : count === 3
+                ? [['1', '1 / span 2'], ['2', '1'], ['2', '2']]
+                : [['1', '1'], ['2', '1'], ['1', '2'], ['2', '2']];
+            const [column, row] = slots[index] || slots[0];
+            element.style.setProperty('grid-column', column, 'important');
+            element.style.setProperty('grid-row', row, 'important');
+            element.style.setProperty('align-self', 'stretch', 'important');
+        };
+        const closeAll = () => { openedIds = []; saveOpenedIds(context.storage, openedIds); clearLayout(); };
+        const removeChannel = (id) => { openedIds = openedIds.filter((entry) => entry !== String(id)); saveOpenedIds(context.storage, openedIds); render(); };
+        const sendPacket = (packet) => { socket?.send(packet); };
+        const updatePane = (id) => panelStates.get(String(id))?.renderMessages();
+        const handlePacket = (packet) => {
+            if (packet?.type === 'msg.received') {
+                const state = panelStates.get(String(packet.conv_id)); if (!state) return;
+                state.messages.push({ id: packet.id, sender_id: packet.sender_id, sender: packet.sender, sender_role: packet.sender_role, avatar_url: packet.avatar_url, featured_badges: packet.featured_badges, body: packet.body, created_at: packet.at, parent: packet.parent, reactions: {} }); updatePane(packet.conv_id); sendPacket({ type: 'read', conv_id: packet.conv_id }); return;
+            }
+            if (packet?.type === 'chan.cleared') { const state = panelStates.get(String(packet.conv_id)); if (state) { state.messages = []; updatePane(packet.conv_id); } return; }
+            for (const [id, state] of panelStates) {
+                const message = state.messages.find((entry) => String(entry.id) === String(packet.message_id)); if (!message) continue;
+                if (packet.type === 'msg.edited') message.body = packet.body;
+                if (packet.type === 'msg.deleted') message.body = '';
+                if (packet.type === 'reaction.updated') { message.reactions = packet.counts || {}; message.reaction_users = packet.users || {}; }
+                updatePane(id);
+            }
+        };
+        socket = createSocket(handlePacket); socket.connect();
+        const render = async () => {
+            const layout = getLayout(); const chatArea = layout?.chatArea; if (!(chatArea instanceof HTMLElement)) return;
+            const nativeWindow = getNativeWindow(chatArea); const nativeId = getNativeId();
+            openedIds = openedIds.filter((id) => id !== nativeId && getChannel(id)); saveOpenedIds(context.storage, openedIds);
+            if (!nativeWindow || !nativeId || !openedIds.length) { clearLayout(); return; }
+            const templates = createTemplates(nativeWindow); if (!(templates.list instanceof HTMLElement)) return;
+            const count = openedIds.length + 1;
+            clearLayout(); nativeWindow.setAttribute(NATIVE_ATTR, '1'); chatArea.dataset.tmT4MultiChannelLayout = String(count); placePanel(nativeWindow, count, 0);
+            for (const [index, id] of openedIds.entries()) {
+                const channel = getChannel(id); if (!channel) continue;
+                const state = { messages: [], replyTo: null, renderMessages: () => {} }; panelStates.set(id, state);
+                const panel = createPane(templates, channel, state, {
+                    onClose: () => removeChannel(channel.id),
+                    onSend: (target, body, parent) => sendPacket({ type: 'msg.send', conv_id: target.id, body, ...(parent?.id ? { parent_id: parent.id } : {}) }),
+                    onReaction: (message, emoji) => sendPacket({ type: 'reaction.add', message_id: message.id, emoji })
+                });
+                chatArea.append(panel.pane); placePanel(panel.pane, count, index + 1); state.renderMessages = panel.renderMessages;
+                context.messages.refresh();
+                try { state.messages = await fetchMessages(channel.id); panel.renderMessages(); sendPacket({ type: 'read', conv_id: channel.id }); } catch { /* le panneau reste disponible pour l'envoi */ }
+            }
         };
         const open = (id) => {
-            const safeId = String(id || '').trim(); if (!getChannel(safeId)) return;
-            if (!openedIds.length) { const current = currentChannelId(); if (current) openedIds.push(current); }
-            if (!openedIds.includes(safeId) && openedIds.length >= MAX_CHANNELS) { context.ui.toast.show(`La mosaïque est limitée à ${MAX_CHANNELS} canaux.`, { error: true }); return; }
-            if (!openedIds.includes(safeId)) openedIds.push(safeId);
-            openedIds = [...new Set(openedIds)]; saveOpenedIds(context.storage, openedIds);
-            if (openedIds.length < 2) { context.ui.toast.show('Choisissez un second canal avec le bouton +.'); return; }
-            render();
+            const target = String(id || '').trim(); const nativeId = getNativeId();
+            if (!getChannel(target) || target === nativeId) { if (target === nativeId) context.ui.toast.show('Ce canal est déjà affiché nativement.'); return; }
+            if (openedIds.includes(target)) { context.ui.toast.show('Ce canal est déjà ouvert.'); return; }
+            if (openedIds.length >= MAX_CHANNELS - 1) { context.ui.toast.show(`La mosaïque est limitée à ${MAX_CHANNELS} canaux.`, { error: true }); return; }
+            openedIds.push(target); saveOpenedIds(context.storage, openedIds); void render();
         };
         const syncPlusButtons = () => {
             const idsByName = new Map(channels.map((channel) => [comparable(channel.name), channel.id]));
+            const nativeId = getNativeId();
             for (const { row, name, joined } of getChannelRows(context.platform)) {
-                row.querySelector(`[${PLUS_ATTR}="1"]`)?.remove();
-                const id = idsByName.get(comparable(name)); if (!id || !joined) continue;
-                const add = document.createElement('button'); add.type = 'button'; add.setAttribute(PLUS_ATTR, '1'); add.textContent = '+'; add.title = `Ajouter #${name} à la mosaïque`; add.setAttribute('aria-label', add.title);
-                add.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); open(id); }); row.append(add);
+                const id = idsByName.get(comparable(name)); const current = row.querySelector(`[${PLUS_ATTR}="1"]`);
+                if (!id || !joined || id === nativeId || openedIds.includes(id)) { current?.remove(); continue; }
+                if (current instanceof HTMLButtonElement && current.dataset.channelId === id) continue;
+                current?.remove();
+                const add = document.createElement('button'); add.type = 'button'; add.setAttribute(PLUS_ATTR, '1'); add.dataset.channelId = id; add.title = `Ajouter #${name} à la mosaïque`; add.setAttribute('aria-label', add.title); add.append(createIcon('add'));
+                add.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); add.dataset.state = 'opening'; open(id); }); row.append(add);
             }
         };
         const refresh = async () => {
-            try {
-                channels = await fetchChannels(); openedIds = openedIds.filter((id) => getChannel(id)); saveOpenedIds(context.storage, openedIds); syncPlusButtons();
-                if (openedIds.length >= 2) render();
-            } catch { /* le menu natif reste utilisable si la liste est temporairement indisponible */ }
+            try { channels = await fetchChannels(); openedIds = openedIds.filter((id) => getChannel(id)); saveOpenedIds(context.storage, openedIds); syncPlusButtons(); await render(); } catch { syncPlusButtons(); }
         };
-        const runtime = { count: () => openedIds.length, closeAll };
-        context.multiChannelView = runtime;
-        context.on(document, 'keydown', (event) => {
-            if (event.key !== 'Escape' || !(root() instanceof HTMLElement)) return;
-            event.preventDefault(); event.stopPropagation(); closeAll();
+        context.multiChannelView = { count: () => openedIds.length + (openedIds.length ? 1 : 0), closeAll, refresh };
+        context.on(document, 'focusin', (event) => {
+            const target = event.target;
+            if (target instanceof HTMLTextAreaElement && !target.matches('textarea[data-tm-t4-multi-channel-input]')) {
+                document.querySelectorAll('textarea[data-tm-t4-multi-channel-input-active="1"]').forEach((element) => element.removeAttribute('data-tm-t4-multi-channel-input-active'));
+            }
         }, true);
-        context.on(window, 'storage', (event) => { if (event.key === OPEN_IDS_STORAGE_KEY) { openedIds = safeOpenedIds(context.storage); render(); } });
+        context.on(document, 'keydown', (event) => { if (event.key === 'Escape' && openedIds.length) { event.preventDefault(); closeAll(); } }, true);
+        context.on(window, 'storage', (event) => { if (event.key === OPEN_IDS_STORAGE_KEY) { openedIds = safeOpenedIds(context.storage); void render(); } });
         context.on(window, CONFIGURATION_IMPORTED_EVENT, () => { openedIds = safeOpenedIds(context.storage); void refresh(); });
-        context.every(800, syncPlusButtons);
+        context.every(900, syncPlusButtons);
         void refresh();
-        return () => { delete context.multiChannelView; socket?.close(); root()?.remove(); exitButton()?.remove(); document.querySelectorAll(`[${PLUS_ATTR}="1"]`).forEach((button) => button.remove()); };
-    }
+        return () => { delete context.multiChannelView; socket?.close(); clearLayout(); document.querySelectorAll(`[${PLUS_ATTR}="1"]`).forEach((button) => button.remove()); };
+    },
+    onRoute(context) { if (context.multiChannelView?.count()) window.setTimeout(() => { void context.multiChannelView.refresh(); }, 0); }
 });

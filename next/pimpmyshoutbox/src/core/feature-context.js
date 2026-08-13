@@ -103,6 +103,9 @@ export function createFeatureContext({ appId, feature, getPage, logger, services
             const unsubscribe = services.messages.subscribe(callback, options);
             cleanupBag.add(unsubscribe);
             return unsubscribe;
+        },
+        refresh(options) {
+            services.messages.refresh(options);
         }
     };
 

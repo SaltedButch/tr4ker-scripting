@@ -181,7 +181,7 @@ export default defineFeature({
         `);
         const toolbar = document.createElement('div');
         toolbar.setAttribute(TOOLBAR_ATTR, '1');
-        toolbar.style.cssText = 'display:flex;align-items:center;gap:4px;pointer-events:auto;';
+        toolbar.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:4px;min-height:28px;pointer-events:auto;';
         let pickerOpenedAt = 0;
         let activePicker = null;
         let toolbarMounted = false;
@@ -321,11 +321,11 @@ export default defineFeature({
                 const button = document.createElement('button'); button.type = 'button';
                 button.title = favorite.isManual ? `${insertText} · favori manuel` : `${insertText} · ${favorite.count} utilisation${favorite.count > 1 ? 's' : ''}`;
                 button.setAttribute('aria-label', `Insérer ${insertText || 'cet emoji'}`);
-                button.style.cssText = 'display:inline-grid;place-items:center;width:28px;height:28px;padding:2px;border:1px solid rgba(255,255,255,.12);border-radius:7px;background:rgba(39,39,42,.92);color:#f4f4f5;cursor:pointer;overflow:hidden;';
+                button.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;min-width:28px;padding:0;border:1px solid rgba(255,255,255,.12);border-radius:7px;background:rgba(39,39,42,.92);color:#f4f4f5;cursor:pointer;overflow:hidden;line-height:1;text-align:center;';
                 if (favorite.src) {
-                    const image = document.createElement('img'); image.src = favorite.src; image.alt = insertText; image.style.cssText = 'width:21px;height:21px;object-fit:contain;pointer-events:none;'; button.append(image);
+                    const image = document.createElement('img'); image.src = favorite.src; image.alt = insertText; image.style.cssText = 'display:block;width:21px;height:21px;margin:auto;object-fit:contain;pointer-events:none;'; button.append(image);
                 } else {
-                    const label = document.createElement('span'); label.textContent = insertText; label.style.cssText = `font-size:${isUnicodeEmoji(insertText) ? '17px' : '9px'};line-height:1;font-weight:700;`; button.append(label);
+                    const label = document.createElement('span'); label.textContent = insertText; label.style.cssText = `display:block;font-size:${isUnicodeEmoji(insertText) ? '17px' : '9px'};line-height:1;font-weight:700;transform:translateY(.5px);`; button.append(label);
                 }
                 button.addEventListener('click', () => {
                     const result = context.input.insert(context.input.get(), insertText, { successMessage: 'Emoji inséré.' });

@@ -3,6 +3,9 @@ import { normalizeComparableText, normalizeName } from './text.js';
 const HOSTNAME = 'tr4ker.net';
 const CHAT_INPUT_SELECTOR = 'textarea[placeholder^="Message dans"]';
 const MESSAGE_SELECTOR = '[data-msg-id]';
+const SECONDARY_MESSAGE_SELECTOR = '[data-tm-t4-multi-channel-message-id]';
+const SECONDARY_PANE_SELECTOR = '[data-tm-t4-multi-channel-pane]';
+const SECONDARY_INPUT_SELECTOR = 'textarea[data-tm-t4-multi-channel-input][data-tm-t4-multi-channel-input-active="1"]';
 const MESSAGE_ROOT_SELECTOR = '[class*="messageList"]';
 
 function isHtmlElement(value) {
@@ -38,19 +41,22 @@ export function createTr4kerPlatform() {
     function getChatInput() {
         const wikiEditor = getWikiEditorInput();
         if (wikiEditor) return wikiEditor;
+        const activeSecondaryInput = document.querySelector(SECONDARY_INPUT_SELECTOR);
+        if (isChatInputCandidate(activeSecondaryInput)) return activeSecondaryInput;
         const input = document.querySelector(CHAT_INPUT_SELECTOR);
         return isChatInputCandidate(input) ? input : null;
     }
 
     function isMessage(element) {
         return isHtmlElement(element)
-            && element.matches(MESSAGE_SELECTOR)
+            && element.matches(`${MESSAGE_SELECTOR}, ${SECONDARY_MESSAGE_SELECTOR}`)
             && Boolean(element.querySelector('[class*="msgBubble"]'));
     }
 
     function getChatMessagesRoot() {
         if (!isChatPage()) return null;
-        const stableRoot = document.querySelector(MESSAGE_ROOT_SELECTOR);
+        const stableRoot = [...document.querySelectorAll(MESSAGE_ROOT_SELECTOR)]
+            .find((candidate) => !candidate.closest(SECONDARY_PANE_SELECTOR));
         if (isHtmlElement(stableRoot)) return stableRoot;
 
         const firstMessage = document.querySelector(MESSAGE_SELECTOR);
@@ -81,12 +87,17 @@ export function createTr4kerPlatform() {
         return isHtmlElement(chatArea) ? { sidebar, chatArea } : null;
     }
 
-    function getMessages(root = getChatMessagesRoot()) {
-        if (!isHtmlElement(root)) return [];
-        const candidates = root.matches(MESSAGE_SELECTOR)
-            ? [root, ...root.querySelectorAll(MESSAGE_SELECTOR)]
-            : [...root.querySelectorAll(MESSAGE_SELECTOR)];
-        return candidates.filter(isMessage);
+    function getMessages(root) {
+        const roots = isHtmlElement(root)
+            ? [root]
+            : [getChatMessagesRoot(), ...document.querySelectorAll(`${SECONDARY_PANE_SELECTOR} [class*="messageList"]`)];
+        const candidates = new Set();
+        for (const candidateRoot of roots) {
+            if (!isHtmlElement(candidateRoot)) continue;
+            if (candidateRoot.matches(`${MESSAGE_SELECTOR}, ${SECONDARY_MESSAGE_SELECTOR}`)) candidates.add(candidateRoot);
+            candidateRoot.querySelectorAll(`${MESSAGE_SELECTOR}, ${SECONDARY_MESSAGE_SELECTOR}`).forEach((message) => candidates.add(message));
+        }
+        return [...candidates].filter(isMessage);
     }
 
     function getDirectUsername(messageElement) {
@@ -96,6 +107,8 @@ export function createTr4kerPlatform() {
 
     function isGroupedMessage(messageElement) {
         return isMessage(messageElement) && (
+            messageElement.classList.contains('tm-t4-mcv-grouped')
+            ||
             /(?:^|\s)[^\s]*grouped[^\s]*(?:\s|$)/i.test(messageElement.className)
             || isHtmlElement(messageElement.querySelector(':scope > [class*="msgAvatarSpacer"]'))
         );
@@ -136,11 +149,13 @@ export function createTr4kerPlatform() {
         const replyText = String(messageElement.querySelector('[class*="quoteBody"]')?.textContent || '').trim();
         return {
             element: messageElement,
-            id: messageElement.getAttribute('data-msg-id') || '',
+            id: messageElement.getAttribute('data-msg-id') || messageElement.getAttribute('data-tm-t4-multi-channel-message-id') || '',
             username: getMessageUsername(messageElement),
             normalizedUsername: normalizeName(getMessageUsername(messageElement)),
             text,
             timestamp,
+            conversationId: messageElement.closest(SECONDARY_PANE_SELECTOR)?.getAttribute('data-tm-t4-multi-channel-pane') || '',
+            isSecondary: Boolean(messageElement.closest(SECONDARY_PANE_SELECTOR)),
             replyText: [replyAuthor, replyText].filter(Boolean).join(' : ')
         };
     }
