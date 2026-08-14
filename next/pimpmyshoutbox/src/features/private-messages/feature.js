@@ -166,9 +166,10 @@ function createSidebarEntry(conversationId, conversation, message, templateRow) 
  * @param {Map<string, object>} conversations Cache des conversations.
  * @param {string} conversationId Identifiant de conversation.
  * @param {object|null} message Message reçu associé.
+ * @param {{insertIfMissing?: boolean}} options Contrôle l'ajout d'une ligne absente.
  * @returns {void}
  */
-function refreshSidebarEntry(platform, conversations, conversationId, message = null) {
+function refreshSidebarEntry(platform, conversations, conversationId, message = null, { insertIfMissing = true } = {}) {
     const id = String(conversationId || '').trim();
     const conversation = conversations.get(id);
     const list = getPrivateList(platform);
@@ -195,7 +196,7 @@ function refreshSidebarEntry(platform, conversations, conversationId, message = 
         if (preview instanceof HTMLElement && nextPreview) preview.textContent = nextPreview;
         return;
     }
-    list.insertBefore(createSidebarEntry(id, conversation, message, templateRow), list.firstChild);
+    if (insertIfMissing) list.insertBefore(createSidebarEntry(id, conversation, message, templateRow), list.firstChild);
 }
 
 /**
@@ -402,7 +403,9 @@ export default defineFeature({
             },
             async refresh(force = true) {
                 const next = await refreshConversations(force);
-                for (const id of next.keys()) refreshSidebarEntry(context.platform, next, id);
+                for (const id of next.keys()) {
+                    refreshSidebarEntry(context.platform, next, id, null, { insertIfMissing: false });
+                }
                 return next;
             },
             toast: (message, options) => context.ui.toast.show(message, options)
@@ -423,7 +426,9 @@ export default defineFeature({
         });
         context.on(window, CONFIGURATION_IMPORTED_EVENT, () => eventHub.sync());
         void refreshConversations(false).then((next) => {
-            for (const id of next.keys()) refreshSidebarEntry(context.platform, next, id);
+            for (const id of next.keys()) {
+                refreshSidebarEntry(context.platform, next, id, null, { insertIfMissing: false });
+            }
         });
     },
     onRoute() {
