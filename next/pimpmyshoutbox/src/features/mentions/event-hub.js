@@ -85,7 +85,11 @@ function rememberMessageId(messageId) {
 }
 
 function hasWatchedUsername() {
-    return [...subscribers].some((subscriber) => String(subscriber.getSettings?.().username || '').trim());
+    return [...subscribers].some((subscriber) => (
+        subscriber.shouldConnect?.() === true
+        || subscriber.needsSocket === true
+        || String(subscriber.getSettings?.().username || '').trim()
+    ));
 }
 
 function closeSocket() {
@@ -108,6 +112,7 @@ function scheduleReconnect() {
 function dispatch(message) {
     const deliveries = [];
     for (const subscriber of subscribers) {
+        if (typeof subscriber.onMention !== 'function') continue;
         const settings = subscriber.getSettings?.() || {};
         if (normalizeName(message?.sender) === normalizeName(settings.username)) continue;
         const match = getMentionMatch(message, settings);
@@ -125,6 +130,17 @@ function dispatch(message) {
             subscriber.onMention(event);
         } catch (error) {
             subscriber.logger?.error?.('[Mentions] Event subscriber failed.', error);
+        }
+    }
+}
+
+function dispatchRaw(message) {
+    for (const subscriber of subscribers) {
+        if (typeof subscriber.onMessage !== 'function') continue;
+        try {
+            subscriber.onMessage(message);
+        } catch (error) {
+            subscriber.logger?.error?.('[Mentions] Raw event subscriber failed.', error);
         }
     }
 }
@@ -152,7 +168,10 @@ function connect() {
                 currentSocket.send(JSON.stringify({ type: 'pong' }));
                 return;
             }
-            if (payload?.type === 'msg.received') dispatch(payload);
+            if (payload?.type === 'new_dm' || payload?.type === 'msg.received') {
+                dispatchRaw(payload);
+                if (payload.type === 'msg.received') dispatch(payload);
+            }
         } catch (error) {
             console.warn('[Mentions] Invalid WebSocket event ignored.', error);
         }
@@ -180,12 +199,12 @@ function sync() {
 /**
  * Abonne une feature au WebSocket partagé des mentions.
  *
- * @param {{ getSettings?: function, onMention: function, logger?: Console }} subscriber
+ * @param {{ getSettings?: function, onMention?: function, onMessage?: function, shouldConnect?: function, needsSocket?: boolean, logger?: Console }} subscriber
  * @returns {{ sync: function, release: function }}
  */
 export function acquireMentionEventHub(subscriber) {
-    if (!subscriber || typeof subscriber.onMention !== 'function') {
-        throw new Error('A mention event subscriber must provide onMention(event).');
+    if (!subscriber || (typeof subscriber.onMention !== 'function' && typeof subscriber.onMessage !== 'function')) {
+        throw new Error('An event subscriber must provide onMention(event) or onMessage(message).');
     }
 
     stopped = false;

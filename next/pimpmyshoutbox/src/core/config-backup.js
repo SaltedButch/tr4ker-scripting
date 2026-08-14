@@ -83,6 +83,7 @@ const NEXT_STORAGE_KEYS = [
     'tm_t4_multi_channel_view_open_ids',
     'tm-t4-next:feature:chat-image-zoom:enabled',
     'tm-t4-next:feature:afk:enabled',
+    'tm-t4-next:feature:private-messages:enabled',
     'tm_t4_afk_state_v4', 'tm_t4_afk_channels_v4', 'tm_t4_afk_records_v4'
 ];
 
