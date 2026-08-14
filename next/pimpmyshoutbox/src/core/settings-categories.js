@@ -1,3 +1,8 @@
+/**
+ * Définit et valide les zones et catégories de réglages.
+ *
+ * @module src/core/settings-categories
+ */
 export const SETTINGS_AREAS = Object.freeze([
     { id: 'shoutbox', label: 'Shoutbox', order: 10 },
     { id: 'site', label: 'Site Tr4ker', order: 20 },
@@ -24,18 +29,38 @@ export const SETTINGS_CATEGORIES = Object.freeze([
 const categoryIds = new Set(SETTINGS_CATEGORIES.map((category) => category.id));
 const areaIds = new Set(SETTINGS_AREAS.map((area) => area.id));
 
+/**
+ * Indique si la condition vérifiée par « isSettingsCategory » est satisfaite.
+ *
+ * @function isSettingsCategory
+ */
 export function isSettingsCategory(categoryId) {
     return categoryIds.has(categoryId);
 }
 
+/**
+ * Indique si la condition vérifiée par « isSettingsArea » est satisfaite.
+ *
+ * @function isSettingsArea
+ */
 export function isSettingsArea(areaId) {
     return areaIds.has(areaId);
 }
 
+/**
+ * Retourne la valeur calculée par « getSettingsCategory ».
+ *
+ * @function getSettingsCategory
+ */
 export function getSettingsCategory(categoryId) {
     return SETTINGS_CATEGORIES.find((category) => category.id === categoryId) || null;
 }
 
+/**
+ * Retourne la valeur calculée par « getSettingsArea ».
+ *
+ * @function getSettingsArea
+ */
 export function getSettingsArea(areaId) {
     return SETTINGS_AREAS.find((area) => area.id === areaId) || null;
 }

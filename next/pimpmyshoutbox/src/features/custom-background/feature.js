@@ -1,3 +1,8 @@
+/**
+ * Implémente la feature « Custom Background » et son cycle de vie.
+ *
+ * @module src/features/custom-background/feature
+ */
 import { CONFIGURATION_IMPORTED_EVENT } from '../../core/config-backup.js';
 import { defineFeature } from '../../core/feature-registry.js';
 import { renderCustomBackgroundSettings } from './settings.js';
@@ -34,6 +39,11 @@ function applyBackground(color) {
     root.setAttribute(ROOT_ATTRIBUTE, '1');
 }
 
+/**
+ * Déclare la feature et son cycle de vie.
+ *
+ * @function feature
+ */
 export default defineFeature({
     id: 'custom-background',
     label: 'Couleur de fond personnalisée',

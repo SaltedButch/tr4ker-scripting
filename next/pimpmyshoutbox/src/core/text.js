@@ -1,11 +1,26 @@
+/**
+ * Regroupe les fonctions de normalisation, formatage et manipulation de texte.
+ *
+ * @module src/core/text
+ */
 export function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
 }
 
+/**
+ * Normalise les données reçues par « normalizeName ».
+ *
+ * @function normalizeName
+ */
 export function normalizeName(value) {
     return String(value || '').trim().toLowerCase();
 }
 
+/**
+ * Normalise les données reçues par « normalizeComparableText ».
+ *
+ * @function normalizeComparableText
+ */
 export function normalizeComparableText(value) {
     return String(value || '')
         .normalize('NFD')
@@ -15,6 +30,11 @@ export function normalizeComparableText(value) {
         .toLowerCase();
 }
 
+/**
+ * Calcule une empreinte stable avec « hashString ».
+ *
+ * @function hashString
+ */
 export function hashString(value) {
     let hash = 5381;
     const input = String(value || '');
@@ -26,6 +46,11 @@ export function hashString(value) {
     return (hash >>> 0).toString(36);
 }
 
+/**
+ * Échappe la valeur reçue par « escapeHtml ».
+ *
+ * @function escapeHtml
+ */
 export function escapeHtml(value) {
     return String(value).replace(/[&<>"']/g, (character) => ({
         '&': '&amp;',
@@ -36,6 +61,11 @@ export function escapeHtml(value) {
     })[character]);
 }
 
+/**
+ * Formate la valeur reçue par « formatFileSize ».
+ *
+ * @function formatFileSize
+ */
 export function formatFileSize(value) {
     const bytes = Math.max(0, Number(value) || 0);
     if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(bytes >= 10 * 1024 * 1024 ? 0 : 1)} Mo`;
@@ -43,6 +73,11 @@ export function formatFileSize(value) {
     return `${bytes} o`;
 }
 
+/**
+ * Copie la valeur reçue par « copyTextToClipboard » vers le presse-papiers.
+ *
+ * @function copyTextToClipboard
+ */
 export async function copyTextToClipboard(value) {
     const text = String(value || '');
     if (!text) return false;

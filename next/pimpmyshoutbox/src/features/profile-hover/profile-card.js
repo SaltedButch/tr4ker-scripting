@@ -1,3 +1,8 @@
+/**
+ * Construit la carte de profil de « Profile Hover ».
+ *
+ * @module src/features/profile-hover/profile-card
+ */
 const CARD_ID = 'tm-t4-next-profile-hover-card';
 
 function bytes(value) {
@@ -54,6 +59,11 @@ function normalizeProfile(payload, fallbackUsername) {
     };
 }
 
+/**
+ * Crée l'API publique « createProfileHoverCard ».
+ *
+ * @function createProfileHoverCard
+ */
 export function createProfileHoverCard({ text, grades }) {
     const cache = new Map();
     const pending = new Map();

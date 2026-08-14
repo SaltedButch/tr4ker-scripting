@@ -1,3 +1,8 @@
+/**
+ * Gère la barre d'outils multimédia attachée au champ de chat.
+ *
+ * @module src/core/media-toolbar
+ */
 const RAIL_ID = 'tm-t4-next-media-toolbar';
 const RAIL_ATTR = 'data-tm-t4-media-toolbar';
 const INLINE_ATTR = 'data-tm-t4-media-toolbar-inline';
@@ -31,6 +36,11 @@ function ensureStyle() {
     document.head.append(style);
 }
 
+/**
+ * Crée l'API publique « createMediaToolbar ».
+ *
+ * @function createMediaToolbar
+ */
 export function createMediaToolbar({ platform, storage }) {
     const mounts = new Map();
     let lastRailHost = null;

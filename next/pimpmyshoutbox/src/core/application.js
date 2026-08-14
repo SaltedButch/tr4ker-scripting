@@ -1,3 +1,8 @@
+/**
+ * Assemble les services partagés et contrôle le cycle de vie de l'application.
+ *
+ * @module src/core/application
+ */
 import { createChatInputService } from './chat-input.js';
 import { createConfigurationBackup } from './config-backup.js';
 import { createFeatureRegistry } from './feature-registry.js';
@@ -13,6 +18,11 @@ import * as text from './text.js';
 import { createToastService } from './toast.js';
 import { createTr4kerPlatform } from './tr4ker-platform.js';
 
+/**
+ * Crée l'API publique « createApplication ».
+ *
+ * @function createApplication
+ */
 export function createApplication({ appId, logger = console }) {
     const platform = createTr4kerPlatform();
     const storage = createStorage();

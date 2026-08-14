@@ -1,3 +1,8 @@
+/**
+ * Joue les notifications sonores de « Mentions ».
+ *
+ * @module src/features/mentions/sound-player
+ */
 let audioContext = null;
 // Les oscillateurs Web Audio sont volontairement très doux à leur gain brut.
 // Ce coefficient fait de 100 % un véritable niveau d’alerte, tout en laissant
@@ -25,6 +30,11 @@ function normalizeVolume(value) {
     return Math.max(0, Math.min(100, Number.isFinite(parsed) ? parsed : 100));
 }
 
+/**
+ * Crée l'API publique « createMentionSoundPlayer ».
+ *
+ * @function createMentionSoundPlayer
+ */
 export function createMentionSoundPlayer({ http }) {
     const customBufferCache = new Map();
     let currentVolumePercent = 100;

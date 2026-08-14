@@ -1,3 +1,8 @@
+/**
+ * Construit le panneau de réglages de la feature « Adult Mode ».
+ *
+ * @module src/features/adult-mode/settings
+ */
 function createButton(label) {
     const button = document.createElement('button');
     button.type = 'button';
@@ -6,6 +11,11 @@ function createButton(label) {
     return button;
 }
 
+/**
+ * Rend l'interface produite par « renderAdultModeSettings ».
+ *
+ * @function renderAdultModeSettings
+ */
 export function renderAdultModeSettings(container, { context, refresh }) {
     const runtime = context?.adultMode;
     if (!runtime) {

@@ -1,3 +1,8 @@
+/**
+ * Stocke et manipule la boîte de réception de « Mentions ».
+ *
+ * @module src/features/mentions/inbox
+ */
 export const MENTION_INBOX_STORAGE_KEY = 'tm_t4_mention_inbox_v1';
 export const MENTION_INBOX_ENABLED_STORAGE_KEY = 'tm_t4_mention_inbox_enabled';
 
@@ -25,6 +30,11 @@ function normalizeRecord(value) {
     };
 }
 
+/**
+ * Crée l'API publique « createMentionInbox ».
+ *
+ * @function createMentionInbox
+ */
 export function createMentionInbox({ storage, onUpdate = () => {} }) {
     let records = [];
 

@@ -1,3 +1,8 @@
+/**
+ * Gère les réactions favorites et leurs statistiques d'usage.
+ *
+ * @module src/features/emoji-favorites/reaction-store
+ */
 export const REACTION_STORAGE_KEYS = Object.freeze({
     usage: 'tm_t4_reaction_usage_counts',
     limit: 'tm_t4_reaction_quick_access_limit',
@@ -22,6 +27,11 @@ function hash(value) {
     return (result >>> 0).toString(36);
 }
 
+/**
+ * Expose l'opération publique « reactionLabel ».
+ *
+ * @function reactionLabel
+ */
 export function reactionLabel(record) {
     const emoji = String(record?.emojiValue || '').trim();
     if (emoji) return emoji;
@@ -29,6 +39,11 @@ export function reactionLabel(record) {
     return label ? Array.from(label).slice(0, 2).join('') : '';
 }
 
+/**
+ * Normalise les données reçues par « normalizeReactionRecord ».
+ *
+ * @function normalizeReactionRecord
+ */
 export function normalizeReactionRecord(value, { manual = false } = {}) {
     if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
         const emojiValue = String(value).trim();
@@ -63,6 +78,11 @@ function unique(records) {
     return records.filter((record) => record && !seen.has(record.key) && seen.add(record.key));
 }
 
+/**
+ * Crée l'API publique « createReactionFavoritesStore ».
+ *
+ * @function createReactionFavoritesStore
+ */
 export function createReactionFavoritesStore({ storage }) {
     let usage = {};
     let manualFavorites = [];

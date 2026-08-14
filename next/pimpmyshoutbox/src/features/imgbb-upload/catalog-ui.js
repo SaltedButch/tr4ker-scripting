@@ -1,3 +1,8 @@
+/**
+ * Rend l'interface du catalogue de « Imgbb Upload ».
+ *
+ * @module src/features/imgbb-upload/catalog-ui
+ */
 import { insertImageMarkup } from '../../core/media-menu.js';
 
 function button(label, color = '#3f3f46') {
@@ -20,6 +25,11 @@ function metadata(record) {
     return parts.join(' · ');
 }
 
+/**
+ * Rend l'interface produite par « renderImageCatalog ».
+ *
+ * @function renderImageCatalog
+ */
 export function renderImageCatalog(container, runtime, { limit = Infinity, compact = false, onChange = () => {} } = {}) {
     const render = () => {
         container.replaceChildren();

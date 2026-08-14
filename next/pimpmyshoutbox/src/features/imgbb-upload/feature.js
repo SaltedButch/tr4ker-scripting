@@ -1,3 +1,8 @@
+/**
+ * Implémente la feature « Imgbb Upload » et son cycle de vie.
+ *
+ * @module src/features/imgbb-upload/feature
+ */
 import { createMediaButton, createMediaMenu, hideMediaMenu, positionMediaMenu, showMediaMenu } from '../../core/media-menu.js';
 import { defineFeature } from '../../core/feature-registry.js';
 import { createImageCatalog } from './catalog.js';
@@ -17,6 +22,11 @@ function fileLabel(file) { return `${file.name || 'image'} (${(file.size / 1024 
 function imageFiles(files) { return [...(files || [])].filter((file) => file instanceof File && /^image\//i.test(file.type || '') && file.size > 0 && file.size <= MAX_BYTES); }
 function expiration(storage) { const value = Number.parseInt(storage.get(EXPIRATION_STORAGE) || '0', 10) || 0; return EXPIRATIONS.has(value) ? value : 0; }
 
+/**
+ * Déclare la feature et son cycle de vie.
+ *
+ * @function feature
+ */
 export default defineFeature({
     id: 'imgbb-upload',
     label: 'Upload ImgBB',

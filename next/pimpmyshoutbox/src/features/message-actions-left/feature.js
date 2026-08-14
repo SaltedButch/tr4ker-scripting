@@ -1,3 +1,8 @@
+/**
+ * Implémente la feature « Message Actions Left » et son cycle de vie.
+ *
+ * @module src/features/message-actions-left/feature
+ */
 import { CONFIGURATION_IMPORTED_EVENT } from '../../core/config-backup.js';
 import { defineFeature } from '../../core/feature-registry.js';
 import { renderMessageActionsLeftSettings } from './settings.js';
@@ -50,6 +55,11 @@ function clearAllPositions(platform) {
     for (const message of platform.getMessages()) clearMessagePosition(message);
 }
 
+/**
+ * Déclare la feature et son cycle de vie.
+ *
+ * @function feature
+ */
 export default defineFeature({
     id: 'message-actions-left',
     label: 'Actions des messages à gauche',

@@ -1,3 +1,8 @@
+/**
+ * Construit le catalogue de données utilisé par « Imgbb Upload ».
+ *
+ * @module src/features/imgbb-upload/catalog
+ */
 const CATALOG_STORAGE_KEY = 'tm_t4_image_catalog';
 const MAX_RECORDS = 120;
 const VALIDATION_TIMEOUT_MS = 9000;
@@ -54,6 +59,11 @@ function cacheBuster(url) {
 
 function wait(delay) { return new Promise((resolve) => window.setTimeout(resolve, delay)); }
 
+/**
+ * Crée l'API publique « createImageCatalog ».
+ *
+ * @function createImageCatalog
+ */
 export function createImageCatalog({ storage, http }) {
     const listeners = new Set();
     let records = [];

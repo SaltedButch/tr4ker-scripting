@@ -1,3 +1,8 @@
+/**
+ * Normalise et persiste l'état de la feature « Highlight Users ».
+ *
+ * @module src/features/highlight-users/state
+ */
 const STORAGE_KEY = 'tm_highlighted_shout_users_t4';
 const DEFAULT_COLOR = '#f59e0b';
 const DEFAULT_OPACITY = 14;
@@ -18,6 +23,11 @@ function normalizeConfig(value) {
     return { color: normalizeColor(value?.color), opacityPercent: normalizeOpacity(value?.opacityPercent) };
 }
 
+/**
+ * Crée l'API publique « createHighlightState ».
+ *
+ * @function createHighlightState
+ */
 export function createHighlightState({ storage, normalizeName }) {
     let users = {};
     const listeners = new Set();

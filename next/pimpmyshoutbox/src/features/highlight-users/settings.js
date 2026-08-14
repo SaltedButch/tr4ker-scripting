@@ -1,3 +1,8 @@
+/**
+ * Construit le panneau de réglages de la feature « Highlight Users ».
+ *
+ * @module src/features/highlight-users/settings
+ */
 function rgba(color, alpha) {
     const hex = String(color || '#f59e0b').replace('#', '');
     const values = [0, 2, 4].map((position) => Number.parseInt(hex.slice(position, position + 2), 16));
@@ -10,6 +15,11 @@ function action(label, background) {
     return button;
 }
 
+/**
+ * Rend l'interface produite par « renderHighlightSettings ».
+ *
+ * @function renderHighlightSettings
+ */
 export function renderHighlightSettings(container, { context, refresh }) {
     const runtime = context?.highlightUsers;
     if (!runtime) { container.textContent = 'Active la feature pour mettre des utilisateurs en avant.'; return; }

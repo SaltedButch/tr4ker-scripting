@@ -1,3 +1,8 @@
+/**
+ * Normalise et persiste l'état de la feature « Mentions ».
+ *
+ * @module src/features/mentions/state
+ */
 import { clamp, normalizeName } from '../../core/text.js';
 
 export const MENTION_SETTINGS_STORAGE_KEY = 'tm_t4_mention_highlight_settings';
@@ -46,6 +51,11 @@ function normalizeCustomUrl(value) {
     }
 }
 
+/**
+ * Normalise les données reçues par « normalizeMentionSettings ».
+ *
+ * @function normalizeMentionSettings
+ */
 export function normalizeMentionSettings(value) {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return { ...DEFAULTS };
     const soundScope = normalizeSoundScope(value.soundScope, value.soundEnabled);
@@ -67,6 +77,11 @@ export function normalizeMentionSettings(value) {
     };
 }
 
+/**
+ * Crée l'API publique « createMentionState ».
+ *
+ * @function createMentionState
+ */
 export function createMentionState({ storage }) {
     let settings = normalizeMentionSettings(storage.readJson(MENTION_SETTINGS_STORAGE_KEY, null));
 

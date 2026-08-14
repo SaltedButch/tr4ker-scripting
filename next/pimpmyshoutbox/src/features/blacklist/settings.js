@@ -1,3 +1,8 @@
+/**
+ * Construit le panneau de réglages de la feature « Blacklist ».
+ *
+ * @module src/features/blacklist/settings
+ */
 function createButton(label) {
     const button = document.createElement('button');
     button.type = 'button';
@@ -6,6 +11,11 @@ function createButton(label) {
     return button;
 }
 
+/**
+ * Rend l'interface produite par « renderBlacklistSettings ».
+ *
+ * @function renderBlacklistSettings
+ */
 export function renderBlacklistSettings(container, runtime, { refresh }) {
     if (!runtime) {
         container.textContent = 'Active la feature pour gérer les utilisateurs masqués.';

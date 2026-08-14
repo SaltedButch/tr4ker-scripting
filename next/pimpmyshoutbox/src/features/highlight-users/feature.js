@@ -1,9 +1,19 @@
+/**
+ * Implémente la feature « Highlight Users » et son cycle de vie.
+ *
+ * @module src/features/highlight-users/feature
+ */
 import { CONFIGURATION_IMPORTED_EVENT } from '../../core/config-backup.js';
 import { defineFeature } from '../../core/feature-registry.js';
 import { createHighlightHighlighter } from './highlighter.js';
 import { renderHighlightSettings } from './settings.js';
 import { createHighlightState } from './state.js';
 
+/**
+ * Déclare la feature et son cycle de vie.
+ *
+ * @function feature
+ */
 export default defineFeature({
     id: 'highlight-users',
     label: 'Mettre en avant',

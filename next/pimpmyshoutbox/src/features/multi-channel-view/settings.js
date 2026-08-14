@@ -1,3 +1,8 @@
+/**
+ * Construit le panneau de réglages de la feature « Multi Channel View ».
+ *
+ * @module src/features/multi-channel-view/settings
+ */
 export function renderMultiChannelViewSettings(container, { context }) {
     const runtime = context?.multiChannelView;
     if (!runtime) { container.textContent = 'Active la feature pour ajouter des canaux à la mosaïque.'; return; }

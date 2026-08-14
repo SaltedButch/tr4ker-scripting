@@ -1,3 +1,8 @@
+/**
+ * Construit le panneau de réglages de la feature « Matrix Header ».
+ *
+ * @module src/features/matrix-header/settings
+ */
 const KEYS = Object.freeze({
     allSite: 'tm_t4_topbar_stats_all_site',
     upload: 'tm_t4_matrix_global_upload',
@@ -44,6 +49,11 @@ function numberRow(label, value, min, max, step, suffix = '') {
     return { element, input };
 }
 
+/**
+ * Rend l'interface produite par « renderMatrixHeaderSettings ».
+ *
+ * @function renderMatrixHeaderSettings
+ */
 export function renderMatrixHeaderSettings(container, { context }) {
     const runtime = context?.matrixHeader;
     if (!runtime) { container.textContent = 'Active la feature pour configurer l’affichage Matrix.'; return; }

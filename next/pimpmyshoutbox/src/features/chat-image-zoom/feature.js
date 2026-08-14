@@ -1,3 +1,8 @@
+/**
+ * Implémente la feature « Chat Image Zoom » et son cycle de vie.
+ *
+ * @module src/features/chat-image-zoom/feature
+ */
 import { defineFeature } from '../../core/feature-registry.js';
 import { renderChatImageZoomSettings } from './settings.js';
 
@@ -25,6 +30,11 @@ function isChatImage(context, target) {
     return image;
 }
 
+/**
+ * Déclare la feature et son cycle de vie.
+ *
+ * @function feature
+ */
 export default defineFeature({
     id: 'chat-image-zoom',
     label: 'Zoom des images',

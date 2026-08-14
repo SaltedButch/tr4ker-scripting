@@ -1,3 +1,8 @@
+/**
+ * Encapsule les échanges distants utilisés par « Klipy Gifs ».
+ *
+ * @module src/features/klipy-gifs/client
+ */
 const GATEWAY = 'https://klipy-api-gateway.tr4ker-klipy-emoj-gateway-customer593.workers.dev';
 const CLIENT_ID_KEY = 'tm_t4_klipy_gateway_client_id';
 const MAX_CACHE_ENTRIES = 24;
@@ -25,6 +30,11 @@ function normalizeResult(value) {
     };
 }
 
+/**
+ * Crée l'API publique « createKlipyClient ».
+ *
+ * @function createKlipyClient
+ */
 export function createKlipyClient({ storage, http }) {
     const cache = new Map();
     function clientId() {

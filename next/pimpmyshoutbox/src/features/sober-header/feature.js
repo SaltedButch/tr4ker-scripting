@@ -1,3 +1,8 @@
+/**
+ * Implémente la feature « Sober Header » et son cycle de vie.
+ *
+ * @module src/features/sober-header/feature
+ */
 import { CONFIGURATION_IMPORTED_EVENT } from '../../core/config-backup.js';
 import { defineFeature } from '../../core/feature-registry.js';
 import { renderSoberHeaderSettings } from './settings.js';
@@ -58,6 +63,11 @@ header[role="banner"][${HOST_ATTRIBUTE}="1"]{height:auto!important;min-height:4r
 #${WIDGET_ID}[data-tm-topbar-stats-mode="sober"]{--tm-sober-period-width:200px}#${WIDGET_ID}[data-tm-topbar-stats-mode="sober"] [data-tm-topbar-stats-sober-item="period"]{flex:0 0 var(--tm-sober-period-width);width:var(--tm-sober-period-width)}@media(max-width:640px){#${WIDGET_ID}[data-tm-topbar-stats-mode="sober"]{--tm-sober-period-width:120px}}
 `;
 
+/**
+ * Déclare la feature et son cycle de vie.
+ *
+ * @function feature
+ */
 export default defineFeature({
     id: 'sober-header',
     label: 'Barre de menu — Sobre',

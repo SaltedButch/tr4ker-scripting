@@ -1,3 +1,8 @@
+/**
+ * Rend le panneau de boîte de réception de « Mentions ».
+ *
+ * @module src/features/mentions/inbox-panel
+ */
 const BUBBLE_ID = 'tm-t4-next-mention-inbox-bubble';
 const PANEL_ID = 'tm-t4-next-mention-inbox-panel';
 
@@ -22,6 +27,11 @@ function button(label, handler, { color = '#3f3f46', danger = false } = {}) {
     return element;
 }
 
+/**
+ * Crée l'API publique « createMentionInboxPanel ».
+ *
+ * @function createMentionInboxPanel
+ */
 export function createMentionInboxPanel({ inbox, toast }) {
     let open = false;
     let readFilter = 'unread';

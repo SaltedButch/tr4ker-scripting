@@ -1,3 +1,8 @@
+/**
+ * Valide, compare et expose les raccourcis clavier des features.
+ *
+ * @module src/core/shortcuts
+ */
 const SUPPORTED_MODIFIERS = new Set(['platform', 'shift', 'ctrl']);
 
 function detectMacPlatform() {
@@ -10,6 +15,11 @@ function detectMacPlatform() {
     return /mac|iphone|ipad|ipod/i.test(platform);
 }
 
+/**
+ * Indique si la condition vérifiée par « hasPlatformModifier » est satisfaite.
+ *
+ * @function hasPlatformModifier
+ */
 export function hasPlatformModifier(event, { isMac = detectMacPlatform() } = {}) {
     return isMac
         ? event.metaKey === true && event.altKey !== true
@@ -27,6 +37,11 @@ function isEditableTarget(target) {
     );
 }
 
+/**
+ * Valide les données reçues par « validateShortcut ».
+ *
+ * @function validateShortcut
+ */
 export function validateShortcut(shortcut, featureId) {
     if (!shortcut || typeof shortcut !== 'object') {
         throw new Error(`Feature '${featureId}' contains an invalid shortcut.`);
@@ -44,6 +59,11 @@ export function validateShortcut(shortcut, featureId) {
     }
 }
 
+/**
+ * Indique si la condition vérifiée par « matchesShortcut » est satisfaite.
+ *
+ * @function matchesShortcut
+ */
 export function matchesShortcut(event, shortcut, { isMac = detectMacPlatform() } = {}) {
     if (event.isComposing || normalizeKey(event.key) !== normalizeKey(shortcut.key)) return false;
 
@@ -58,6 +78,11 @@ export function matchesShortcut(event, shortcut, { isMac = detectMacPlatform() }
         && event.ctrlKey === modifiers.has('ctrl');
 }
 
+/**
+ * Formate la valeur reçue par « formatShortcut ».
+ *
+ * @function formatShortcut
+ */
 export function formatShortcut(shortcut, { isMac = detectMacPlatform() } = {}) {
     const modifiers = new Set(shortcut.modifiers || ['platform']);
     const labels = [];
@@ -70,6 +95,11 @@ export function formatShortcut(shortcut, { isMac = detectMacPlatform() } = {}) {
     return labels.join(isMac ? '' : '+');
 }
 
+/**
+ * Crée l'API publique « createFeatureShortcutApi ».
+ *
+ * @function createFeatureShortcutApi
+ */
 export function createFeatureShortcutApi({ feature, addListener }) {
     const shortcuts = new Map(feature.shortcuts.map((shortcut) => [shortcut.id, shortcut]));
 

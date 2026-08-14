@@ -1,6 +1,16 @@
+/**
+ * Regroupe les fonctions de la feature « Mentions ».
+ *
+ * @module src/features/mentions/channel-catalog
+ */
 export const CROSS_CHANNEL_ENABLED_STORAGE_KEY = 'tm_t4_cross_channel_mention_enabled';
 export const CROSS_CHANNEL_IDS_STORAGE_KEY = 'tm_t4_cross_channel_mention_channels';
 
+/**
+ * Crée l'API publique « createMentionChannelCatalog ».
+ *
+ * @function createMentionChannelCatalog
+ */
 export function createMentionChannelCatalog({ storage, staleAfterMs = 5 * 60 * 1000 }) {
     let channels = new Map();
     let fetchedAt = 0;

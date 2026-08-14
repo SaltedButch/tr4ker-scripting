@@ -1,3 +1,8 @@
+/**
+ * Gère les données persistées et les favoris de la feature « Emoji Favorites ».
+ *
+ * @module src/features/emoji-favorites/store
+ */
 export const STORAGE_KEYS = Object.freeze({
     usage: 'tm_t4_emoji_usage_counts',
     limit: 'tm_t4_emoji_quick_access_limit',
@@ -18,6 +23,11 @@ function normalizeImageUrl(value) {
     try { const url = new URL(raw, location.origin); return `${url.pathname}${url.search}`; } catch { return raw; }
 }
 
+/**
+ * Insère le contenu préparé par « insertionText ».
+ *
+ * @function insertionText
+ */
 export function insertionText(record) {
     const direct = String(record?.insertText || '').trim();
     if (direct) return direct;
@@ -30,6 +40,11 @@ export function insertionText(record) {
     return match?.[1] ? `:${match[1]}:` : '';
 }
 
+/**
+ * Normalise les données reçues par « normalizeRecord ».
+ *
+ * @function normalizeRecord
+ */
 export function normalizeRecord(value, { manual = false } = {}) {
     if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
         const raw = String(value).trim();
@@ -61,6 +76,11 @@ function unique(records) {
     return records.filter((record) => record && !seen.has(record.key) && seen.add(record.key));
 }
 
+/**
+ * Crée l'API publique « createEmojiFavoritesStore ».
+ *
+ * @function createEmojiFavoritesStore
+ */
 export function createEmojiFavoritesStore({ storage }) {
     let usage = {};
     let manualFavorites = [];

@@ -1,3 +1,8 @@
+/**
+ * Encapsule les échanges distants utilisés par « T9 Emoj ».
+ *
+ * @module src/features/t9-emoj/client
+ */
 const GATEWAY = 'https://klipy-api-gateway.tr4ker-klipy-emoj-gateway-customer593.workers.dev';
 const CACHE_KEY = 'tm_t4_t9_emoj_manifest_cache';
 const CLIENT_ID_KEY = 'tm_t4_klipy_gateway_client_id';
@@ -29,6 +34,11 @@ function normalizeItems(value) {
     return (Array.isArray(value) ? value : []).map(normalizeItem).filter((item) => item && !seen.has(item.id) && seen.add(item.id)).sort((left, right) => left.filename.localeCompare(right.filename, 'fr'));
 }
 
+/**
+ * Crée l'API publique « createT9EmojClient ».
+ *
+ * @function createT9EmojClient
+ */
 export function createT9EmojClient({ storage, http }) {
     let pending = null;
     function getCached() {

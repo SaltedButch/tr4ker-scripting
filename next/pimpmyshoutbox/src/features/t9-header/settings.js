@@ -1,3 +1,8 @@
+/**
+ * Construit le panneau de réglages de la feature « T9 Header ».
+ *
+ * @module src/features/t9-header/settings
+ */
 const ALL_SITE_STORAGE_KEY = 'tm_t4_topbar_stats_all_site';
 
 function makeToggle(label, checked) {
@@ -13,6 +18,11 @@ function makeToggle(label, checked) {
     return { row, input };
 }
 
+/**
+ * Rend l'interface produite par « renderT9HeaderSettings ».
+ *
+ * @function renderT9HeaderSettings
+ */
 export function renderT9HeaderSettings(container, { context }) {
     const description = document.createElement('p');
     description.style.cssText = 'margin:0 0 12px;color:#a1a1aa;font-size:12px;line-height:1.5;';

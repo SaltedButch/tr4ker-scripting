@@ -1,3 +1,8 @@
+/**
+ * Implémente la feature « Saved Phrases » et son cycle de vie.
+ *
+ * @module src/features/saved-phrases/feature
+ */
 import { CONFIGURATION_IMPORTED_EVENT } from '../../core/config-backup.js';
 import { defineFeature } from '../../core/feature-registry.js';
 import { createMediaButton, createMediaMenu, hideMediaMenu, positionMediaMenu, showMediaMenu } from '../../core/media-menu.js';
@@ -34,6 +39,11 @@ function makeTextButton(labelText, background = '#3f3f46') {
     return button;
 }
 
+/**
+ * Déclare la feature et son cycle de vie.
+ *
+ * @function feature
+ */
 export default defineFeature({
     id: 'saved-phrases',
     label: 'Réponses rapides',

@@ -1,3 +1,8 @@
+/**
+ * Construit et pilote la fenêtre de réglages des features.
+ *
+ * @module src/core/settings-modal
+ */
 import { SETTINGS_AREAS } from './settings-categories.js';
 import { createSettingsHelpTab } from './settings-help.js';
 import { formatShortcut, matchesShortcut } from './shortcuts.js';
@@ -74,6 +79,11 @@ function ensureStyle() {
     document.head.append(style);
 }
 
+/**
+ * Crée l'API publique « createSettingsModal ».
+ *
+ * @function createSettingsModal
+ */
 export function createSettingsModal({ registry, storage, globalSettings, logger = console }) {
     let isOpen = false;
     let lastFocusedElement = null;

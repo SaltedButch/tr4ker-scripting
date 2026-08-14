@@ -1,7 +1,17 @@
+/**
+ * Encapsule les requêtes HTTP internes et externes avec gestion d'erreurs.
+ *
+ * @module src/core/http
+ */
 function createRequestError(message, response) {
     return new Error(`${message}${response?.status ? ` (HTTP ${response.status})` : ''}`);
 }
 
+/**
+ * Crée l'API publique « createHttpClient ».
+ *
+ * @function createHttpClient
+ */
 export function createHttpClient({ gmRequest = globalThis.GM_xmlhttpRequest } = {}) {
     function external(url, options = {}) {
         if (typeof gmRequest !== 'function') {

@@ -1,3 +1,8 @@
+/**
+ * Construit le contexte et les utilitaires mis à disposition d'une feature.
+ *
+ * @module src/core/feature-context
+ */
 import { createFeatureShortcutApi } from './shortcuts.js';
 
 function createCleanupBag() {
@@ -22,6 +27,11 @@ function createCleanupBag() {
     };
 }
 
+/**
+ * Crée l'API publique « createFeatureContext ».
+ *
+ * @function createFeatureContext
+ */
 export function createFeatureContext({ appId, feature, getPage, logger, services = {} }) {
     const cleanupBag = createCleanupBag();
     const enabledStorageKey = `${appId}:feature:${feature.id}:enabled`;

@@ -1,3 +1,8 @@
+/**
+ * Implémente la feature « Message Editing » et son cycle de vie.
+ *
+ * @module src/features/message-editing/feature
+ */
 import { defineFeature } from '../../core/feature-registry.js';
 
 const DELETE_BUTTON_ATTRIBUTE = 'data-tm-t4-delete-message';
@@ -58,6 +63,11 @@ function focusNativeEditor(message) {
     });
 }
 
+/**
+ * Déclare la feature et son cycle de vie.
+ *
+ * @function feature
+ */
 export default defineFeature({
     id: 'message-editing',
     label: 'Édition de vos messages',

@@ -1,5 +1,13 @@
+/**
+ * Configure l'assemblage du userscript et la découverte automatique des features.
+ *
+ * Le bundle distribué est volontairement minifié et les sourcemaps sont désactivées
+ * afin de ne pas exposer ni embarquer la documentation des sources.
+ *
+ * @module esbuild.config
+ */
 import { build } from 'esbuild';
-import { mkdir, readFile } from 'node:fs/promises';
+import { mkdir, readFile, unlink } from 'node:fs/promises';
 import { glob } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -7,8 +15,10 @@ import path from 'node:path';
 const rootUrl = new URL('.', import.meta.url);
 const root = fileURLToPath(rootUrl);
 const metadata = await readFile(new URL('./metadata.user.js', import.meta.url), 'utf8');
+const outfile = fileURLToPath(new URL('./dist/pimpmyshoutbox-next.user.js', import.meta.url));
 
 await mkdir(new URL('./dist/', import.meta.url), { recursive: true });
+await unlink(`${outfile}.map`).catch(() => {});
 
 const featureGlobPlugin = {
     name: 'feature-glob',
@@ -47,15 +57,16 @@ const featureGlobPlugin = {
 
 await build({
     entryPoints: [fileURLToPath(new URL('./src/entry.js', import.meta.url))],
-    outfile: fileURLToPath(new URL('./dist/pimpmyshoutbox-next.user.js', import.meta.url)),
+    outfile,
     bundle: true,
     format: 'iife',
     target: ['es2022'],
+    minify: true,
     banner: { js: metadata.trim() },
     legalComments: 'none',
-    sourcemap: true,
+    sourcemap: false,
     logLevel: 'info',
     plugins: [featureGlobPlugin]
 });
 
-console.log(`Built ${root}dist/pimpmyshoutbox-next.user.js`);
+console.log(`Built ${outfile}`);

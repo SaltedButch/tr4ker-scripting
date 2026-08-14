@@ -1,3 +1,8 @@
+/**
+ * Construit le panneau de réglages de la feature « Chat Toolbar Layout ».
+ *
+ * @module src/features/chat-toolbar-layout/settings
+ */
 function checkbox(label, checked) {
     const row = document.createElement('label');
     row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:10px;color:#e4e4e7;cursor:pointer;font-size:12px;';
@@ -6,6 +11,11 @@ function checkbox(label, checked) {
     return { row, input };
 }
 
+/**
+ * Rend l'interface produite par « renderChatToolbarLayoutSettings ».
+ *
+ * @function renderChatToolbarLayoutSettings
+ */
 export function renderChatToolbarLayoutSettings(container, { context }) {
     const runtime = context?.chatToolbarLayout;
     if (!runtime) { container.textContent = 'Active la feature pour régler la barre d’outils.'; return; }

@@ -1,3 +1,8 @@
+/**
+ * Valide et résout les aides contextuelles déclarées par les features.
+ *
+ * @module src/core/feature-hints
+ */
 import { formatShortcut } from './shortcuts.js';
 
 const SUPPORTED_HINT_KINDS = new Set(['info', 'tip', 'warning']);
@@ -7,6 +12,11 @@ function getShortcutReferences(text) {
     return [...String(text || '').matchAll(SHORTCUT_TOKEN_PATTERN)].map((match) => match[1]);
 }
 
+/**
+ * Valide les données reçues par « validateFeatureHints ».
+ *
+ * @function validateFeatureHints
+ */
 export function validateFeatureHints(hints, feature) {
     if (hints === undefined) return;
     if (!Array.isArray(hints)) {
@@ -40,6 +50,11 @@ export function validateFeatureHints(hints, feature) {
     }
 }
 
+/**
+ * Expose l'opération publique « resolveFeatureHints ».
+ *
+ * @function resolveFeatureHints
+ */
 export function resolveFeatureHints(feature, platformOptions) {
     const shortcuts = new Map(feature.shortcuts.map((shortcut) => [shortcut.id, shortcut]));
 

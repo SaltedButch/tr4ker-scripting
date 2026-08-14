@@ -1,7 +1,17 @@
+/**
+ * Construit les menus multimédias et leurs actions d'insertion.
+ *
+ * @module src/core/media-menu
+ */
 function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
 }
 
+/**
+ * Crée l'API publique « createMediaButton ».
+ *
+ * @function createMediaButton
+ */
 export function createMediaButton({ label, title, colors = {} }) {
     const button = document.createElement('button');
     button.type = 'button';
@@ -12,6 +22,11 @@ export function createMediaButton({ label, title, colors = {} }) {
     return button;
 }
 
+/**
+ * Crée l'API publique « createMediaMenu ».
+ *
+ * @function createMediaMenu
+ */
 export function createMediaMenu({ width = 420, maxHeight = '70vh' } = {}) {
     const menu = document.createElement('section');
     menu.setAttribute('role', 'dialog');
@@ -20,6 +35,11 @@ export function createMediaMenu({ width = 420, maxHeight = '70vh' } = {}) {
     return menu;
 }
 
+/**
+ * Expose l'opération publique « positionMediaMenu ».
+ *
+ * @function positionMediaMenu
+ */
 export function positionMediaMenu(menu, anchor) {
     if (!(menu instanceof HTMLElement) || !(anchor instanceof HTMLElement)) return;
     menu.style.setProperty('position', 'fixed', 'important');
@@ -42,6 +62,11 @@ export function positionMediaMenu(menu, anchor) {
     menu.style.visibility = 'visible';
 }
 
+/**
+ * Expose l'opération publique « showMediaMenu ».
+ *
+ * @function showMediaMenu
+ */
 export function showMediaMenu(menu, anchor) {
     if (!(menu instanceof HTMLElement) || !(anchor instanceof HTMLElement)) return;
     menu.style.display = 'block';
@@ -49,12 +74,22 @@ export function showMediaMenu(menu, anchor) {
     menu.dataset.tmOpen = '1';
 }
 
+/**
+ * Expose l'opération publique « hideMediaMenu ».
+ *
+ * @function hideMediaMenu
+ */
 export function hideMediaMenu(menu) {
     if (!(menu instanceof HTMLElement)) return;
     menu.dataset.tmOpen = '0';
     menu.style.display = 'none';
 }
 
+/**
+ * Insère le contenu préparé par « insertImageMarkup ».
+ *
+ * @function insertImageMarkup
+ */
 export function insertImageMarkup(input, imageUrl, inputService, successMessage = 'Image insérée.') {
     const rawUrl = String(imageUrl || '').trim();
     try {

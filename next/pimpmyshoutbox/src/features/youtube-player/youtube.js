@@ -1,3 +1,8 @@
+/**
+ * Analyse les liens YouTube et pilote le lecteur flottant ou intégré.
+ *
+ * @module src/features/youtube-player/youtube
+ */
 const PLAYER_ID = 'tm-t4-next-youtube-player';
 const DEFAULT_TITLE = 'Player YouTube';
 const DEFAULT_WIDTH = 420;
@@ -20,6 +25,11 @@ function parseTime(value) {
     return total;
 }
 
+/**
+ * Retourne la valeur calculée par « getYouTubeDescriptor ».
+ *
+ * @function getYouTubeDescriptor
+ */
 export function getYouTubeDescriptor(rawUrl) {
     const raw = String(rawUrl || '').trim();
     if (!raw) return null;
@@ -52,6 +62,11 @@ export function getYouTubeDescriptor(rawUrl) {
     return { id: videoId, embedUrl: embed.href, watchUrl: watch.href };
 }
 
+/**
+ * Retourne la valeur calculée par « getTextYouTubeDescriptors ».
+ *
+ * @function getTextYouTubeDescriptors
+ */
 export function getTextYouTubeDescriptors(text) {
     const descriptors = [];
     const seen = new Set();
@@ -63,6 +78,11 @@ export function getTextYouTubeDescriptors(text) {
     return descriptors;
 }
 
+/**
+ * Crée l'API publique « createYouTubePlayer ».
+ *
+ * @function createYouTubePlayer
+ */
 export function createYouTubePlayer({ http }) {
     const titles = new Map();
     let resizeObserver = null;

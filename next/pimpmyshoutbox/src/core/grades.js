@@ -1,3 +1,8 @@
+/**
+ * Expose les définitions de grades et applique leur présentation visuelle.
+ *
+ * @module src/core/grades
+ */
 import { normalizeName } from './text.js';
 
 const COLORS_STORAGE_KEY = 'tm_t4_grade_pseudonym_colors';
@@ -73,6 +78,11 @@ function ensureEffectsStyle() {
     document.head.append(style);
 }
 
+/**
+ * Crée l'API publique « createGradeService ».
+ *
+ * @function createGradeService
+ */
 export function createGradeService({ storage }) {
     const getDefinition = (id) => GRADE_DEFINITIONS.find((grade) => grade.id === String(id || '').trim()) || null;
     const getDefinitionForApiRole = (role) => GRADE_DEFINITIONS.find((grade) => Object.hasOwn(grade.apiRoleLabels, normalizeName(role))) || null;

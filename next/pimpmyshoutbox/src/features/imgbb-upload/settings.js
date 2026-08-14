@@ -1,3 +1,8 @@
+/**
+ * Construit le panneau de réglages de la feature « Imgbb Upload ».
+ *
+ * @module src/features/imgbb-upload/settings
+ */
 import { renderImageCatalog } from './catalog-ui.js';
 
 const API_KEY_STORAGE = 'tm_t4_imgbb_api_key';
@@ -6,6 +11,11 @@ const EXPIRATIONS = [[0, 'Permanent'], [600, '10 min'], [3600, '1 h'], [86400, '
 
 const CONTROL = 'border:1px solid rgba(255,255,255,.16);border-radius:7px;background:#18181b;color:#fff;padding:7px 8px;';
 
+/**
+ * Rend l'interface produite par « renderImgBbSettings ».
+ *
+ * @function renderImgBbSettings
+ */
 export function renderImgBbSettings(container, { context, refresh }) {
     if (!context) { container.textContent = 'Active la feature pour configurer ImgBB.'; return; }
     const note = document.createElement('div'); note.style.cssText = 'margin-bottom:10px;font-size:12px;line-height:1.45;color:#a1a1aa;'; note.textContent = 'Configurez votre clé ImgBB puis utilisez le bouton Up-Img au-dessus du champ de message.';

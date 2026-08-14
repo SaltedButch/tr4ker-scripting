@@ -1,3 +1,8 @@
+/**
+ * Construit le panneau de réglages de la feature « Profile Hover ».
+ *
+ * @module src/features/profile-hover/settings
+ */
 export function renderProfileHoverSettings(container) {
     const text = document.createElement('div');
     text.style.cssText = 'font-size:12px;line-height:1.5;color:#a1a1aa;';

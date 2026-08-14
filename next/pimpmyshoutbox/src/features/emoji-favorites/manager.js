@@ -1,3 +1,8 @@
+/**
+ * Gère l'interface et le cycle de vie du gestionnaire de « Emoji Favorites ».
+ *
+ * @module src/features/emoji-favorites/manager
+ */
 import { insertionText } from './store.js';
 import { reactionLabel } from './reaction-store.js';
 
@@ -50,6 +55,11 @@ function emojiPreview(record, kind = 'emoji') {
     return element;
 }
 
+/**
+ * Crée l'API publique « createEmojiFavoritesManager ».
+ *
+ * @function createEmojiFavoritesManager
+ */
 export function createEmojiFavoritesManager({ runtime }) {
     let lastFocused = null;
     function close() {

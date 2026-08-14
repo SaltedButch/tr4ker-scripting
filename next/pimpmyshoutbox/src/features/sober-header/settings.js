@@ -1,3 +1,8 @@
+/**
+ * Construit le panneau de réglages de la feature « Sober Header ».
+ *
+ * @module src/features/sober-header/settings
+ */
 const KEYS = Object.freeze({
     allSite: 'tm_t4_topbar_stats_all_site',
     upload: 'tm_t4_topbar_stats_show_total_upload',
@@ -30,6 +35,11 @@ function toggle(label, checked, color = '#20d67b') {
     return { element, input };
 }
 
+/**
+ * Rend l'interface produite par « renderSoberHeaderSettings ».
+ *
+ * @function renderSoberHeaderSettings
+ */
 export function renderSoberHeaderSettings(container, { context }) {
     const runtime = context?.soberHeader;
     if (!runtime) { container.textContent = 'Active la feature pour configurer l’affichage Sobre.'; return; }

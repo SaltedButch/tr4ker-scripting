@@ -1,3 +1,8 @@
+/**
+ * Coordonne la lecture d'un son entre plusieurs onglets.
+ *
+ * @module src/core/cross-tab-sound-coordinator
+ */
 const CLAIM_SETTLEMENT_DELAY_MS = 90;
 const MAX_CLAIMS = 80;
 const CLAIM_MAX_AGE_MS = 2 * 60 * 60 * 1000;

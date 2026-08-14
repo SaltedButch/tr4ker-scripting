@@ -1,3 +1,8 @@
+/**
+ * Construit le panneau de réglages de la feature « Emoji Favorites ».
+ *
+ * @module src/features/emoji-favorites/settings
+ */
 export function renderEmojiFavoritesSettings(container, { context }) {
     const runtime = context?.emojiFavorites;
     if (!runtime) { container.textContent = 'Active la feature pour gérer les emojis et réactions favoris.'; return; }

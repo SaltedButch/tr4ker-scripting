@@ -1,3 +1,8 @@
+/**
+ * Construit le panneau de réglages de la feature « Mentions ».
+ *
+ * @module src/features/mentions/settings
+ */
 function makeLabel(text) {
     const label = document.createElement('label');
     label.style.cssText = 'display:flex;align-items:center;gap:8px;margin:10px 0;color:#d4d4d8;cursor:pointer;';
@@ -37,6 +42,11 @@ function toRgba(hexColor, alpha) {
     return `rgba(${red}, ${green}, ${blue}, ${Math.max(0, Math.min(1, alpha))})`;
 }
 
+/**
+ * Rend l'interface produite par « renderMentionSettings ».
+ *
+ * @function renderMentionSettings
+ */
 export function renderMentionSettings(container, runtime) {
     if (!runtime) {
         container.textContent = 'Active la feature pour régler les mentions.';

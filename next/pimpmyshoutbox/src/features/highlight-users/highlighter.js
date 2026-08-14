@@ -1,3 +1,8 @@
+/**
+ * Applique et retire la mise en évidence propre à « Highlight Users ».
+ *
+ * @module src/features/highlight-users/highlighter
+ */
 function hexToRgba(color, alpha) {
     const hex = String(color || '#f59e0b').replace('#', '');
     const values = [0, 2, 4].map((position) => Number.parseInt(hex.slice(position, position + 2), 16));
@@ -17,6 +22,11 @@ function frameFor(platform, messageElement, username) {
     return hasNext ? 'middle' : 'last';
 }
 
+/**
+ * Crée l'API publique « createHighlightHighlighter ».
+ *
+ * @function createHighlightHighlighter
+ */
 export function createHighlightHighlighter({ platform, ensureStyle }) {
     ensureStyle('tm-t4-next-highlight-users-style', `
         [data-tm-t4-highlight-user]:not([data-tm-t4-mention-highlight]) { background:var(--tm-t4-highlight-background)!important;box-shadow:inset 3px 0 0 var(--tm-t4-highlight-edge)!important; }

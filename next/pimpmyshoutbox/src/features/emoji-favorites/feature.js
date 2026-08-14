@@ -1,3 +1,8 @@
+/**
+ * Implémente la feature « Emoji Favorites » et son cycle de vie.
+ *
+ * @module src/features/emoji-favorites/feature
+ */
 import { CONFIGURATION_IMPORTED_EVENT } from '../../core/config-backup.js';
 import { defineFeature } from '../../core/feature-registry.js';
 import { createEmojiFavoritesManager } from './manager.js';
@@ -149,6 +154,11 @@ function reactionPickerRootFor(button, message) {
     return null;
 }
 
+/**
+ * Déclare la feature et son cycle de vie.
+ *
+ * @function feature
+ */
 export default defineFeature({
     id: 'emoji-favorites',
     label: 'Emojis et réactions favoris',

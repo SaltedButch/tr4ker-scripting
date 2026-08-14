@@ -1,3 +1,8 @@
+/**
+ * Construit le panneau de réglages de la feature « Saved Phrases ».
+ *
+ * @module src/features/saved-phrases/settings
+ */
 export function renderSavedPhrasesSettings(container, { context }) {
     const runtime = context?.savedPhrases;
     if (!runtime) { container.textContent = 'Active la feature pour gérer les réponses rapides.'; return; }

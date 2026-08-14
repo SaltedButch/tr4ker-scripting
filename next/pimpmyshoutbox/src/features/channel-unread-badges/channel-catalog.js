@@ -1,5 +1,15 @@
+/**
+ * Regroupe les fonctions de la feature « Channel Unread Badges ».
+ *
+ * @module src/features/channel-unread-badges/channel-catalog
+ */
 export const CHANNEL_IDS_STORAGE_KEY = 'tm_t4_hidden_channel_unread_badges_channels';
 
+/**
+ * Crée l'API publique « createChannelCatalog ».
+ *
+ * @function createChannelCatalog
+ */
 export function createChannelCatalog({ storage, staleAfterMs = 5 * 60 * 1000 }) {
     let channels = new Map();
     let fetchedAt = 0;

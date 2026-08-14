@@ -1,3 +1,8 @@
+/**
+ * Implémente la feature « Klipy Gifs » et son cycle de vie.
+ *
+ * @module src/features/klipy-gifs/feature
+ */
 import { createMediaButton, createMediaMenu, hideMediaMenu, insertImageMarkup, positionMediaMenu, showMediaMenu } from '../../core/media-menu.js';
 import { defineFeature } from '../../core/feature-registry.js';
 import { createKlipyClient } from './client.js';
@@ -11,6 +16,11 @@ function setStatus(status, message, error = false) {
     status.style.color = error ? '#fca5a5' : '#cbd5f5';
 }
 
+/**
+ * Déclare la feature et son cycle de vie.
+ *
+ * @function feature
+ */
 export default defineFeature({
     id: 'klipy-gifs',
     label: 'GIF Klipy',

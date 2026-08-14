@@ -1,3 +1,8 @@
+/**
+ * Construit le panneau de réglages de la feature « Pimp My Grade ».
+ *
+ * @module src/features/pimp-my-grade/settings
+ */
 const CONTROL_STYLE = 'border:1px solid rgba(255,255,255,.16);border-radius:7px;background:#18181b;color:#fff;padding:6px 8px;';
 
 function makeButton(label) {
@@ -22,6 +27,11 @@ function saveEffect(runtime, gradeId, value) {
     runtime.refresh();
 }
 
+/**
+ * Rend l'interface produite par « renderPimpMyGradeSettings ».
+ *
+ * @function renderPimpMyGradeSettings
+ */
 export function renderPimpMyGradeSettings(container, { context, refresh: refreshSettings }) {
     if (!context) {
         container.textContent = 'Active la feature pour modifier l’apparence des grades.';

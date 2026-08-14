@@ -1,3 +1,8 @@
+/**
+ * Observe les messages du chat et diffuse leurs changements.
+ *
+ * @module src/core/message-stream
+ */
 export function createMessageStream({ platform, logger = console }) {
     const subscribers = new Set();
     let observers = [];

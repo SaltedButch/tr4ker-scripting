@@ -1,3 +1,8 @@
+/**
+ * Surveille la socket utilisée par « Mentions ».
+ *
+ * @module src/features/mentions/socket-monitor
+ */
 function escapeRegExp(value) {
     return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

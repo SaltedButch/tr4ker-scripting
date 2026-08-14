@@ -1,6 +1,16 @@
+/**
+ * Applique le moteur de filtrage de « Blacklist » aux messages.
+ *
+ * @module src/features/blacklist/engine
+ */
 const HIDDEN_ATTRIBUTE = 'data-tm-t4-blacklist-hidden';
 const DEBUG_ATTRIBUTE = 'data-tm-t4-blacklist-debug';
 
+/**
+ * Crée l'API publique « createBlacklistEngine ».
+ *
+ * @function createBlacklistEngine
+ */
 export function createBlacklistEngine({ platform, state, isDebugModeEnabled = () => false, onUpdate = () => {} }) {
     const originalDisplayByElement = new Map();
     const originalDebugStyleByElement = new Map();

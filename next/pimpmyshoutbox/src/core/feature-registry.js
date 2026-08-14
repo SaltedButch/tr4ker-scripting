@@ -1,3 +1,8 @@
+/**
+ * Déclare les features et orchestre leur activation selon la page courante.
+ *
+ * @module src/core/feature-registry
+ */
 import { createFeatureContext } from './feature-context.js';
 import { resolveFeatureHints, validateFeatureHints } from './feature-hints.js';
 import { getSettingsCategory, SETTINGS_CATEGORIES, isSettingsArea, isSettingsCategory } from './settings-categories.js';
@@ -7,6 +12,11 @@ function matchesPage(feature, page) {
     return !Array.isArray(feature.pages) || feature.pages.length === 0 || feature.pages.includes(page);
 }
 
+/**
+ * Valide et normalise la définition fournie à « defineFeature ».
+ *
+ * @function defineFeature
+ */
 export function defineFeature(definition) {
     if (!definition || typeof definition.id !== 'string' || !definition.id) {
         throw new Error('Every feature must declare a non-empty id.');
@@ -65,6 +75,11 @@ export function defineFeature(definition) {
     });
 }
 
+/**
+ * Crée l'API publique « createFeatureRegistry ».
+ *
+ * @function createFeatureRegistry
+ */
 export function createFeatureRegistry({ appId, getPage, logger, services }) {
     const features = new Map();
     const activeContexts = new Map();

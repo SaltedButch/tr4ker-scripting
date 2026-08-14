@@ -1,3 +1,8 @@
+/**
+ * Applique et retire la mise en évidence propre à « Mentions ».
+ *
+ * @module src/features/mentions/highlighter
+ */
 function toRgba(hexColor, alpha) {
     const hex = String(hexColor || '').replace('#', '');
     const red = Number.parseInt(hex.slice(0, 2), 16);
@@ -18,6 +23,11 @@ function restoreStyle(element, property, previous) {
     else element.style.removeProperty(property);
 }
 
+/**
+ * Crée l'API publique « createMentionHighlighter ».
+ *
+ * @function createMentionHighlighter
+ */
 export function createMentionHighlighter({ platform }) {
     const states = new Map();
 

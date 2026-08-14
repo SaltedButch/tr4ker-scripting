@@ -1,3 +1,8 @@
+/**
+ * Implémente la feature « Blacklist » et son cycle de vie.
+ *
+ * @module src/features/blacklist/feature
+ */
 import { createFloatingPanel } from '../../core/floating-panel.js';
 import { CONFIGURATION_IMPORTED_EVENT } from '../../core/config-backup.js';
 import { defineFeature } from '../../core/feature-registry.js';
@@ -141,6 +146,11 @@ function renderFeatureSettings(container, { refresh }) {
     renderBlacklistSettings(container, activeRuntime, { refresh });
 }
 
+/**
+ * Déclare la feature et son cycle de vie.
+ *
+ * @function feature
+ */
 export default defineFeature({
     id: 'blacklist',
     label: 'Blacklist',

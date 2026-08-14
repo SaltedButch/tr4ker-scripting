@@ -1,3 +1,8 @@
+/**
+ * Fournit les notifications temporaires affichées à l'utilisateur.
+ *
+ * @module src/core/toast
+ */
 export function createToastService({ id = 'tm-t4-next-toast' } = {}) {
     let hideTimer = null;
 

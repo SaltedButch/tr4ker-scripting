@@ -1,3 +1,8 @@
+/**
+ * Gère l'export et l'import contrôlés de la configuration persistée.
+ *
+ * @module src/core/config-backup
+ */
 export const CONFIGURATION_IMPORTED_EVENT = 'tm-t4-next:configuration-imported';
 
 const EXPORT_VERSION = 1;
@@ -85,6 +90,11 @@ function isPlainObject(value) {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
+/**
+ * Crée l'API publique « createConfigurationBackup ».
+ *
+ * @function createConfigurationBackup
+ */
 export function createConfigurationBackup({ storage }) {
     function buildPayload() {
         const savedStorage = {};

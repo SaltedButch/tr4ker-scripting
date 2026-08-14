@@ -1,3 +1,8 @@
+/**
+ * Implémente la feature « Adult Mode » et son cycle de vie.
+ *
+ * @module src/features/adult-mode/feature
+ */
 import { defineFeature } from '../../core/feature-registry.js';
 import { renderAdultModeSettings } from './settings.js';
 
@@ -33,6 +38,11 @@ async function saveAdultPreference(preferences, enabled) {
     if (!response.ok) throw new Error(payload?.error || `HTTP ${response.status}`);
 }
 
+/**
+ * Déclare la feature et son cycle de vie.
+ *
+ * @function feature
+ */
 export default defineFeature({
     id: 'adult-mode',
     label: 'Mode adulte',

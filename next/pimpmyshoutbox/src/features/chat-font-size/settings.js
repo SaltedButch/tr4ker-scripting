@@ -1,3 +1,8 @@
+/**
+ * Construit le panneau de réglages de la feature « Chat Font Size ».
+ *
+ * @module src/features/chat-font-size/settings
+ */
 const MIN_PERCENT = 85;
 const MAX_PERCENT = 170;
 const DEFAULT_PERCENT = 100;
@@ -13,6 +18,11 @@ function percent(scale) {
     return Math.round(Number(scale) * 100);
 }
 
+/**
+ * Rend l'interface produite par « renderChatFontSizeSettings ».
+ *
+ * @function renderChatFontSizeSettings
+ */
 export function renderChatFontSizeSettings(container, { context, refresh }) {
     const runtime = context?.chatFontSize;
     if (!runtime) { container.textContent = 'Active la feature pour modifier la taille de police du chat.'; return; }

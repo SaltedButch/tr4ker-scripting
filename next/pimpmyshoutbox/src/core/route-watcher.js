@@ -1,3 +1,8 @@
+/**
+ * Détecte les changements de route dans l'application monopage.
+ *
+ * @module src/core/route-watcher
+ */
 export function createRouteWatcher({ onRouteChange, onTick = () => {}, getRouteKey = () => location.href }) {
     let running = false;
     let lastRouteKey = '';

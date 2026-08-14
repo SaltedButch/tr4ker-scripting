@@ -1,7 +1,17 @@
+/**
+ * Implémente la feature « Profile Hover » et son cycle de vie.
+ *
+ * @module src/features/profile-hover/feature
+ */
 import { defineFeature } from '../../core/feature-registry.js';
 import { createProfileHoverCard } from './profile-card.js';
 import { renderProfileHoverSettings } from './settings.js';
 
+/**
+ * Déclare la feature et son cycle de vie.
+ *
+ * @function feature
+ */
 export default defineFeature({
     id: 'profile-hover',
     label: 'Carte profil au survol',

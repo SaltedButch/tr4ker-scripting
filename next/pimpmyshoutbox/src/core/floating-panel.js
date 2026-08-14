@@ -1,3 +1,8 @@
+/**
+ * Fournit le comportement commun des panneaux flottants déplaçables.
+ *
+ * @module src/core/floating-panel
+ */
 const STYLE_ID = 'tm-t4-next-floating-panel-style';
 const VIEWPORT_MARGIN_PX = 10;
 
@@ -44,6 +49,11 @@ function normalizeSize(value) {
     return Number.isFinite(width) && Number.isFinite(height) ? { width, height } : null;
 }
 
+/**
+ * Crée l'API publique « createFloatingPanel ».
+ *
+ * @function createFloatingPanel
+ */
 export function createFloatingPanel({
     id,
     title,

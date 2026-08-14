@@ -1,3 +1,8 @@
+/**
+ * Modèle de départ pour créer une nouvelle feature PimpMyShoutbox Next.
+ *
+ * @module feature.template
+ */
 import { defineFeature } from './src/core/feature-registry.js';
 
 export default defineFeature({

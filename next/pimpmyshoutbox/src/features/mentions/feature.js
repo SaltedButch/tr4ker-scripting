@@ -1,3 +1,8 @@
+/**
+ * Implémente la feature « Mentions » et son cycle de vie.
+ *
+ * @module src/features/mentions/feature
+ */
 import { CONFIGURATION_IMPORTED_EVENT } from '../../core/config-backup.js';
 import { createCrossTabSoundCoordinator } from '../../core/cross-tab-sound-coordinator.js';
 import { defineFeature } from '../../core/feature-registry.js';
@@ -20,6 +25,11 @@ function getSoundEventKey(mention) {
     return `message:${mention.id}`;
 }
 
+/**
+ * Déclare la feature et son cycle de vie.
+ *
+ * @function feature
+ */
 export default defineFeature({
     id: 'mentions',
     label: 'Mentions @moi',

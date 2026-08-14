@@ -1,3 +1,8 @@
+/**
+ * Implémente la feature « T9 Header » et son cycle de vie.
+ *
+ * @module src/features/t9-header/feature
+ */
 import { CONFIGURATION_IMPORTED_EVENT } from '../../core/config-backup.js';
 import { defineFeature } from '../../core/feature-registry.js';
 import { renderT9HeaderSettings } from './settings.js';
@@ -265,6 +270,11 @@ header[data-tm-t9-compatible="1"] [data-tm-t9-native-nav],header[data-tm-t9-comp
 @media (max-width:640px) { #${STATS_BLOCK_ID} { max-width:calc(100vw - 110px); } }
 `;
 
+/**
+ * Déclare la feature et son cycle de vie.
+ *
+ * @function feature
+ */
 export default defineFeature({
     id: 't9-header',
     label: 'Barre de menu — Hommage à T9',

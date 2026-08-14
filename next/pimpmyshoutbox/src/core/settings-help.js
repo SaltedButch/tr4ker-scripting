@@ -1,3 +1,8 @@
+/**
+ * Rend l'onglet d'aide de la fenêtre de réglages.
+ *
+ * @module src/core/settings-help
+ */
 const HELP_TAB = Object.freeze({
     id: 'help',
     label: 'Aide',

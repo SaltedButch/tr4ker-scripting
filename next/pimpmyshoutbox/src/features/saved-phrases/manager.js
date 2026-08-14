@@ -1,3 +1,8 @@
+/**
+ * Gère l'interface et le cycle de vie du gestionnaire de « Saved Phrases ».
+ *
+ * @module src/features/saved-phrases/manager
+ */
 const OVERLAY_ID = 'tm-t4-next-saved-phrases-manager-overlay';
 const PAGE_ID = 'tm-t4-next-saved-phrases-manager';
 const STYLE_ID = 'tm-t4-next-saved-phrases-manager-style';
@@ -43,6 +48,11 @@ function button(label, variant = '') {
     return element;
 }
 
+/**
+ * Crée l'API publique « createSavedPhrasesManager ».
+ *
+ * @function createSavedPhrasesManager
+ */
 export function createSavedPhrasesManager({ store, getReplaceInput, setReplaceInput, download, onChange, toast }) {
     let selectedIndex = null;
     let lastFocused = null;

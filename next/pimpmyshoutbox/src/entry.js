@@ -1,3 +1,8 @@
+/**
+ * Point d'entrée du userscript et bootstrap de l'application.
+ *
+ * @module src/entry
+ */
 import { createApplication } from './core/application.js';
 import registerFeatures from 'features:glob';
 

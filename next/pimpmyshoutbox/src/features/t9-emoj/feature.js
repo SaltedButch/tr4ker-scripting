@@ -1,3 +1,8 @@
+/**
+ * Implémente la feature « T9 Emoj » et son cycle de vie.
+ *
+ * @module src/features/t9-emoj/feature
+ */
 import { createMediaButton, createMediaMenu, hideMediaMenu, insertImageMarkup, positionMediaMenu, showMediaMenu } from '../../core/media-menu.js';
 import { defineFeature } from '../../core/feature-registry.js';
 import { createT9EmojClient } from './client.js';
@@ -5,6 +10,11 @@ import { renderT9EmojSettings } from './settings.js';
 
 function status(target, message, error = false) { target.textContent = message; target.style.color = error ? '#fca5a5' : '#cbd5f5'; }
 
+/**
+ * Déclare la feature et son cycle de vie.
+ *
+ * @function feature
+ */
 export default defineFeature({
     id: 't9-emoj',
     label: 'T9 Emoj',

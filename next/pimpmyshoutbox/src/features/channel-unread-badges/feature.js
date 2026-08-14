@@ -1,3 +1,8 @@
+/**
+ * Implémente la feature « Channel Unread Badges » et son cycle de vie.
+ *
+ * @module src/features/channel-unread-badges/feature
+ */
 import { CONFIGURATION_IMPORTED_EVENT } from '../../core/config-backup.js';
 import { defineFeature } from '../../core/feature-registry.js';
 import { CHANNEL_IDS_STORAGE_KEY, createChannelCatalog } from './channel-catalog.js';
@@ -18,6 +23,11 @@ function channelRows(platform) {
     return [...section.querySelectorAll('[role="button"]')].map((row) => ({ row, name: String(row.querySelector('[class*="navName"]')?.textContent || '').trim() })).filter((entry) => entry.name);
 }
 
+/**
+ * Déclare la feature et son cycle de vie.
+ *
+ * @function feature
+ */
 export default defineFeature({
     id: 'channel-unread-badges',
     label: 'Masquer les compteurs de canaux',

@@ -1,9 +1,19 @@
+/**
+ * Construit le panneau de réglages de la feature « Channel Unread Badges ».
+ *
+ * @module src/features/channel-unread-badges/settings
+ */
 function button(label) {
     const element = document.createElement('button'); element.type = 'button'; element.textContent = label;
     element.style.cssText = 'border:0;border-radius:7px;background:#27272a;color:#e4e4e7;padding:6px 8px;cursor:pointer;font-size:11px;font-weight:700;';
     return element;
 }
 
+/**
+ * Rend l'interface produite par « renderChannelUnreadBadgesSettings ».
+ *
+ * @function renderChannelUnreadBadgesSettings
+ */
 export function renderChannelUnreadBadgesSettings(container, { context }) {
     const runtime = context?.channelUnreadBadges;
     if (!runtime) { container.textContent = 'Active la feature pour choisir les canaux concernés.'; return; }

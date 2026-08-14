@@ -1,3 +1,8 @@
+/**
+ * Gère les réglages globaux et leurs contrôles persistés.
+ *
+ * @module src/core/settings-general
+ */
 const SETTINGS_BUBBLE_STORAGE_KEY = 'tm_t4_settings_bubble_enabled';
 const DEBUG_MODE_STORAGE_KEY = 'tm_t4_debug_mode';
 const SETTINGS_BUBBLE_ID = 'tm-t4-next-settings-bubble';
@@ -14,6 +19,11 @@ function ensureStyle() {
     document.head.append(style);
 }
 
+/**
+ * Crée l'API publique « createGeneralSettings ».
+ *
+ * @function createGeneralSettings
+ */
 export function createGeneralSettings({ storage, platform, configuration, toast, openSettings }) {
     let started = false;
     const debugListeners = new Set();

@@ -1,3 +1,8 @@
+/**
+ * Centralise les sélecteurs et adaptations propres à la plateforme Tr4ker.
+ *
+ * @module src/core/tr4ker-platform
+ */
 import { normalizeComparableText, normalizeName } from './text.js';
 
 const HOSTNAME = 'tr4ker.net';
@@ -18,6 +23,11 @@ function isChatInputCandidate(element) {
     return !(element instanceof HTMLTextAreaElement && element.disabled);
 }
 
+/**
+ * Crée l'API publique « createTr4kerPlatform ».
+ *
+ * @function createTr4kerPlatform
+ */
 export function createTr4kerPlatform() {
     const isTr4kerPage = () => location.hostname === HOSTNAME || location.hostname.endsWith(`.${HOSTNAME}`);
     const isChatPage = () => isTr4kerPage() && (location.pathname === '/communication' || location.pathname.startsWith('/communication/'));

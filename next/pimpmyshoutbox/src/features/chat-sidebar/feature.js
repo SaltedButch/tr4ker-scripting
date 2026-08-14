@@ -1,3 +1,8 @@
+/**
+ * Implémente la feature « Chat Sidebar » et son cycle de vie.
+ *
+ * @module src/features/chat-sidebar/feature
+ */
 import { CONFIGURATION_IMPORTED_EVENT } from '../../core/config-backup.js';
 import { defineFeature } from '../../core/feature-registry.js';
 
@@ -41,6 +46,11 @@ function renderSidebarSettings(container) {
     container.append(text);
 }
 
+/**
+ * Déclare la feature et son cycle de vie.
+ *
+ * @function feature
+ */
 export default defineFeature({
     id: 'chat-sidebar',
     label: 'Panneau latéral du chat',

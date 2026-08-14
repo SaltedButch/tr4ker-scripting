@@ -1,3 +1,8 @@
+/**
+ * Abstrait la lecture, l'écriture et la validation du champ de discussion.
+ *
+ * @module src/core/chat-input
+ */
 const DEFAULT_MAX_MESSAGE_LENGTH = 4000;
 
 function getInputValue(input) {
@@ -24,6 +29,11 @@ function setInputValue(input, value) {
     return true;
 }
 
+/**
+ * Crée l'API publique « createChatInputService ».
+ *
+ * @function createChatInputService
+ */
 export function createChatInputService(platform, { maxMessageLength = DEFAULT_MAX_MESSAGE_LENGTH } = {}) {
     function getMaxLength(input) {
         return input && input === platform.getWikiEditorInput() ? 0 : maxMessageLength;

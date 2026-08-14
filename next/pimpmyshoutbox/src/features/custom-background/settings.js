@@ -1,3 +1,8 @@
+/**
+ * Construit le panneau de réglages de la feature « Custom Background ».
+ *
+ * @module src/features/custom-background/settings
+ */
 function createButton(label, background) {
     const button = document.createElement('button');
     button.type = 'button';
@@ -6,6 +11,11 @@ function createButton(label, background) {
     return button;
 }
 
+/**
+ * Rend l'interface produite par « renderCustomBackgroundSettings ».
+ *
+ * @function renderCustomBackgroundSettings
+ */
 export function renderCustomBackgroundSettings(container, { context, refresh }) {
     const runtime = context?.customBackground;
     if (!runtime) { container.textContent = 'Active la feature pour choisir une couleur de fond.'; return; }

@@ -1,5 +1,15 @@
+/**
+ * Normalise et persiste l'état de la feature « Blacklist ».
+ *
+ * @module src/features/blacklist/state
+ */
 const STORAGE_KEY = 'tm_hidden_shout_users_t4';
 
+/**
+ * Crée l'API publique « createBlacklistState ».
+ *
+ * @function createBlacklistState
+ */
 export function createBlacklistState({ storage, normalizeName }) {
     const listeners = new Set();
     let users = new Set();

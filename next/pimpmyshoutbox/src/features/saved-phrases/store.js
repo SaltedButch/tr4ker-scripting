@@ -1,3 +1,8 @@
+/**
+ * Gère les données persistées et les favoris de la feature « Saved Phrases ».
+ *
+ * @module src/features/saved-phrases/store
+ */
 const EXPORT_VERSION = 1;
 
 export const STORAGE_KEYS = Object.freeze({
@@ -25,6 +30,11 @@ function tokens(value) {
     return new Set(comparable(value).split(' ').filter((token) => token.length >= 3));
 }
 
+/**
+ * Normalise les données reçues par « normalizeKeywords ».
+ *
+ * @function normalizeKeywords
+ */
 export function normalizeKeywords(value) {
     const source = Array.isArray(value)
         ? value.flatMap((entry) => textValue(entry).split(/[,;\n]+/))
@@ -41,6 +51,11 @@ export function normalizeKeywords(value) {
     return result;
 }
 
+/**
+ * Normalise les données reçues par « normalizePhrase ».
+ *
+ * @function normalizePhrase
+ */
 export function normalizePhrase(record, { maxLength = 4000 } = {}) {
     const value = record && typeof record === 'object' && !Array.isArray(record)
         ? record.text ?? record.phrase ?? record.content ?? record.value ?? record.label
@@ -90,6 +105,11 @@ function matchScore(phrase, inputText, replyText) {
     return { score, matchedKeywords };
 }
 
+/**
+ * Crée l'API publique « createSavedPhrasesStore ».
+ *
+ * @function createSavedPhrasesStore
+ */
 export function createSavedPhrasesStore({ storage, maxLength = 4000 }) {
     let phrases = [];
 
@@ -199,6 +219,11 @@ export function createSavedPhrasesStore({ storage, maxLength = 4000 }) {
     return Object.freeze({ reload, list, add, update, remove, rank, exportPayload, importPayload, maxLength });
 }
 
+/**
+ * Télécharge le résultat produit par « downloadSavedPhrases ».
+ *
+ * @function downloadSavedPhrases
+ */
 export function downloadSavedPhrases(payload) {
     try {
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });

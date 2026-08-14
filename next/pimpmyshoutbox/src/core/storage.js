@@ -1,3 +1,8 @@
+/**
+ * Fournit une façade sûre pour la persistance locale.
+ *
+ * @module src/core/storage
+ */
 function safeCall(callback, fallback) {
     try {
         return callback();
@@ -6,6 +11,11 @@ function safeCall(callback, fallback) {
     }
 }
 
+/**
+ * Crée l'API publique « createStorage ».
+ *
+ * @function createStorage
+ */
 export function createStorage(storage = localStorage) {
     return {
         get(key, fallback = null) {

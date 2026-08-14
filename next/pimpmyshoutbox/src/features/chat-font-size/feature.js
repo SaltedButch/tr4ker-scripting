@@ -1,3 +1,8 @@
+/**
+ * Implémente la feature « Chat Font Size » et son cycle de vie.
+ *
+ * @module src/features/chat-font-size/feature
+ */
 import { CONFIGURATION_IMPORTED_EVENT } from '../../core/config-backup.js';
 import { defineFeature } from '../../core/feature-registry.js';
 import { renderChatFontSizeSettings } from './settings.js';
@@ -50,6 +55,11 @@ function applyMessageTypography(message, scale) {
     }
 }
 
+/**
+ * Déclare la feature et son cycle de vie.
+ *
+ * @function feature
+ */
 export default defineFeature({
     id: 'chat-font-size',
     label: 'Taille de police du chat',

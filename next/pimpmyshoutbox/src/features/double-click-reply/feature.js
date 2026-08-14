@@ -1,3 +1,8 @@
+/**
+ * Implémente la feature « Double Click Reply » et son cycle de vie.
+ *
+ * @module src/features/double-click-reply/feature
+ */
 import { defineFeature } from '../../core/feature-registry.js';
 
 function normalizedLabel(button) {
@@ -30,6 +35,11 @@ function isExcludedTarget(target) {
     return Boolean(target.closest('button,a,textarea,input,select,option,label,img,[contenteditable="true"]'));
 }
 
+/**
+ * Déclare la feature et son cycle de vie.
+ *
+ * @function feature
+ */
 export default defineFeature({
     id: 'double-click-reply',
     label: 'Répondre par double-clic',
