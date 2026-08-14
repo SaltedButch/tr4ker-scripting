@@ -49,6 +49,7 @@ export default defineFeature({
     defaultEnabled: true,
     pages: [],
     storageKeys: [AFK_STATE_STORAGE_KEY, AFK_CHANNELS_STORAGE_KEY, AFK_RECORDS_STORAGE_KEY],
+    shortcuts: [{ id: 'toggle', key: 'A', modifiers: ['ctrl', 'platform'], allowInEditable: true }],
     settings: {
         area: 'shoutbox',
         category: 'mentions',
@@ -62,6 +63,13 @@ export default defineFeature({
             text: 'Enregistre les mentions et les réponses reçues pendant votre absence pour les relire plus tard. Aucun message automatique n’est envoyé.',
             kind: 'info',
             order: 10
+        },
+        {
+            id: 'shortcut',
+            title: 'Raccourci',
+            text: 'Utilisez {{shortcut:toggle}} pour activer ou désactiver rapidement le suivi AFK.',
+            kind: 'tip',
+            order: 20
         }
     ],
     setup(context) {
@@ -136,8 +144,13 @@ export default defineFeature({
         }
 
         async function setEnabled(enabled) {
+            if (enabled && !mentionState.get().username) {
+                context.ui.toast.show('Configure d’abord ton pseudo dans les réglages de mentions.', { error: true });
+                return state;
+            }
             if (!enabled) {
                 saveState({ ...state, enabled: false, primaryConversationId: '', primaryConversationName: '', activatedAt: 0 });
+                context.ui.toast.show('Suivi AFK désactivé.');
                 return state;
             }
 
@@ -212,6 +225,9 @@ export default defineFeature({
             getSettings: () => mentionState.get(),
             logger: context.logger,
             onMention: (event) => { void handleMention(event); }
+        });
+        context.shortcuts.bind('toggle', async () => {
+            await runtime.setEnabled(!runtime.getState().enabled);
         });
 
         context.on(window, 'storage', (event) => {
