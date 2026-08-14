@@ -81,7 +81,9 @@ const NEXT_STORAGE_KEYS = [
     'tm_t4_hidden_channel_unread_badges_channels',
     'tm-t4-next:feature:multi-channel-view:enabled',
     'tm_t4_multi_channel_view_open_ids',
-    'tm-t4-next:feature:chat-image-zoom:enabled'
+    'tm-t4-next:feature:chat-image-zoom:enabled',
+    'tm-t4-next:feature:afk:enabled',
+    'tm_t4_afk_state_v4', 'tm_t4_afk_channels_v4', 'tm_t4_afk_records_v4'
 ];
 
 const STORAGE_KEYS = Object.freeze([...new Set([...V3_STORAGE_KEYS, ...NEXT_STORAGE_KEYS])]);

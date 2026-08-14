@@ -12,7 +12,7 @@ import { createMentionInbox, MENTION_INBOX_ENABLED_STORAGE_KEY, MENTION_INBOX_ST
 import { createMentionInboxPanel } from './inbox-panel.js';
 import { renderMentionSettings } from './settings.js';
 import { createMentionSoundPlayer } from './sound-player.js';
-import { createMentionSocketMonitor } from './socket-monitor.js';
+import { acquireMentionEventHub } from './event-hub.js';
 import { createMentionState, MENTION_SETTINGS_STORAGE_KEY } from './state.js';
 
 let activeRuntime = null;
@@ -105,7 +105,7 @@ export default defineFeature({
             return mentionIds.has(String(message?.id || '').trim());
         }
 
-        let socketMonitor = null;
+        let eventHub = null;
         const runtime = {
             getSettings: () => state.get(),
             toast(message, error = false) {
@@ -114,7 +114,7 @@ export default defineFeature({
             update(patch) {
                 const settings = state.save(patch);
                 highlighter.refresh(settings, isTrackedMention);
-                socketMonitor?.sync();
+                eventHub?.sync();
                 return settings;
             },
             refresh() {
@@ -199,13 +199,12 @@ export default defineFeature({
             void notifyMention(mention);
         }
 
-        socketMonitor = createMentionSocketMonitor({
+        eventHub = acquireMentionEventHub({
             getSettings: () => state.get(),
-            text: context.text,
             logger: context.logger,
             onMention(mention) { void handleSocketMention(mention); }
         });
-        context.addCleanup(() => socketMonitor.stop());
+        context.addCleanup(() => eventHub.release());
         context.messages.subscribe((message) => {
             if (isTrackedMention(message)) highlighter.apply(message, state.get());
         });
@@ -213,7 +212,7 @@ export default defineFeature({
             if (event.key === MENTION_SETTINGS_STORAGE_KEY) {
                 state.reload();
                 highlighter.refresh(state.get(), isTrackedMention);
-                socketMonitor.sync();
+                eventHub.sync();
             }
             if (event.key === MENTION_INBOX_STORAGE_KEY || event.key === MENTION_INBOX_ENABLED_STORAGE_KEY) {
                 inbox.reload();
@@ -224,12 +223,12 @@ export default defineFeature({
             state.reload();
             inbox.reload();
             highlighter.refresh(state.get(), isTrackedMention);
-            socketMonitor.sync();
+            eventHub.sync();
             inboxPanel.sync();
         });
         highlighter.refresh(state.get(), isTrackedMention);
         inboxPanel.sync();
-        socketMonitor.sync();
+        eventHub.sync();
 
         return () => {
             highlighter.destroy();
