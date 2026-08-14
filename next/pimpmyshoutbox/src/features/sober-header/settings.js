@@ -5,6 +5,7 @@
  */
 const KEYS = Object.freeze({
     allSite: 'tm_t4_topbar_stats_all_site',
+    burger: 'tm_t4_topbar_burger_enabled',
     upload: 'tm_t4_topbar_stats_show_total_upload',
     download: 'tm_t4_topbar_stats_show_total_download',
     credits: 'tm_t4_topbar_stats_show_credits',
@@ -56,6 +57,7 @@ export function renderSoberHeaderSettings(container, { context }) {
     };
 
     appendToggle('Afficher sur toutes les pages du site Tr4ker', 'allSite', '#45c7c7');
+    appendToggle('Activer le menu burger de navigation', 'burger', '#d6d3d1');
     container.append(heading('Informations globales'));
     appendToggle('Upload total', 'upload', '#20d67b');
     appendToggle('Download total', 'download', '#4da3ff');

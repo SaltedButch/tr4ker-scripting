@@ -10,6 +10,9 @@ import { renderMatrixHeaderSettings } from './settings.js';
 const DASHBOARD_ID = 'tm-t4-matrix-dashboard';
 const STYLE_ID = 'tm-t4-matrix-dashboard-style';
 const HOST_ATTRIBUTE = 'data-tm-matrix-dashboard-host';
+const BURGER_BUTTON_ID = 'tm-t4-topbar-burger';
+const BURGER_MENU_ID = 'tm-t4-topbar-burger-menu';
+const BURGER_STYLE_ID = 'tm-t4-topbar-burger-style';
 const CACHE_MS = 90_000;
 const MINIMUM_RATIO = .5;
 const PERIODS = Object.freeze([
@@ -18,12 +21,25 @@ const PERIODS = Object.freeze([
     { id: '30d', label: '30 jours' }
 ]);
 const KEYS = Object.freeze({
-    allSite: 'tm_t4_topbar_stats_all_site', upload: 'tm_t4_matrix_global_upload', download: 'tm_t4_matrix_global_download',
+    allSite: 'tm_t4_topbar_stats_all_site', burger: 'tm_t4_topbar_burger_enabled', upload: 'tm_t4_matrix_global_upload', download: 'tm_t4_matrix_global_download',
     ticker: 'tm_t4_matrix_ticker_enabled', tickerSpeed: 'tm_t4_matrix_ticker_speed', tickerPause: 'tm_t4_matrix_ticker_pause_hover',
     carouselInterval: 'tm_t4_matrix_carousel_interval', carouselPause: 'tm_t4_matrix_carousel_pause_hover',
     credits: 'tm_t4_topbar_stats_show_credits', buffer: 'tm_t4_topbar_stats_show_buffer',
     period24h: 'tm_t4_topbar_stats_show_24h', period7d: 'tm_t4_topbar_stats_show_7d', period30d: 'tm_t4_topbar_stats_show_30d'
 });
+const BURGER_LINKS = Object.freeze([
+    { icon: 'forum', label: 'Chat', href: '/communication' },
+    { icon: 'menu_book', label: 'Wiki', href: '/wiki' },
+    { icon: 'person', label: 'Mon compte', href: '/mon-compte' },
+    { icon: 'upload', label: 'Mes uploads', href: '/my-uploads' },
+    { icon: 'emoji_events', label: 'Succès', href: '/achievements' },
+    { icon: 'settings', label: 'Paramètres', href: '/settings' },
+    { icon: 'groups', label: 'Teams', href: '/communaute/teams' },
+    { icon: 'redeem', label: 'Demandes', href: '/communaute/demandes' },
+    { icon: 'storefront', label: 'Boutique', href: '/communaute/boutique' },
+    { icon: 'forum', label: 'Forum', href: '/communaute/forum' },
+    { icon: 'swap_horiz', label: 'Migrations', href: '/migrations' }
+]);
 
 function number(value) { if (value === null || value === undefined || value === '') return null; const result = Number(value); return Number.isFinite(result) && result >= 0 ? result : null; }
 function ratio(upload, download) { if (upload === null || download === null) return null; return download === 0 ? (upload > 0 ? Infinity : null) : upload / download; }
@@ -37,7 +53,7 @@ function notificationButton() { return [...document.querySelectorAll('header[rol
 function buildSettings(storage) {
     const boolean = (key, fallback) => storage.readBoolean(key, fallback);
     return {
-        allSite: boolean(KEYS.allSite, true), upload: boolean(KEYS.upload, boolean('tm_t4_topbar_stats_show_total_upload', false)), download: boolean(KEYS.download, boolean('tm_t4_topbar_stats_show_total_download', false)),
+        allSite: boolean(KEYS.allSite, true), burger: boolean(KEYS.burger, false), upload: boolean(KEYS.upload, boolean('tm_t4_topbar_stats_show_total_upload', false)), download: boolean(KEYS.download, boolean('tm_t4_topbar_stats_show_total_download', false)),
         ticker: boolean(KEYS.ticker, true), tickerSpeed: Math.round(clamp(storage.get(KEYS.tickerSpeed), 42, 10, 160)), tickerPause: boolean(KEYS.tickerPause, true),
         carouselInterval: Math.round(clamp(storage.get(KEYS.carouselInterval), 5000, 1500, 60000)), carouselPause: boolean(KEYS.carouselPause, true),
         credits: boolean(KEYS.credits, false), buffer: boolean(KEYS.buffer, false), period24h: boolean(KEYS.period24h, true), period7d: boolean(KEYS.period7d, true), period30d: boolean(KEYS.period30d, true)
@@ -119,6 +135,103 @@ const CSS = `
 #${DASHBOARD_ID}{--tm-matrix-bg:rgba(2,8,18,.97);--tm-matrix-panel:rgba(7,20,34,.9);--tm-matrix-border:rgba(45,212,191,.36);--tm-matrix-primary:#a7f3d0;--tm-matrix-text:#e0f2fe;--tm-matrix-muted:#86a6b8;width:100%;margin:0 0 18px;color:var(--tm-matrix-text);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;box-sizing:border-box;position:relative;isolation:isolate;overflow:hidden;contain:layout paint style}#${DASHBOARD_ID} *,#${DASHBOARD_ID} *::before,#${DASHBOARD_ID} *::after{box-sizing:border-box}header[${HOST_ATTRIBUTE}]{flex-wrap:nowrap!important;align-content:center!important;column-gap:4px!important;min-height:72px!important;height:auto!important;padding-bottom:5px!important}header[${HOST_ATTRIBUTE}]>#${DASHBOARD_ID}{order:3;flex:0 1 clamp(300px,34vw,500px)!important;width:clamp(300px,34vw,500px)!important;max-width:none!important;margin:0 5px!important}#${DASHBOARD_ID}::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:1;opacity:.24;background:repeating-linear-gradient(0deg,transparent 0,transparent 3px,rgba(125,211,252,.045) 4px);mix-blend-mode:screen}#${DASHBOARD_ID} .tm-matrix-background{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0;opacity:.16;color:#2dd4bf;font-size:10px;line-height:1;text-shadow:0 0 8px rgba(45,212,191,.7)}#${DASHBOARD_ID} .tm-matrix-code-line{position:absolute;left:-40%;white-space:nowrap;letter-spacing:.3em;animation:tm-matrix-code-drift linear infinite}#${DASHBOARD_ID} .tm-matrix-zone-global,#${DASHBOARD_ID} .tm-matrix-body{position:relative;z-index:2}#${DASHBOARD_ID} .tm-matrix-body{display:grid;gap:10px;grid-template-columns:1fr;align-items:stretch}#${DASHBOARD_ID} .tm-matrix-body.has-zone-2.has-zone-4{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) minmax(0,1.15fr)}#${DASHBOARD_ID} .tm-matrix-body.has-zone-2:not(.has-zone-4){grid-template-columns:minmax(0,1fr) minmax(0,1fr)}#${DASHBOARD_ID} .tm-matrix-body:not(.has-zone-2).has-zone-4{grid-template-columns:minmax(0,1fr) minmax(0,.9fr)}#${DASHBOARD_ID} .tm-matrix-zone{min-width:0;min-height:120px;padding:10px;border:1px solid var(--tm-matrix-border);border-radius:5px;background:linear-gradient(145deg,var(--tm-matrix-panel),rgba(3,10,24,.88));box-shadow:inset 0 0 22px rgba(45,212,191,.055),0 0 16px rgba(14,165,233,.06);overflow:hidden}#${DASHBOARD_ID} .tm-matrix-zone-global{min-height:58px;margin-bottom:6px;padding:8px 12px}#${DASHBOARD_ID} .tm-matrix-zone-periods{border-color:rgba(99,255,145,.38)}#${DASHBOARD_ID} .tm-matrix-zone-chart{border-color:rgba(57,255,136,.42)}#${DASHBOARD_ID} .tm-matrix-zone-extras{border-color:rgba(157,255,181,.34)}#${DASHBOARD_ID} .tm-matrix-zone-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;color:var(--tm-matrix-muted);font-size:10px;letter-spacing:.12em;text-transform:uppercase}#${DASHBOARD_ID} .tm-matrix-status{color:#63ff91;font-size:9px;letter-spacing:.08em;animation:tm-matrix-status-glitch 7s steps(2,end) infinite}#${DASHBOARD_ID} .tm-matrix-ticker{min-width:0;overflow:hidden;white-space:nowrap}#${DASHBOARD_ID} .tm-matrix-ticker-track{display:inline-flex;min-width:max-content;align-items:center}#${DASHBOARD_ID} .tm-matrix-ticker-copy{display:inline-flex;align-items:center;min-width:max-content}#${DASHBOARD_ID} [data-tm-matrix-overflow="1"] .tm-matrix-ticker-track{animation:tm-matrix-ticker-scroll var(--tm-matrix-ticker-duration,24s) linear infinite}#${DASHBOARD_ID} [data-tm-matrix-ticker-pause-hover="1"][data-tm-matrix-overflow="1"]:hover .tm-matrix-ticker-track{animation-play-state:paused}#${DASHBOARD_ID} .tm-matrix-ticker-static .tm-matrix-ticker-track{width:100%}#${DASHBOARD_ID} .tm-matrix-metric{display:inline-flex;align-items:baseline;gap:8px;min-width:0}#${DASHBOARD_ID} .tm-matrix-metric-label{color:var(--tm-matrix-muted);font-size:10px}#${DASHBOARD_ID} .tm-matrix-metric strong{font-size:15px;font-weight:700;letter-spacing:.02em}#${DASHBOARD_ID} .tm-matrix-zone-global .tm-matrix-metric-label{font-size:12px}#${DASHBOARD_ID} .tm-matrix-zone-global .tm-matrix-metric strong{font-size:17px}#${DASHBOARD_ID} .tm-matrix-separator{margin:0 12px;color:rgba(125,211,252,.52)}#${DASHBOARD_ID} .tm-matrix-zone-periods,#${DASHBOARD_ID} .tm-matrix-zone-chart,#${DASHBOARD_ID} .tm-matrix-zone-extras{min-height:150px}#${DASHBOARD_ID} .tm-matrix-period-viewport{min-height:80px;display:grid;align-items:center}#${DASHBOARD_ID} .tm-matrix-period-slide[hidden]{display:none}#${DASHBOARD_ID} .tm-matrix-period-title{margin-bottom:10px;color:var(--tm-matrix-primary);font-size:12px;letter-spacing:.14em}#${DASHBOARD_ID} .tm-matrix-period-metrics{display:grid;gap:8px}#${DASHBOARD_ID} .tm-matrix-period-metrics .tm-matrix-metric{justify-content:space-between;border-bottom:1px solid rgba(134,239,172,.1);padding-bottom:6px}#${DASHBOARD_ID} .tm-matrix-period-metrics .tm-matrix-metric strong{font-size:17px}#${DASHBOARD_ID} .tm-matrix-extra-list{display:grid;height:calc(100% - 22px);gap:10px;grid-template-rows:repeat(var(--tm-matrix-extra-count,1),minmax(0,1fr))}#${DASHBOARD_ID} .tm-matrix-extra{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:8px;padding:8px;border:1px solid rgba(134,239,172,.16);background:rgba(0,0,0,.16)}#${DASHBOARD_ID} .tm-matrix-extra .tm-matrix-metric-label{font-size:11px}#${DASHBOARD_ID} .tm-matrix-extra strong{font-size:18px}#${DASHBOARD_ID} .tm-matrix-chart-wrap{display:grid;gap:4px;align-content:center;min-height:115px}#${DASHBOARD_ID} .tm-matrix-chart-svg{display:block;width:100%;height:auto;min-height:90px;overflow:visible}#${DASHBOARD_ID} .tm-matrix-chart-grid{stroke:rgba(99,255,145,.16);stroke-width:1;stroke-dasharray:3 5}#${DASHBOARD_ID} .tm-matrix-chart-axis{stroke:rgba(99,255,145,.52);stroke-width:1}#${DASHBOARD_ID} .tm-matrix-chart-axis-label,#${DASHBOARD_ID} .tm-matrix-chart-date{fill:var(--tm-matrix-muted);font:10px ui-monospace,monospace}#${DASHBOARD_ID} .tm-matrix-chart-empty,#${DASHBOARD_ID} .tm-matrix-loading{min-height:120px;display:grid;place-items:center;color:var(--tm-matrix-muted);font-size:11px;text-align:center}#${DASHBOARD_ID} .tm-matrix-loading{min-height:90px;border:1px solid var(--tm-matrix-border);border-radius:5px;background:var(--tm-matrix-bg);letter-spacing:.08em}@keyframes tm-matrix-ticker-scroll{from{transform:translateX(-50%)}to{transform:translateX(0)}}@keyframes tm-matrix-code-drift{from{transform:translateX(0)}to{transform:translateX(180%)}}@keyframes tm-matrix-status-glitch{0%,92%,100%{transform:translateX(0);opacity:1}93%{transform:translateX(-2px);color:#f0abfc}95%{transform:translateX(2px);color:#67e8f9}97%{transform:translateX(0);opacity:.72}}header[${HOST_ATTRIBUTE}] #${DASHBOARD_ID} .tm-matrix-zone{min-height:54px;padding:4px;border-radius:3px}header[${HOST_ATTRIBUTE}] #${DASHBOARD_ID} .tm-matrix-zone-global{min-height:32px;padding:4px 6px;margin-bottom:3px}header[${HOST_ATTRIBUTE}] #${DASHBOARD_ID} .tm-matrix-zone-periods,header[${HOST_ATTRIBUTE}] #${DASHBOARD_ID} .tm-matrix-zone-chart,header[${HOST_ATTRIBUTE}] #${DASHBOARD_ID} .tm-matrix-zone-extras{min-height:72px}header[${HOST_ATTRIBUTE}] #${DASHBOARD_ID} .tm-matrix-period-viewport{min-height:35px}header[${HOST_ATTRIBUTE}] #${DASHBOARD_ID} .tm-matrix-chart-wrap{min-height:44px}header[${HOST_ATTRIBUTE}] #${DASHBOARD_ID} .tm-matrix-chart-svg{min-height:38px}header[${HOST_ATTRIBUTE}] #${DASHBOARD_ID} .tm-matrix-period-metrics{gap:2px}header[${HOST_ATTRIBUTE}] #${DASHBOARD_ID} .tm-matrix-period-metrics .tm-matrix-metric{padding-bottom:1px}header[${HOST_ATTRIBUTE}] #${DASHBOARD_ID} .tm-matrix-extra strong{font-size:12px}header[${HOST_ATTRIBUTE}] #${DASHBOARD_ID} .tm-matrix-zone-heading{margin-bottom:3px;font-size:7px}header[${HOST_ATTRIBUTE}] #${DASHBOARD_ID} .tm-matrix-metric{gap:3px}header[${HOST_ATTRIBUTE}] #${DASHBOARD_ID} .tm-matrix-metric-label{font-size:7px}header[${HOST_ATTRIBUTE}] #${DASHBOARD_ID} .tm-matrix-metric strong{font-size:10px}header[${HOST_ATTRIBUTE}] #${DASHBOARD_ID} .tm-matrix-zone-global .tm-matrix-metric-label{font-size:13px}header[${HOST_ATTRIBUTE}] #${DASHBOARD_ID} .tm-matrix-zone-global .tm-matrix-metric strong{font-size:19px}header[${HOST_ATTRIBUTE}] #${DASHBOARD_ID} .tm-matrix-period-title{margin-bottom:4px;font-size:8px}@media(max-width:1050px){#${DASHBOARD_ID} .tm-matrix-body.has-zone-2.has-zone-4{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}#${DASHBOARD_ID} .tm-matrix-body.has-zone-2.has-zone-4 .tm-matrix-zone-extras{grid-column:1/-1;min-height:180px}#${DASHBOARD_ID} .tm-matrix-body:not(.has-zone-2).has-zone-4{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}@media(max-width:680px){#${DASHBOARD_ID} .tm-matrix-body,#${DASHBOARD_ID} .tm-matrix-body.has-zone-2.has-zone-4,#${DASHBOARD_ID} .tm-matrix-body.has-zone-2:not(.has-zone-4),#${DASHBOARD_ID} .tm-matrix-body:not(.has-zone-2).has-zone-4{grid-template-columns:1fr}#${DASHBOARD_ID} .tm-matrix-body.has-zone-2.has-zone-4 .tm-matrix-zone-extras{grid-column:auto}#${DASHBOARD_ID} .tm-matrix-zone{min-height:210px}#${DASHBOARD_ID} .tm-matrix-zone-global{min-height:92px}#${DASHBOARD_ID} .tm-matrix-metric strong{font-size:14px}}@media(prefers-reduced-motion:reduce){#${DASHBOARD_ID} [data-tm-matrix-overflow="1"] .tm-matrix-ticker-track,#${DASHBOARD_ID} .tm-matrix-code-line,#${DASHBOARD_ID} .tm-matrix-status{animation:none}}
 `;
 
+const BURGER_CSS = `
+#${BURGER_BUTTON_ID}{width:34px;height:34px;padding:0;border:1px solid rgba(74,222,128,.24);border-radius:8px;background:rgba(6,30,17,.76);color:#bbf7d0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;transition:background 120ms ease,border-color 120ms ease,transform 120ms ease}
+#${BURGER_BUTTON_ID}:hover,#${BURGER_BUTTON_ID}[aria-expanded="true"]{border-color:rgba(74,222,128,.55);background:rgba(22,101,52,.42);transform:translateY(-1px)}
+#${BURGER_BUTTON_ID} .material-symbols-outlined{font-size:20px;line-height:1}
+#${BURGER_MENU_ID}{position:fixed;z-index:2000;width:min(242px,calc(100vw - 16px));padding:7px;border:1px solid rgba(74,222,128,.28);border-radius:12px;background:rgba(12,20,15,.98);box-shadow:0 16px 38px rgba(0,0,0,.48);backdrop-filter:blur(14px)}
+#${BURGER_MENU_ID} [data-tm-topbar-burger-title="1"]{display:block;padding:5px 7px 7px;color:#86efac;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9px;font-weight:800;letter-spacing:.09em;text-transform:uppercase}
+#${BURGER_MENU_ID} a{display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:7px;color:#e4e4e7;font-size:12px;font-weight:600;text-decoration:none;transition:background 100ms ease,color 100ms ease}
+#${BURGER_MENU_ID} a:hover{background:rgba(74,222,128,.13);color:#dcfce7}
+#${BURGER_MENU_ID} a .material-symbols-outlined{color:#4ade80;font-size:17px;line-height:1}
+`;
+
+/** Ferme le panneau de navigation et réinitialise l'état du bouton. */
+function closeMatrixBurgerMenu() {
+    document.getElementById(BURGER_MENU_ID)?.remove();
+    const button = document.getElementById(BURGER_BUTTON_ID);
+    if (button instanceof HTMLButtonElement) button.setAttribute('aria-expanded', 'false');
+}
+
+/** Positionne le panneau sous le bouton sans le laisser sortir de la fenêtre. */
+function positionMatrixBurgerMenu(button, menu) {
+    if (!(button instanceof HTMLElement) || !(menu instanceof HTMLElement)) return;
+    const buttonRect = button.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+    const margin = 8;
+    const maxLeft = Math.max(margin, window.innerWidth - menuRect.width - margin);
+    const maxTop = Math.max(margin, window.innerHeight - menuRect.height - margin);
+    menu.style.left = `${Math.round(Math.min(maxLeft, Math.max(margin, buttonRect.left)))}px`;
+    menu.style.top = `${Math.round(Math.min(maxTop, Math.max(margin, buttonRect.bottom + 8)))}px`;
+}
+
+/** Construit et ouvre le panneau de navigation issu de la migration V3. */
+function openMatrixBurgerMenu() {
+    const button = document.getElementById(BURGER_BUTTON_ID);
+    if (!(button instanceof HTMLButtonElement) || !document.body) return;
+
+    closeMatrixBurgerMenu();
+    const menu = document.createElement('nav');
+    menu.id = BURGER_MENU_ID;
+    menu.setAttribute('aria-label', 'Navigation Tr4ker');
+    const title = document.createElement('span');
+    title.dataset.tmTopbarBurgerTitle = '1';
+    title.textContent = 'Navigation Tr4ker';
+    menu.append(title);
+    for (const link of BURGER_LINKS) {
+        const anchor = document.createElement('a');
+        anchor.href = link.href;
+        const icon = document.createElement('span');
+        icon.className = 'material-symbols-outlined';
+        icon.textContent = link.icon;
+        const label = document.createElement('span');
+        label.textContent = link.label;
+        anchor.append(icon, label);
+        menu.append(anchor);
+    }
+    document.body.append(menu);
+    button.setAttribute('aria-expanded', 'true');
+    positionMatrixBurgerMenu(button, menu);
+}
+
+/** Synchronise la présence du bouton burger avec les réglages et le header courant. */
+function syncMatrixBurgerMenu(context, notification, settings) {
+    const header = notification?.closest('header[role="banner"]');
+    const dashboard = document.getElementById(DASHBOARD_ID);
+    const insertionTarget = dashboard?.parentElement === header ? dashboard : notification;
+    const parent = insertionTarget?.parentElement;
+    if (!settings.burger || !(notification instanceof HTMLButtonElement) || !(insertionTarget instanceof HTMLElement) || !(parent instanceof HTMLElement)) {
+        closeMatrixBurgerMenu();
+        document.getElementById(BURGER_BUTTON_ID)?.remove();
+        return;
+    }
+
+    context.ensureStyle(BURGER_STYLE_ID, BURGER_CSS);
+    let button = document.getElementById(BURGER_BUTTON_ID);
+    if (!(button instanceof HTMLButtonElement)) {
+        button = document.createElement('button');
+        button.id = BURGER_BUTTON_ID;
+        button.type = 'button';
+        button.setAttribute('aria-label', 'Ouvrir la navigation Tr4ker');
+        button.setAttribute('aria-expanded', 'false');
+        button.title = 'Navigation Tr4ker';
+        const icon = document.createElement('span');
+        icon.className = 'material-symbols-outlined';
+        icon.textContent = 'menu';
+        button.append(icon);
+        button.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (document.getElementById(BURGER_MENU_ID)) closeMatrixBurgerMenu();
+            else openMatrixBurgerMenu();
+        });
+    }
+
+    if (button.parentElement !== parent || button.nextElementSibling !== insertionTarget) {
+        insertionTarget.insertAdjacentElement('beforebegin', button);
+    }
+}
+
 /**
  * Déclare la feature et son cycle de vie.
  *
@@ -132,7 +245,7 @@ export default defineFeature({
         let stats = null; let user = null; let statsAt = 0; let userAt = 0; let statsRequest = null; let userRequest = null; let data = null; let carousel = null; let carouselIndex = 0; let renderedSignature = '';
         const getSettings = () => buildSettings(context.storage);
         const stopCarousel = () => { if (carousel !== null) window.clearInterval(carousel); carousel = null; };
-        const destroy = () => { stopCarousel(); renderedSignature = ''; document.getElementById(DASHBOARD_ID)?.remove(); document.querySelectorAll(`header[${HOST_ATTRIBUTE}]`).forEach((header) => header.removeAttribute(HOST_ATTRIBUTE)); };
+        const destroy = () => { stopCarousel(); renderedSignature = ''; closeMatrixBurgerMenu(); document.getElementById(BURGER_BUTTON_ID)?.remove(); document.getElementById(DASHBOARD_ID)?.remove(); document.querySelectorAll(`header[${HOST_ATTRIBUTE}]`).forEach((header) => header.removeAttribute(HOST_ATTRIBUTE)); };
         const fetchJson = (endpoint, type) => {
             const isStats = type === 'stats'; const cached = isStats ? stats : user; const fetchedAt = isStats ? statsAt : userAt; const request = isStats ? statsRequest : userRequest;
             if (cached && Date.now() - fetchedAt < CACHE_MS) return Promise.resolve(cached); if (request) return request;
@@ -149,11 +262,26 @@ export default defineFeature({
             context.ensureStyle(STYLE_ID, CSS + CHART_CSS); header.setAttribute(HOST_ATTRIBUTE, '1'); let dashboard = document.getElementById(DASHBOARD_ID);
             if (!(dashboard instanceof HTMLElement)) { dashboard = document.createElement('section'); dashboard.id = DASHBOARD_ID; dashboard.setAttribute('aria-label', 'Matrix Dashboard'); dashboard.innerHTML = '<div class="tm-matrix-loading">CHARGEMENT DES STATISTIQUES…</div>'; }
             const controls = button.parentElement; if (dashboard.parentElement !== header) { if (controls instanceof HTMLElement && controls.parentElement === header) header.insertBefore(dashboard, controls); else header.append(dashboard); }
+            syncMatrixBurgerMenu(context, button, settings);
             if (data && currentSignature() !== renderedSignature) renderDashboard();
             void Promise.all([fetchJson('/api/me/stats', 'stats'), settings.credits ? fetchJson('/api/me', 'user').catch(() => null) : Promise.resolve(user)]).then(([statsPayload, userPayload]) => { data = buildData(statsPayload, userPayload); if (currentSignature() !== renderedSignature) renderDashboard(); }).catch(() => { data = buildData(null, null); if (currentSignature() !== renderedSignature) renderDashboard(); });
         }
         context.matrixHeader = { getSettings, sync, set(key, value) { if (typeof value === 'boolean') context.storage.writeBoolean(key, value); else context.storage.set(key, String(value)); sync(); } };
-        context.on(window, 'resize', updateTicker, { passive: true }); context.on(window, CONFIGURATION_IMPORTED_EVENT, sync); context.every(800, sync); sync();
+        context.on(document, 'click', (event) => {
+            const target = event.target instanceof Node ? event.target : null;
+            const menu = document.getElementById(BURGER_MENU_ID);
+            const button = document.getElementById(BURGER_BUTTON_ID);
+            if (target && (menu?.contains(target) || button?.contains(target))) return;
+            closeMatrixBurgerMenu();
+        }, true);
+        context.on(document, 'keydown', (event) => { if (event.key === 'Escape') closeMatrixBurgerMenu(); }, true);
+        context.on(window, 'resize', () => {
+            updateTicker();
+            const button = document.getElementById(BURGER_BUTTON_ID);
+            const menu = document.getElementById(BURGER_MENU_ID);
+            if (button instanceof HTMLElement && menu instanceof HTMLElement) positionMatrixBurgerMenu(button, menu);
+        }, { passive: true });
+        context.on(window, CONFIGURATION_IMPORTED_EVENT, sync); context.every(800, sync); sync();
         return () => { delete context.matrixHeader; destroy(); };
     },
     onRoute(context) { context.matrixHeader?.sync(); }

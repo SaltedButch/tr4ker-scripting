@@ -5,6 +5,7 @@
  */
 const KEYS = Object.freeze({
     allSite: 'tm_t4_topbar_stats_all_site',
+    burger: 'tm_t4_topbar_burger_enabled',
     upload: 'tm_t4_matrix_global_upload',
     download: 'tm_t4_matrix_global_download',
     ticker: 'tm_t4_matrix_ticker_enabled',
@@ -67,7 +68,8 @@ export function renderMatrixHeaderSettings(container, { context }) {
         control.addEventListener('change', () => { runtime.set(key, transform(control)); });
     };
     const allSite = row('Afficher sur toutes les pages du site Tr4ker', settings.allSite, '#45c7c7'); bind(allSite.input, KEYS.allSite, (input) => input.checked);
-    container.append(allSite.element, heading('Données globales'));
+    const burger = row('Activer le menu burger de navigation', settings.burger, '#4ade80'); bind(burger.input, KEYS.burger, (input) => input.checked);
+    container.append(allSite.element, burger.element, heading('Données globales'));
     const upload = row('Upload global', settings.upload, '#67e8f9'); bind(upload.input, KEYS.upload, (input) => input.checked);
     const download = row('Download global', settings.download, '#fda4af'); bind(download.input, KEYS.download, (input) => input.checked);
     container.append(upload.element, download.element, heading('Bandeau supérieur'));

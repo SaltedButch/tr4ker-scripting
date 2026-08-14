@@ -10,15 +10,31 @@ import { renderSoberHeaderSettings } from './settings.js';
 const WIDGET_ID = 'tm-t4-topbar-stats-widget';
 const STYLE_ID = 'tm-t4-sober-header-style';
 const HOST_ATTRIBUTE = 'data-tm-sober-header-host';
+const BURGER_BUTTON_ID = 'tm-t4-topbar-burger';
+const BURGER_MENU_ID = 'tm-t4-topbar-burger-menu';
+const BURGER_STYLE_ID = 'tm-t4-topbar-burger-style';
 const CACHE_MS = 90_000;
 const PERIOD_CYCLE_MS = 4_000;
 const MINIMUM_RATIO = .5;
 const KEYS = Object.freeze({
-    allSite: 'tm_t4_topbar_stats_all_site', upload: 'tm_t4_topbar_stats_show_total_upload', download: 'tm_t4_topbar_stats_show_total_download',
+    allSite: 'tm_t4_topbar_stats_all_site', burger: 'tm_t4_topbar_burger_enabled', upload: 'tm_t4_topbar_stats_show_total_upload', download: 'tm_t4_topbar_stats_show_total_download',
     credits: 'tm_t4_topbar_stats_show_credits', buffer: 'tm_t4_topbar_stats_show_buffer', period24h: 'tm_t4_topbar_stats_show_24h',
     period7d: 'tm_t4_topbar_stats_show_7d', period30d: 'tm_t4_topbar_stats_show_30d', pauseOnHover: 'tm_t4_matrix_carousel_pause_hover'
 });
 const PERIODS = Object.freeze([{ id: '24h', label: '24 h', key: 'period24h' }, { id: '7d', label: '7 j', key: 'period7d' }, { id: '30d', label: '30 j', key: 'period30d' }]);
+const BURGER_LINKS = Object.freeze([
+    { icon: 'forum', label: 'Chat', href: '/communication' },
+    { icon: 'menu_book', label: 'Wiki', href: '/wiki' },
+    { icon: 'person', label: 'Mon compte', href: '/mon-compte' },
+    { icon: 'upload', label: 'Mes uploads', href: '/my-uploads' },
+    { icon: 'emoji_events', label: 'Succès', href: '/achievements' },
+    { icon: 'settings', label: 'Paramètres', href: '/settings' },
+    { icon: 'groups', label: 'Teams', href: '/communaute/teams' },
+    { icon: 'redeem', label: 'Demandes', href: '/communaute/demandes' },
+    { icon: 'storefront', label: 'Boutique', href: '/communaute/boutique' },
+    { icon: 'forum', label: 'Forum', href: '/communaute/forum' },
+    { icon: 'swap_horiz', label: 'Migrations', href: '/migrations' }
+]);
 
 function numeric(value) { const result = Number(value); return Number.isFinite(result) && result >= 0 ? result : null; }
 function formatBytes(value) { const bytes = Math.max(0, Number(value) || 0); const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']; let amount = bytes; let index = 0; while (amount >= 1024 && index < units.length - 1) { amount /= 1024; index += 1; } return index === 0 ? `${Math.round(amount)} ${units[index]}` : `${amount < 10 ? amount.toFixed(1) : amount.toFixed(0)} ${units[index]}`; }
@@ -30,7 +46,7 @@ function notificationButton() { return [...document.querySelectorAll('header[rol
 
 function readSettings(storage) {
     const enabled = (key, fallback) => storage.readBoolean(KEYS[key], fallback);
-    return { allSite: enabled('allSite', true), upload: enabled('upload', false), download: enabled('download', false), credits: enabled('credits', false), buffer: enabled('buffer', false), period24h: enabled('period24h', true), period7d: enabled('period7d', true), period30d: enabled('period30d', true), pauseOnHover: enabled('pauseOnHover', true) };
+    return { allSite: enabled('allSite', true), burger: enabled('burger', false), upload: enabled('upload', false), download: enabled('download', false), credits: enabled('credits', false), buffer: enabled('buffer', false), period24h: enabled('period24h', true), period7d: enabled('period7d', true), period30d: enabled('period30d', true), pauseOnHover: enabled('pauseOnHover', true) };
 }
 
 function buildWidgetContent(payload, user, settings, periodIndex) {
@@ -63,6 +79,100 @@ header[role="banner"][${HOST_ATTRIBUTE}="1"]{height:auto!important;min-height:4r
 #${WIDGET_ID}[data-tm-topbar-stats-mode="sober"]{--tm-sober-period-width:200px}#${WIDGET_ID}[data-tm-topbar-stats-mode="sober"] [data-tm-topbar-stats-sober-item="period"]{flex:0 0 var(--tm-sober-period-width);width:var(--tm-sober-period-width)}@media(max-width:640px){#${WIDGET_ID}[data-tm-topbar-stats-mode="sober"]{--tm-sober-period-width:120px}}
 `;
 
+const BURGER_CSS = `
+#${BURGER_BUTTON_ID}{width:34px;height:34px;padding:0;border:1px solid rgba(74,222,128,.24);border-radius:8px;background:rgba(6,30,17,.76);color:#bbf7d0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;transition:background 120ms ease,border-color 120ms ease,transform 120ms ease}
+#${BURGER_BUTTON_ID}:hover,#${BURGER_BUTTON_ID}[aria-expanded="true"]{border-color:rgba(74,222,128,.55);background:rgba(22,101,52,.42);transform:translateY(-1px)}
+#${BURGER_BUTTON_ID} .material-symbols-outlined{font-size:20px;line-height:1}
+#${BURGER_BUTTON_ID}[data-tm-topbar-stats-mode="sober"]{border-color:rgba(255,255,255,.12);background:var(--surface-container,rgba(39,39,42,.92));color:var(--on-surface,#f4f4f5)}
+#${BURGER_BUTTON_ID}[data-tm-topbar-stats-mode="sober"]:hover,#${BURGER_BUTTON_ID}[data-tm-topbar-stats-mode="sober"][aria-expanded="true"]{border-color:rgba(255,255,255,.26);background:var(--surface-container-high,rgba(63,63,70,.96))}
+#${BURGER_MENU_ID}{position:fixed;z-index:2000;width:min(242px,calc(100vw - 16px));padding:7px;border:1px solid rgba(255,255,255,.13);border-radius:12px;background:var(--surface,rgba(24,24,27,.98));box-shadow:0 16px 38px rgba(0,0,0,.48);backdrop-filter:blur(14px)}
+#${BURGER_MENU_ID} [data-tm-topbar-burger-title="1"]{display:block;padding:5px 7px 7px;color:var(--on-surface-variant,#a1a1aa);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9px;font-weight:800;letter-spacing:.09em;text-transform:uppercase}
+#${BURGER_MENU_ID} a{display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:7px;color:#e4e4e7;font-size:12px;font-weight:600;text-decoration:none;transition:background 100ms ease,color 100ms ease}
+#${BURGER_MENU_ID} a:hover{background:rgba(255,255,255,.08);color:var(--on-surface,#f4f4f5)}
+#${BURGER_MENU_ID} a .material-symbols-outlined{color:var(--on-surface-variant,#a1a1aa);font-size:17px;line-height:1}
+`;
+
+/** Ferme le panneau burger du mode sobre. */
+function closeSoberBurgerMenu() {
+    document.getElementById(BURGER_MENU_ID)?.remove();
+    const button = document.getElementById(BURGER_BUTTON_ID);
+    if (button instanceof HTMLButtonElement) button.setAttribute('aria-expanded', 'false');
+}
+
+/** Positionne le panneau burger dans les limites de la fenêtre. */
+function positionSoberBurgerMenu(button, menu) {
+    if (!(button instanceof HTMLElement) || !(menu instanceof HTMLElement)) return;
+    const buttonRect = button.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+    const margin = 8;
+    menu.style.left = `${Math.round(Math.min(Math.max(margin, window.innerWidth - menuRect.width - margin), Math.max(margin, buttonRect.left)))}px`;
+    menu.style.top = `${Math.round(Math.min(Math.max(margin, window.innerHeight - menuRect.height - margin), Math.max(margin, buttonRect.bottom + 8)))}px`;
+}
+
+/** Construit et ouvre le menu de navigation du mode sobre. */
+function openSoberBurgerMenu() {
+    const button = document.getElementById(BURGER_BUTTON_ID);
+    if (!(button instanceof HTMLButtonElement) || !document.body) return;
+    closeSoberBurgerMenu();
+    const menu = document.createElement('nav');
+    menu.id = BURGER_MENU_ID;
+    menu.setAttribute('aria-label', 'Navigation Tr4ker');
+    const title = document.createElement('span');
+    title.dataset.tmTopbarBurgerTitle = '1';
+    title.textContent = 'Navigation Tr4ker';
+    menu.append(title);
+    for (const link of BURGER_LINKS) {
+        const anchor = document.createElement('a');
+        anchor.href = link.href;
+        const icon = document.createElement('span');
+        icon.className = 'material-symbols-outlined';
+        icon.textContent = link.icon;
+        const label = document.createElement('span');
+        label.textContent = link.label;
+        anchor.append(icon, label);
+        menu.append(anchor);
+    }
+    document.body.append(menu);
+    button.setAttribute('aria-expanded', 'true');
+    positionSoberBurgerMenu(button, menu);
+}
+
+/** Synchronise le bouton burger avec les réglages et le widget sobre. */
+function syncSoberBurgerMenu(context, notification, widget, settings) {
+    const header = notification?.closest('header[role="banner"]');
+    const insertionTarget = widget?.parentElement === header ? widget : notification;
+    const parent = insertionTarget?.parentElement;
+    if (!settings.burger || !(notification instanceof HTMLButtonElement) || !(insertionTarget instanceof HTMLElement) || !(parent instanceof HTMLElement)) {
+        closeSoberBurgerMenu();
+        document.getElementById(BURGER_BUTTON_ID)?.remove();
+        return;
+    }
+    context.ensureStyle(BURGER_STYLE_ID, BURGER_CSS);
+    let button = document.getElementById(BURGER_BUTTON_ID);
+    if (!(button instanceof HTMLButtonElement)) {
+        button = document.createElement('button');
+        button.id = BURGER_BUTTON_ID;
+        button.type = 'button';
+        button.setAttribute('aria-label', 'Ouvrir la navigation Tr4ker');
+        button.setAttribute('aria-expanded', 'false');
+        button.title = 'Navigation Tr4ker';
+        const icon = document.createElement('span');
+        icon.className = 'material-symbols-outlined';
+        icon.textContent = 'menu';
+        button.append(icon);
+        button.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (document.getElementById(BURGER_MENU_ID)) closeSoberBurgerMenu();
+            else openSoberBurgerMenu();
+        });
+    }
+    button.setAttribute('data-tm-topbar-stats-mode', 'sober');
+    if (button.parentElement !== parent || button.nextElementSibling !== insertionTarget) {
+        insertionTarget.insertAdjacentElement('beforebegin', button);
+    }
+}
+
 /**
  * Déclare la feature et son cycle de vie.
  *
@@ -81,7 +191,7 @@ export default defineFeature({
         let stats = null; let user = null; let statsAt = 0; let userAt = 0; let statsRequest = null; let userRequest = null; let periodIndex = 0; let cycle = null; let renderedSignature = '';
         const getSettings = () => readSettings(context.storage);
         const stopCycle = () => { if (cycle !== null) window.clearInterval(cycle); cycle = null; };
-        const destroy = () => { stopCycle(); renderedSignature = ''; document.getElementById(WIDGET_ID)?.remove(); document.querySelectorAll(`header[${HOST_ATTRIBUTE}]`).forEach((header) => header.removeAttribute(HOST_ATTRIBUTE)); };
+        const destroy = () => { stopCycle(); renderedSignature = ''; closeSoberBurgerMenu(); document.getElementById(BURGER_BUTTON_ID)?.remove(); document.getElementById(WIDGET_ID)?.remove(); document.querySelectorAll(`header[${HOST_ATTRIBUTE}]`).forEach((header) => header.removeAttribute(HOST_ATTRIBUTE)); };
         const fetchJson = (endpoint, kind) => { const isStats = kind === 'stats'; const cached = isStats ? stats : user; const fetchedAt = isStats ? statsAt : userAt; const ongoing = isStats ? statsRequest : userRequest; if (cached && Date.now() - fetchedAt < CACHE_MS) return Promise.resolve(cached); if (ongoing) return ongoing; const request = fetch(endpoint, { credentials: 'include' }).then((response) => { if (!response.ok) throw new Error(`HTTP ${response.status}`); return response.json(); }).then((payload) => { if (isStats) { stats = payload; statsAt = Date.now(); } else { user = payload; userAt = Date.now(); } return payload; }).finally(() => { if (isStats) statsRequest = null; else userRequest = null; }); if (isStats) statsRequest = request; else userRequest = request; return request; };
         const render = () => { const widget = document.getElementById(WIDGET_ID); if (!(widget instanceof HTMLElement) || !stats) return; const rendered = buildWidgetContent(stats, user, getSettings(), periodIndex); widget.setAttribute('aria-busy', 'false'); widget.setAttribute('data-tm-topbar-stats-mode', 'sober'); widget.setAttribute('title', rendered.title); widget.setAttribute('aria-label', `Statistiques Tr4ker, ${rendered.title}`); widget.innerHTML = rendered.content; renderedSignature = `${JSON.stringify(getSettings())}|${statsAt}|${userAt}`; stopCycle(); if (rendered.activePeriods.length > 1) cycle = window.setInterval(() => { const liveWidget = document.getElementById(WIDGET_ID); if (liveWidget instanceof HTMLElement && (!getSettings().pauseOnHover || !liveWidget.matches(':hover'))) { periodIndex = (periodIndex + 1) % rendered.activePeriods.length; render(); } }, PERIOD_CYCLE_MS); };
         function sync() {
@@ -90,10 +200,24 @@ export default defineFeature({
             context.ensureStyle(STYLE_ID, CSS); header.setAttribute(HOST_ATTRIBUTE, '1'); let widget = document.getElementById(WIDGET_ID); const created = !(widget instanceof HTMLElement);
             if (!(widget instanceof HTMLElement)) { widget = document.createElement('section'); widget.id = WIDGET_ID; widget.setAttribute('aria-label', 'Statistiques Tr4ker'); widget.setAttribute('aria-busy', 'true'); widget.setAttribute('data-tm-topbar-stats-mode', 'sober'); widget.innerHTML = '<span data-tm-topbar-stats-state="1">Chargement des statistiques…</span>'; }
             const controls = button.parentElement; if (widget.parentElement !== header) { if (controls instanceof HTMLElement && controls.parentElement === header) header.insertBefore(widget, controls); else header.append(widget); }
+            syncSoberBurgerMenu(context, button, widget, settings);
             const signature = `${JSON.stringify(settings)}|${statsAt}|${userAt}`; if (stats && signature !== renderedSignature) render();
             void Promise.all([fetchJson('/api/me/stats', 'stats'), settings.credits ? fetchJson('/api/me', 'user').catch(() => null) : Promise.resolve(user)]).then(() => { if (created || `${JSON.stringify(getSettings())}|${statsAt}|${userAt}` !== renderedSignature) render(); }).catch(() => { if (widget instanceof HTMLElement) { widget.setAttribute('aria-busy', 'false'); widget.innerHTML = '<span data-tm-topbar-stats-state="1">Statistiques indisponibles.</span>'; } });
         }
         context.soberHeader = { getSettings, sync, set(key, value) { context.storage.writeBoolean(key, Boolean(value)); sync(); } };
+        context.on(document, 'click', (event) => {
+            const target = event.target instanceof Node ? event.target : null;
+            const menu = document.getElementById(BURGER_MENU_ID);
+            const button = document.getElementById(BURGER_BUTTON_ID);
+            if (target && (menu?.contains(target) || button?.contains(target))) return;
+            closeSoberBurgerMenu();
+        }, true);
+        context.on(document, 'keydown', (event) => { if (event.key === 'Escape') closeSoberBurgerMenu(); }, true);
+        context.on(window, 'resize', () => {
+            const button = document.getElementById(BURGER_BUTTON_ID);
+            const menu = document.getElementById(BURGER_MENU_ID);
+            if (button instanceof HTMLElement && menu instanceof HTMLElement) positionSoberBurgerMenu(button, menu);
+        }, { passive: true });
         context.on(window, CONFIGURATION_IMPORTED_EVENT, sync); context.every(800, sync); sync();
         return () => { delete context.soberHeader; destroy(); };
     },

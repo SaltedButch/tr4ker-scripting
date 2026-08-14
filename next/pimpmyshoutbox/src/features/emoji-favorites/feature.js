@@ -178,7 +178,10 @@ export default defineFeature({
                 display: inline-flex !important;
                 align-items: center !important;
                 flex-wrap: nowrap !important;
+                white-space: nowrap !important;
+                overflow: visible !important;
                 width: max-content !important;
+                max-width: none !important;
                 min-width: 0 !important;
                 gap: 2px !important;
             }
@@ -186,7 +189,15 @@ export default defineFeature({
                 display: inline-flex !important;
                 align-items: center !important;
                 flex: 0 0 auto !important;
+                flex-wrap: nowrap !important;
                 white-space: nowrap !important;
+                gap: 1px !important;
+            }
+            [data-msg-actions][${REACTION_HOST_ATTR}="1"] [${REACTION_GROUP_ATTR}="1"] button {
+                flex: 0 0 20px !important;
+                width: 20px !important;
+                min-width: 20px !important;
+                height: 20px !important;
             }
         `);
         const toolbar = document.createElement('div');
@@ -292,17 +303,29 @@ export default defineFeature({
                 const trigger = getReactionTrigger(message);
                 const old = actions?.querySelector(`[${REACTION_GROUP_ATTR}="1"]`);
                 if (!(actions instanceof HTMLElement) || !(trigger instanceof HTMLButtonElement) || !favorites.length) { old?.remove(); actions?.removeAttribute(REACTION_HOST_ATTR); continue; }
+                // Le bouton de réaction est généralement enveloppé dans un pickerWrap
+                // étroit : le groupe doit être frère de ce wrapper pour rester sur la ligne d'actions.
+                const triggerHost = trigger.parentElement instanceof HTMLElement
+                    && trigger.parentElement.parentElement === actions
+                    ? trigger.parentElement
+                    : trigger;
                 const signature = favorites.map((entry) => `${entry.key}:${entry.count}`).join('|');
-                if (old instanceof HTMLElement && old.dataset.signature === signature && old.previousSibling === trigger) continue;
+                if (old instanceof HTMLElement && old.dataset.signature === signature && old.previousElementSibling === triggerHost) continue;
                 const group = old instanceof HTMLElement ? old : document.createElement('span');
                 group.setAttribute(REACTION_GROUP_ATTR, '1'); group.dataset.signature = signature;
-                group.replaceChildren(); group.style.cssText = 'display:inline-flex;align-items:center;gap:2px;margin-left:3px;padding-left:3px;border-left:1px solid rgba(251,191,36,.16);';
+                group.replaceChildren(); group.style.cssText = 'display:inline-flex;align-items:center;flex-wrap:nowrap;gap:1px;margin-left:2px;padding-left:2px;border-left:1px solid rgba(251,191,36,.16);white-space:nowrap;';
+                actions.style.setProperty('display', 'inline-flex', 'important');
+                actions.style.setProperty('align-items', 'center', 'important');
+                actions.style.setProperty('flex-wrap', 'nowrap', 'important');
+                actions.style.setProperty('white-space', 'nowrap', 'important');
+                actions.style.setProperty('overflow', 'visible', 'important');
+                actions.style.setProperty('width', 'max-content', 'important');
                 favorites.forEach((favorite) => {
                     const label = reactionLabel(favorite);
                     const button = document.createElement('button'); button.type = 'button';
                     button.title = favorite.isManual && !favorite.count ? `${label || 'Réaction'} · favori manuel` : `${label || 'Réaction'} · ${favorite.count} utilisation${favorite.count > 1 ? 's' : ''}`;
                     button.setAttribute('aria-label', `Envoyer ${label || 'cette réaction'}`);
-                    button.style.cssText = 'display:inline-grid;place-items:center;width:24px;height:24px;padding:0;border:1px solid rgba(251,191,36,.22);border-radius:7px;background:rgba(113,63,18,.28);color:#fef3c7;cursor:pointer;overflow:hidden;';
+                    button.style.cssText = 'display:inline-grid;place-items:center;width:20px;height:20px;min-width:20px;padding:0;border:1px solid rgba(251,191,36,.22);border-radius:6px;background:rgba(113,63,18,.28);color:#fef3c7;cursor:pointer;overflow:hidden;';
                     if (favorite.src) { const image = document.createElement('img'); image.src = favorite.src; image.alt = label; image.style.cssText = 'width:15px;height:15px;object-fit:contain;pointer-events:none;'; button.append(image); }
                     else { const text = document.createElement('span'); text.textContent = label || '•'; text.style.cssText = `font-size:${isUnicodeEmoji(label) ? '13px' : '9px'};font-weight:700;line-height:1;pointer-events:none;`; button.append(text); }
                     button.addEventListener('click', async (event) => {
@@ -315,7 +338,7 @@ export default defineFeature({
                     group.append(button);
                 });
                 actions.setAttribute(REACTION_HOST_ATTR, '1');
-                trigger.insertAdjacentElement('afterend', group);
+                triggerHost.insertAdjacentElement('afterend', group);
             }
         };
         const renderToolbar = () => {
