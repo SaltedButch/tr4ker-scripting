@@ -25,6 +25,11 @@ function normalizeRecord(value) {
         receivedAt: String(value.receivedAt || value.at || '').trim(),
         capturedAt: Math.max(0, Number(value.capturedAt) || Date.now()),
         source: value.source === 'cross-channel' ? 'cross-channel' : 'current-channel',
+        autoReplyStatus: String(value.autoReplyStatus || '').trim(),
+        autoReplyText: String(value.autoReplyText || '').trim().slice(0, 4000),
+        autoReplyRequestedAt: Math.max(0, Number(value.autoReplyRequestedAt) || 0),
+        autoReplyConfirmedAt: Math.max(0, Number(value.autoReplyConfirmedAt) || 0),
+        autoReplyMessageId: String(value.autoReplyMessageId || '').trim(),
         isRead: value.isRead === true,
         readAt: Math.max(0, Number(value.readAt) || 0)
     };
@@ -90,6 +95,15 @@ export function createAfkRecords({ storage, onUpdate = () => {} }) {
                 isRead: isRead === true,
                 readAt: isRead === true ? Date.now() : 0
             };
+            save();
+            return true;
+        },
+        update(recordId, changes = {}) {
+            const id = String(recordId || '').trim();
+            const index = records.findIndex((record) => record.id === id);
+            if (index < 0) return false;
+            records[index] = normalizeRecord({ ...records[index], ...changes });
+            if (!records[index]) return false;
             save();
             return true;
         },

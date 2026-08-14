@@ -51,10 +51,17 @@ export function renderAfkSettings(container, runtime) {
 
     const explanation = document.createElement('div');
     explanation.textContent = username
-        ? 'Les nouvelles mentions et réponses sont enregistrées sans rescanner le DOM. Aucun message automatique ne sera envoyé.'
+        ? 'Les nouvelles mentions et réponses sont enregistrées sans rescanner le DOM. La réponse automatique se configure dans le panneau ouvert lors de l’activation.'
         : 'Configure d’abord ton pseudo dans la section Mentions pour recevoir les événements.';
     explanation.style.cssText = 'margin-top:8px;font-size:11px;line-height:1.45;color:#a1a1aa;';
     container.append(explanation);
+
+    if (!state.enabled && runtime.getUnreadCount() > 0) {
+        const historyInfo = document.createElement('div');
+        historyInfo.textContent = 'Le mode est désactivé, mais l’historique reste consultable pour relire et répondre aux mentions reçues.';
+        historyInfo.style.cssText = 'margin-top:8px;font-size:11px;line-height:1.45;color:#93c5fd;';
+        container.append(historyInfo);
+    }
 
     const openButton = document.createElement('button');
     openButton.type = 'button';
