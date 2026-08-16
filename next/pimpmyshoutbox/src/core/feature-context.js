@@ -1,0 +1,123 @@
+/**
+ * Construit le contexte et les utilitaires mis à disposition d'une feature.
+ *
+ * @module src/core/feature-context
+ */
+import { createFeatureShortcutApi } from './shortcuts.js';
+
+function createCleanupBag() {
+    const cleanups = new Set();
+
+    return {
+        add(cleanup) {
+            if (typeof cleanup !== 'function') return () => {};
+            cleanups.add(cleanup);
+            return () => cleanups.delete(cleanup);
+        },
+        run() {
+            for (const cleanup of [...cleanups].reverse()) {
+                try {
+                    cleanup();
+                } catch (error) {
+                    console.error('[PimpMyShoutbox Next] Cleanup failed.', error);
+                }
+            }
+            cleanups.clear();
+        }
+    };
+}
+
+/**
+ * Crée l'API publique « createFeatureContext ».
+ *
+ * @function createFeatureContext
+ */
+export function createFeatureContext({ appId, feature, getPage, logger, services = {} }) {
+    const cleanupBag = createCleanupBag();
+    const enabledStorageKey = `${appId}:feature:${feature.id}:enabled`;
+
+    const context = {
+        feature,
+        get page() {
+            return getPage();
+        },
+        logger,
+        platform: services.platform,
+        storage: services.storage,
+        http: services.http,
+        input: services.input,
+        mediaToolbar: services.mediaToolbar,
+        text: services.text,
+        grades: services.grades,
+        globals: services.generalSettings,
+        ui: { toast: services.toast, settings: services.settings },
+        isEnabled() {
+            const storedValue = services.storage.get(enabledStorageKey);
+            if (storedValue !== null) return storedValue === 'true';
+            if (feature.legacyEnabledStorageKey) {
+                return services.storage.readBoolean(feature.legacyEnabledStorageKey, feature.defaultEnabled !== false);
+            }
+            return feature.defaultEnabled !== false;
+        },
+        setEnabled(enabled) {
+            services.storage.set(enabledStorageKey, String(Boolean(enabled)));
+            if (feature.legacyEnabledStorageKey) {
+                services.storage.writeBoolean(feature.legacyEnabledStorageKey, enabled);
+            }
+        },
+        on(target, eventName, handler, options) {
+            target.addEventListener(eventName, handler, options);
+            cleanupBag.add(() => target.removeEventListener(eventName, handler, options));
+        },
+        observe(target, options, callback) {
+            const observer = new MutationObserver(callback);
+            observer.observe(target, options);
+            cleanupBag.add(() => observer.disconnect());
+            return observer;
+        },
+        every(delayMs, callback) {
+            const intervalId = window.setInterval(callback, delayMs);
+            cleanupBag.add(() => window.clearInterval(intervalId));
+            return intervalId;
+        },
+        later(delayMs, callback) {
+            const timeoutId = window.setTimeout(callback, delayMs);
+            cleanupBag.add(() => window.clearTimeout(timeoutId));
+            return timeoutId;
+        },
+        addCleanup(cleanup) {
+            return cleanupBag.add(cleanup);
+        },
+        ensureStyle(styleId, cssText) {
+            let style = document.getElementById(styleId);
+            if (!(style instanceof HTMLStyleElement)) {
+                style = document.createElement('style');
+                style.id = styleId;
+                document.head.append(style);
+                cleanupBag.add(() => style.remove());
+            }
+            style.textContent = cssText;
+            return style;
+        },
+        cleanup() {
+            cleanupBag.run();
+        }
+    };
+
+    context.shortcuts = createFeatureShortcutApi({
+        feature,
+        addListener: (...args) => context.on(...args)
+    });
+    context.messages = {
+        subscribe(callback, options) {
+            const unsubscribe = services.messages.subscribe(callback, options);
+            cleanupBag.add(unsubscribe);
+            return unsubscribe;
+        },
+        refresh(options) {
+            services.messages.refresh(options);
+        }
+    };
+
+    return context;
+}

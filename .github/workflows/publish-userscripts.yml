@@ -35,6 +35,12 @@ jobs:
       - name: Build userscripts
         run: python3 tools/build_userscripts.py
 
+      - name: Build PimpMyShoutbox Next
+        working-directory: next/pimpmyshoutbox
+        run: |
+          npm ci
+          npm run build
+
       - name: Publish dist to userscripts branch
         shell: bash
         run: |
@@ -53,6 +59,8 @@ jobs:
 
           find "$publish_dir" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
           cp -R dist/. "$publish_dir"/
+          cp next/pimpmyshoutbox/dist/pimpmyshoutbox-next.user.js "$publish_dir"/
+          cp next/pimpmyshoutbox/dist/pimpmyshoutbox-next.meta.js "$publish_dir"/
 
           cat > "$publish_dir/README.md" <<'EOF'
           # Generated userscripts
