@@ -7,7 +7,7 @@
  * @module esbuild.config
  */
 import { build } from 'esbuild';
-import { mkdir, readFile, unlink } from 'node:fs/promises';
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { glob } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -16,9 +16,14 @@ const rootUrl = new URL('.', import.meta.url);
 const root = fileURLToPath(rootUrl);
 const metadata = await readFile(new URL('./metadata.user.js', import.meta.url), 'utf8');
 const outfile = fileURLToPath(new URL('./dist/pimpmyshoutbox-next.user.js', import.meta.url));
+const metafile = fileURLToPath(new URL('./dist/pimpmyshoutbox-next.meta.js', import.meta.url));
+
+const metadataBlock = metadata.match(/^\/\/ ==UserScript==[\s\S]*?^\/\/ ==\/UserScript==/m)?.[0];
+if (!metadataBlock) throw new Error('metadata.user.js does not contain a valid userscript metadata block.');
 
 await mkdir(new URL('./dist/', import.meta.url), { recursive: true });
 await unlink(`${outfile}.map`).catch(() => {});
+await writeFile(metafile, `${metadataBlock}\n`, 'utf8');
 
 const featureGlobPlugin = {
     name: 'feature-glob',
