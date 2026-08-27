@@ -23,6 +23,17 @@ function normalizeImageUrl(value) {
     try { const url = new URL(raw, location.origin); return `${url.pathname}${url.search}`; } catch { return raw; }
 }
 
+function emojiIdentity({ insertText = '', src = '' } = {}) {
+    const text = String(insertText || '').trim();
+    if (isUnicodeEmoji(text)) {
+        // Le picker peut tantôt fournir la variante texte, tantôt la variante emoji
+        // (avec U+FE0F) d'un même caractère.
+        return `unicode:${text.normalize('NFC').replace(/[\uFE0E\uFE0F]/g, '')}`;
+    }
+    if (text) return `text:${text.toLocaleLowerCase('fr')}`;
+    return `asset:${normalizeImageUrl(src)}`;
+}
+
 /**
  * Insère le contenu préparé par « insertionText ».
  *
@@ -50,14 +61,14 @@ export function normalizeRecord(value, { manual = false } = {}) {
         const raw = String(value).trim();
         if (!raw) return null;
         const insertText = isUnicodeEmoji(raw) || /^:[^:\s][^:]*:$/.test(raw) ? raw : `:${raw.replace(/^:+|:+$/g, '')}:`;
-        return { key: `manual:${insertText.toLocaleLowerCase('fr')}`, title: insertText, alt: insertText, src: '', insertText, count: 0, lastUsedAt: 0, isManual: true };
+        return { key: emojiIdentity({ insertText }), title: insertText, alt: insertText, src: '', insertText, count: 0, lastUsedAt: 0, isManual: true };
     }
     if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
     const title = String(value.title || value.insertText || '').trim();
     const alt = String(value.alt || value.insertText || '').trim();
     const src = normalizeImageUrl(value.src);
     const insertText = insertionText({ ...value, title, alt, src });
-    const key = String(value.key || `${(title || alt || insertText).toLocaleLowerCase('fr')}|${src}`).trim();
+    const key = emojiIdentity({ insertText, src });
     if (!key || !insertText) return null;
     return {
         key,
@@ -76,6 +87,25 @@ function unique(records) {
     return records.filter((record) => record && !seen.has(record.key) && seen.add(record.key));
 }
 
+function mergeUsage(records) {
+    const merged = {};
+    for (const record of records) {
+        if (!record) continue;
+        const previous = merged[record.key];
+        merged[record.key] = previous ? {
+            ...previous,
+            // Un ancien historique peut contenir plusieurs clés pour la même entrée.
+            // Les conserver séparées crée des boutons doublons dans le mode auto.
+            count: previous.count + record.count,
+            lastUsedAt: Math.max(previous.lastUsedAt, record.lastUsedAt),
+            src: previous.src || record.src,
+            title: previous.title || record.title,
+            alt: previous.alt || record.alt
+        } : record;
+    }
+    return merged;
+}
+
 /**
  * Crée l'API publique « createEmojiFavoritesStore ».
  *
@@ -89,10 +119,9 @@ export function createEmojiFavoritesStore({ storage }) {
     function limit() { return Math.min(9, Math.max(0, Number.parseInt(storage.get(STORAGE_KEYS.limit) || '5', 10) || 0)); }
     function reload() {
         const rawUsage = storage.readJson(STORAGE_KEYS.usage, {});
-        usage = Object.fromEntries(Object.entries(rawUsage && typeof rawUsage === 'object' && !Array.isArray(rawUsage) ? rawUsage : {})
+        usage = mergeUsage(Object.entries(rawUsage && typeof rawUsage === 'object' && !Array.isArray(rawUsage) ? rawUsage : {})
             .map(([, record]) => normalizeRecord(record))
-            .filter(Boolean)
-            .map((record) => [record.key, record]));
+            .filter(Boolean));
         manualFavorites = unique((Array.isArray(storage.readJson(STORAGE_KEYS.manual, [])) ? storage.readJson(STORAGE_KEYS.manual, []) : [])
             .map((record) => normalizeRecord(record, { manual: true })).filter(Boolean)).slice(0, MAX_FAVORITES);
     }

@@ -40,7 +40,7 @@ function recordFromButton(button) {
 
 function isEmojiCandidate(button) {
     if (!(button instanceof HTMLButtonElement)) return false;
-    if (button.closest(`[${TOOLBAR_ATTR}="1"]`)) return false;
+    if (button.closest(`[${TOOLBAR_ATTR}="1"], [${REACTION_GROUP_ATTR}="1"], .tm-t4-mcv-reaction-picker`)) return false;
     const hasAsset = button.querySelector('img') instanceof HTMLImageElement;
     const metadata = ['data-emoji', 'data-value', 'data-name'].some((name) => Boolean(button.getAttribute(name)));
     return hasAsset || metadata || isUnicodeEmoji(button.textContent);
@@ -128,12 +128,15 @@ function getReactionTrigger(message) {
     const actions = getMessageActions(message);
     if (!(actions instanceof HTMLElement)) return null;
     const direct = actions.querySelector('button[title="Réagir"],button[title="Reagir"],button[aria-label*="Réagir" i],button[aria-label*="Reagir" i],button[aria-label*="React" i]');
-    if (direct instanceof HTMLButtonElement) return direct;
-    return [...actions.querySelectorAll('button')].find((button) => /\b(reagir|reaction|react|emoji|emote)\b/.test(normalizeReactionComparable(reactionButtonLabel(button)))) || null;
+    if (direct instanceof HTMLButtonElement && !direct.hasAttribute('data-tm-t4-multi-channel-reaction-trigger')) return direct;
+    return [...actions.querySelectorAll('button')].find((button) => (
+        !button.hasAttribute('data-tm-t4-multi-channel-reaction-trigger')
+        && /\b(reagir|reaction|react|emoji|emote)\b/.test(normalizeReactionComparable(reactionButtonLabel(button)))
+    )) || null;
 }
 
 function isReactionCandidate(button) {
-    if (!(button instanceof HTMLButtonElement) || button.closest(`[${REACTION_GROUP_ATTR}="1"]`)) return false;
+    if (!(button instanceof HTMLButtonElement) || button.closest(`[${REACTION_GROUP_ATTR}="1"], .tm-t4-mcv-reaction-picker`)) return false;
     const record = reactionRecordFromButton(button);
     return Boolean(record && (record.emojiValue || record.src || record.svgSignature || button.hasAttribute('data-emoji') || button.hasAttribute('data-value') || button.hasAttribute('data-name')));
 }
@@ -266,6 +269,10 @@ export default defineFeature({
             element.remove();
         });
         const armReactionPicker = (message) => {
+            // Les deux pickers ont des boutons emoji semblables. Une session native
+            // encore active ne doit jamais enregistrer ce clic dans les deux usages.
+            pickerOpenedAt = 0;
+            activePicker = null;
             activeReactionMessage = message instanceof HTMLElement ? message : null;
             activeReactionPicker = null;
             reactionPickerOpenedAt = Date.now();
@@ -372,6 +379,11 @@ export default defineFeature({
         };
         const refresh = () => { renderToolbar(); markPicker(); markReactionPicker(); renderReactionButtons(); context.mediaToolbar.refresh(); };
         const armNativePicker = () => {
+            // Inversement, l'ouverture du picker du champ clôt immédiatement la
+            // dernière session de réaction, même si son timeout n'est pas écoulé.
+            reactionPickerOpenedAt = 0;
+            activeReactionPicker = null;
+            activeReactionMessage = null;
             pickerOpenedAt = Date.now(); activePicker = null;
             context.later(100, () => { activePicker = findOpenPicker(); markPicker(); });
             context.later(350, () => { activePicker = findOpenPicker() || activePicker; markPicker(); });

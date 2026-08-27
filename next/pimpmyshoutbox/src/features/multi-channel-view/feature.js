@@ -13,6 +13,10 @@ const PANE_ATTR = 'data-tm-t4-multi-channel-pane';
 const NATIVE_ATTR = 'data-tm-t4-multi-channel-native';
 const STYLE_ID = 'tm-t4-next-multi-channel-view-style';
 const MAX_CHANNELS = 4;
+const NATIVE_ROLE_COLORS = Object.freeze({
+    user: '#f472b6', membre: '#f472b6', helper: '#ffffff', uploader_herbe: '#7dd3fc',
+    uploader: '#2563eb', team: '#f87171', contributeur: '#f4f4f5', moderator: '#16a34a', admin: '#16a34a'
+});
 
 function comparable(value) {
     return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('fr');
@@ -66,6 +70,13 @@ async function fetchMessages(channelId) {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const payload = await response.json();
     return (Array.isArray(payload?.messages) ? payload.messages : []).reverse();
+}
+
+async function fetchCurrentUserId() {
+    const response = await fetch('/api/me', { credentials: 'include' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const user = await response.json();
+    return user?.id === undefined || user?.id === null ? '' : String(user.id);
 }
 
 function formatTime(value) {
@@ -160,6 +171,62 @@ function createIcon(name) {
     const icon = document.createElement('span'); icon.className = 'material-symbols-outlined'; icon.textContent = name; return icon;
 }
 
+function normalizedControlLabel(button) {
+    return [button?.getAttribute('aria-label'), button?.getAttribute('title'), button?.textContent]
+        .filter(Boolean).join(' ').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr');
+}
+
+function getNativeReactionTrigger(nativeWindow) {
+    if (!(nativeWindow instanceof HTMLElement)) return null;
+    const buttons = [...nativeWindow.querySelectorAll('[data-msg-id] [data-msg-actions] button, [data-msg-actions] button')]
+        .filter((button) => !button.closest(`[${PANE_ATTR}]`));
+    return buttons.find((button) => {
+        const icon = String(button.querySelector('.material-symbols-outlined')?.textContent || '').trim().toLocaleLowerCase();
+        return /\b(reagir|reaction|react|emoji)\b/.test(normalizedControlLabel(button)) || icon === 'add_reaction' || icon === 'sentiment_satisfied';
+    }) || null;
+}
+
+function reactionEmojiFromButton(button) {
+    if (!(button instanceof HTMLButtonElement)) return '';
+    const image = button.querySelector('img');
+    const values = [button.getAttribute('data-emoji'), button.getAttribute('data-value'), button.getAttribute('data-name'), image?.getAttribute('alt'), button.textContent];
+    return values.map((value) => String(value || '').trim()).find((value) => /^[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u200D\s]+$/u.test(value)) || '';
+}
+
+function nativeReactionPickerFor(button) {
+    if (!(button instanceof HTMLButtonElement)) return null;
+    let current = button.parentElement;
+    while (current && current !== document.body) {
+        if (current instanceof HTMLElement) {
+            const className = String(current.className || '').toLocaleLowerCase('fr');
+            const choices = [...current.querySelectorAll('button')].filter((candidate) => reactionEmojiFromButton(candidate));
+            if (/reaction|picker|emoji/.test(className) && choices.length >= 3) return current;
+        }
+        current = current.parentElement;
+    }
+    return null;
+}
+
+function nativeRoleColor(role) {
+    return NATIVE_ROLE_COLORS[String(role || '').trim()] || '#f472b6';
+}
+
+function reactionEntries(message) {
+    const source = message?.reactions ?? message?.reaction_counts ?? {};
+    if (Array.isArray(source)) {
+        const counts = new Map();
+        for (const entry of source) {
+            const emoji = typeof entry === 'string' ? entry : String(entry?.emoji ?? entry?.reaction ?? entry?.value ?? '').trim();
+            if (!emoji) continue;
+            const count = typeof entry === 'object' ? Number(entry?.count ?? entry?.total ?? entry?.users?.length ?? 1) : 1;
+            counts.set(emoji, (counts.get(emoji) || 0) + Math.max(1, Number.isFinite(count) ? count : 1));
+        }
+        return [...counts.entries()];
+    }
+    if (!source || typeof source !== 'object') return [];
+    return Object.entries(source).filter(([, count]) => Number(count) > 0);
+}
+
 function cloneHeader(templates, channel, onClose) {
     const header = cloneShell(templates.header); const left = cloneShell(templates.headerLeft); const icon = cloneShell(templates.icon, 'span');
     icon.textContent = 'tag';
@@ -171,7 +238,7 @@ function cloneHeader(templates, channel, onClose) {
     header.append(left, close); return header;
 }
 
-function createMessageElement(templates, message, previousMessage, onReply, onReaction) {
+function createMessageElement(templates, message, previousMessage, { currentUserId, editing, onReply, onReaction, onOpenNativeReactionPicker, onEdit, onCancelEdit }) {
     const row = cloneShell(templates.message); row.setAttribute('data-msg-id', String(message?.id ?? '')); row.dataset.tmT4MultiChannelMessageId = String(message?.id ?? '');
     const name = senderName(message); const grouped = previousMessage && senderName(previousMessage) === name;
     if (grouped) row.className = `${row.className} tm-t4-mcv-grouped`;
@@ -181,24 +248,51 @@ function createMessageElement(templates, message, previousMessage, onReply, onRe
         if (message?.avatar_url) { const image = cloneShell(templates.avatarImage, 'img'); image.src = message.avatar_url; image.alt = ''; avatar.append(image); } else avatar.textContent = avatarInitial(name);
     }
     const content = cloneShell(templates.content); const meta = cloneShell(templates.meta); const sender = cloneShell(templates.sender, 'button'); sender.type = 'button'; sender.textContent = name;
-    const roleColor = message?.sender_role === 'admin' ? '#16a34a' : message?.sender_role === 'moderator' ? '#f59e0b' : '';
-    if (roleColor) sender.style.color = roleColor;
+    // Un panneau est construit depuis un message natif arbitraire. Il ne doit jamais
+    // conserver la couleur (ou l'état) Pimp My Grade de ce message modèle.
+    sender.style.removeProperty('color'); sender.style.removeProperty('--tm-t4-grade-color');
+    delete sender.dataset.tmT4GradeApplied; delete sender.dataset.tmT4GradeEffect;
+    delete sender.dataset.tmT4GradeNativeColor; delete sender.dataset.tmT4GradeNativeInlineColor; delete sender.dataset.tmT4GradeNativeInlinePriority;
+    sender.style.setProperty('color', nativeRoleColor(message?.sender_role));
     const time = cloneShell(templates.time, 'span'); time.textContent = formatTime(message?.created_at ?? message?.at);
     if (!grouped) meta.append(sender, time);
     if (message?.parent) {
         const quote = document.createElement('div'); quote.className = 'tm-t4-mcv-quote'; quote.textContent = `↪ réponse à @${message.parent.sender || 'utilisateur'} : ${message.parent.body || 'message supprimé'}`; content.append(quote);
     }
-    const bubble = cloneShell(templates.bubble); bubble.replaceChildren(); appendMessageBody(bubble, message?.body); content.append(meta, bubble);
-    const reactions = message?.reactions && typeof message.reactions === 'object' ? Object.entries(message.reactions).filter(([, count]) => Number(count) > 0) : [];
+    const bubble = cloneShell(templates.bubble); bubble.replaceChildren();
+    if (editing) {
+        const input = document.createElement('input'); input.type = 'text'; input.className = 'tm-t4-mcv-edit-input'; input.value = String(message?.body || ''); input.maxLength = 500; input.setAttribute('aria-label', 'Modifier le message');
+        input.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') { event.preventDefault(); onEdit(message, input.value); }
+            if (event.key === 'Escape') { event.preventDefault(); onCancelEdit(); }
+        });
+        bubble.append(input); window.requestAnimationFrame(() => input.focus());
+    } else appendMessageBody(bubble, message?.body);
+    // Cette insertion doit rester avant les réactions et les actions : c'est le
+    // contenu principal du message, indépendamment de ses contrôles additionnels.
+    content.append(meta, bubble);
+    const reactions = reactionEntries(message);
     if (reactions.length) {
         const bar = document.createElement('div'); bar.className = 'tm-t4-mcv-reactions';
         for (const [emoji, count] of reactions) { const button = document.createElement('button'); button.type = 'button'; button.textContent = `${emoji} ${count}`; button.title = `Réagir avec ${emoji}`; button.addEventListener('click', () => onReaction(message, emoji)); bar.append(button); }
         content.append(bar);
     }
-    const actions = cloneShell(templates.actions); const reply = cloneShell(templates.actionButton, 'button'); reply.type = 'button'; reply.title = 'Répondre'; reply.setAttribute('aria-label', reply.title); reply.replaceChildren(createIcon('reply')); reply.addEventListener('click', () => onReply(message)); actions.append(reply); content.append(actions); row.append(avatar, content); return row;
+    const actions = cloneShell(templates.actions); const reply = cloneShell(templates.actionButton, 'button'); reply.type = 'button'; reply.title = 'Répondre'; reply.setAttribute('aria-label', reply.title); reply.replaceChildren(createIcon('reply')); reply.addEventListener('click', () => onReply(message)); actions.append(reply);
+    const react = cloneShell(templates.actionButton, 'button'); react.type = 'button'; react.title = 'Réagir'; react.setAttribute('aria-label', react.title); react.setAttribute('data-tm-t4-multi-channel-reaction-trigger', '1'); react.replaceChildren(createIcon('add_reaction'));
+    react.addEventListener('click', () => onOpenNativeReactionPicker(message, onReaction)); actions.append(react);
+    const isOwnMessage = currentUserId && String(message?.sender_id ?? '') === currentUserId;
+    if (isOwnMessage && !editing) {
+        const edit = cloneShell(templates.actionButton, 'button'); edit.type = 'button'; edit.title = 'Modifier le message'; edit.setAttribute('aria-label', edit.title); edit.replaceChildren(createIcon('edit'));
+        edit.addEventListener('click', () => onEdit(message)); actions.append(edit);
+    }
+    if (editing) {
+        const cancel = cloneShell(templates.actionButton, 'button'); cancel.type = 'button'; cancel.title = 'Annuler la modification'; cancel.setAttribute('aria-label', cancel.title); cancel.replaceChildren(createIcon('close'));
+        cancel.addEventListener('click', onCancelEdit); actions.append(cancel);
+    }
+    content.append(actions); row.append(avatar, content); return row;
 }
 
-function createPane(templates, channel, state, { onClose, onSend, onReaction }) {
+function createPane(templates, channel, state, { onClose, onSend, onReaction, onOpenNativeReactionPicker, onEdit, getCurrentUserId }) {
     const pane = cloneShell(templates.nativeWindow); pane.setAttribute(PANE_ATTR, channel.id); pane.setAttribute('aria-label', `Canal #${channel.name}`);
     const list = cloneShell(templates.list); list.dataset.tmT4MultiChannelMessages = channel.id;
     const inputWrapper = cloneShell(templates.inputWrapper); const inputArea = cloneShell(templates.inputArea); const inputField = cloneShell(templates.inputField); const input = cloneShell(templates.input, 'textarea');
@@ -216,7 +310,23 @@ function createPane(templates, channel, state, { onClose, onSend, onReaction }) 
     const renderMessages = () => {
         const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
         list.replaceChildren(); let previous = null;
-        for (const message of state.messages) { list.append(createMessageElement(templates, message, previous, (replyTo) => { state.replyTo = replyTo; replyBanner.hidden = false; replyBanner.textContent = `Réponse à ${senderName(replyTo)} · cliquer pour annuler`; replyBanner.onclick = () => { state.replyTo = null; replyBanner.hidden = true; }; input.focus(); }, onReaction)); previous = message; }
+        for (const message of state.messages) {
+            list.append(createMessageElement(templates, message, previous, {
+                currentUserId: getCurrentUserId(),
+                editing: state.editingMessageId === String(message.id),
+                onReply: (replyTo) => { state.replyTo = replyTo; replyBanner.hidden = false; replyBanner.textContent = `Réponse à ${senderName(replyTo)} · cliquer pour annuler`; replyBanner.onclick = () => { state.replyTo = null; replyBanner.hidden = true; }; input.focus(); },
+                onReaction,
+                onOpenNativeReactionPicker,
+                onEdit: (target, body) => {
+                    if (body === undefined) { state.editingMessageId = String(target.id); renderMessages(); return; }
+                    const nextBody = String(body || '').trim();
+                    if (!nextBody) return;
+                    state.editingMessageId = ''; onEdit(target, nextBody);
+                },
+                onCancelEdit: () => { state.editingMessageId = ''; renderMessages(); }
+            }));
+            previous = message;
+        }
         if (nearBottom) list.scrollTop = list.scrollHeight;
     };
     pane.append(cloneHeader(templates, channel, onClose), list, inputWrapper); renderMessages();
@@ -241,6 +351,8 @@ export default defineFeature({
         let openedIds = safeOpenedIds(context.storage);
         const panelStates = new Map();
         let socket = null;
+        let currentUserId = '';
+        let pendingNativeReaction = null;
 
         context.ensureStyle(STYLE_ID, `
             [data-tm-t4-multi-channel-layout="2"]{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr)!important;gap:8px!important;padding:8px!important;overflow:hidden!important}
@@ -255,7 +367,7 @@ export default defineFeature({
             [${PLUS_ATTR}="1"]:hover{border-color:rgba(147,197,253,.82)!important;background:linear-gradient(145deg,rgba(37,99,235,1),rgba(30,64,175,.96))!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 5px 13px rgba(30,64,175,.35)!important;transform:translateY(-1px)}
             [${PLUS_ATTR}="1"]:active,[${PLUS_ATTR}="1"][data-state="opening"]{transform:scale(.88)!important;background:linear-gradient(145deg,rgba(22,163,74,.95),rgba(21,128,61,.95))!important;border-color:rgba(134,239,172,.86)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 2px 7px rgba(20,83,45,.36)!important}
             [${PLUS_ATTR}="1"]:focus-visible{outline:2px solid #bfdbfe!important;outline-offset:2px}.tm-t4-mcv-quote{margin:5px 0;padding:5px 7px;border-left:2px solid rgba(96,165,250,.7);border-radius:4px;background:rgba(59,130,246,.08);color:#cbd5e1;font-size:11px;line-height:1.35}
-            .tm-t4-mcv-reactions{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}.tm-t4-mcv-reactions button{border:1px solid rgba(251,191,36,.2);border-radius:999px;background:rgba(113,63,18,.26);color:#fef3c7;padding:2px 6px;cursor:pointer;font-size:11px}.tm-t4-mcv-reply-banner{margin:0 8px 5px;padding:5px 8px;border-radius:6px;background:rgba(30,64,175,.28);color:#dbeafe;cursor:pointer;font-size:11px}
+            .tm-t4-mcv-reactions{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}.tm-t4-mcv-reactions button{border:1px solid rgba(251,191,36,.2);border-radius:999px;background:rgba(113,63,18,.26);color:#fef3c7;padding:2px 6px;cursor:pointer;font-size:11px}.tm-t4-mcv-edit-input{box-sizing:border-box;width:100%;border:1px solid rgba(96,165,250,.8);border-radius:6px;background:rgba(24,24,27,.92);color:inherit;padding:5px 7px;font:inherit}.tm-t4-mcv-reply-banner{margin:0 8px 5px;padding:5px 8px;border-radius:6px;background:rgba(30,64,175,.28);color:#dbeafe;cursor:pointer;font-size:11px}
             @media(max-width:760px){[data-tm-t4-multi-channel-layout]{display:block!important;overflow:auto!important}[data-tm-t4-multi-channel-layout] > [${NATIVE_ATTR}],[data-tm-t4-multi-channel-layout] > [${PANE_ATTR}]{min-height:78vh!important;margin-bottom:8px}}
         `);
 
@@ -295,6 +407,26 @@ export default defineFeature({
         const closeAll = () => { openedIds = []; saveOpenedIds(context.storage, openedIds); clearLayout(); };
         const removeChannel = (id) => { openedIds = openedIds.filter((entry) => entry !== String(id)); saveOpenedIds(context.storage, openedIds); render(); };
         const sendPacket = (packet) => { socket?.send(packet); };
+        const openNativeReactionPicker = (message, onReaction, afterHover = false) => {
+            const nativeWindow = getNativeWindow(getLayout()?.chatArea);
+            const trigger = getNativeReactionTrigger(nativeWindow);
+            if (!(trigger instanceof HTMLButtonElement) || trigger.disabled) {
+                const nativeMessage = nativeWindow?.querySelector('[data-msg-id]');
+                if (!afterHover && nativeMessage instanceof HTMLElement) {
+                    // Les actions sont rendues par React au survol dans la shoutbox
+                    // officielle. Elles peuvent donc ne pas être présentes avant ce
+                    // signal, même si le message l'est bien.
+                    nativeMessage.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+                    nativeMessage.dispatchEvent(new MouseEvent('mouseenter'));
+                    context.later(80, () => openNativeReactionPicker(message, onReaction, true));
+                    return;
+                }
+                context.ui.toast.show('Le bouton de réaction natif est introuvable dans le canal officiel.', { error: true });
+                return;
+            }
+            pendingNativeReaction = { message, onReaction, trigger, expiresAt: Date.now() + 12000 };
+            trigger.click();
+        };
         const updatePane = (id) => panelStates.get(String(id))?.renderMessages();
         const handlePacket = (packet) => {
             if (packet?.type === 'msg.received') {
@@ -321,11 +453,17 @@ export default defineFeature({
             clearLayout(); nativeWindow.setAttribute(NATIVE_ATTR, '1'); chatArea.dataset.tmT4MultiChannelLayout = String(count); placePanel(nativeWindow, count, 0);
             for (const [index, id] of openedIds.entries()) {
                 const channel = getChannel(id); if (!channel) continue;
-                const state = { messages: [], replyTo: null, renderMessages: () => {} }; panelStates.set(id, state);
+                const state = { messages: [], replyTo: null, editingMessageId: '', renderMessages: () => {} }; panelStates.set(id, state);
                 const panel = createPane(templates, channel, state, {
                     onClose: () => removeChannel(channel.id),
                     onSend: (target, body, parent) => sendPacket({ type: 'msg.send', conv_id: target.id, body, ...(parent?.id ? { parent_id: parent.id } : {}) }),
-                    onReaction: (message, emoji) => sendPacket({ type: 'reaction.add', message_id: message.id, emoji })
+                    onReaction: (message, emoji) => sendPacket({ type: 'reaction.add', message_id: message.id, emoji }),
+                    onOpenNativeReactionPicker: openNativeReactionPicker,
+                    onEdit: (message, body) => {
+                        message.body = body; state.renderMessages();
+                        sendPacket({ type: 'msg.edit', message_id: message.id, body });
+                    },
+                    getCurrentUserId: () => currentUserId
                 });
                 chatArea.append(panel.pane); placePanel(panel.pane, count, index + 1); state.renderMessages = panel.renderMessages;
                 context.messages.refresh();
@@ -354,12 +492,31 @@ export default defineFeature({
         const refresh = async () => {
             try { channels = await fetchChannels(); openedIds = openedIds.filter((id) => getChannel(id)); saveOpenedIds(context.storage, openedIds); syncPlusButtons(); await render(); } catch { syncPlusButtons(); }
         };
+        void fetchCurrentUserId().then((id) => {
+            currentUserId = id;
+            for (const state of panelStates.values()) state.renderMessages();
+        }).catch((error) => context.logger.warn('[PimpMyShoutbox Next] Unable to identify the current user for multi-channel editing.', error));
         context.multiChannelView = { count: () => openedIds.length + (openedIds.length ? 1 : 0), closeAll, refresh };
         context.on(document, 'focusin', (event) => {
             const target = event.target;
             if (target instanceof HTMLTextAreaElement && !target.matches('textarea[data-tm-t4-multi-channel-input]')) {
                 document.querySelectorAll('textarea[data-tm-t4-multi-channel-input-active="1"]').forEach((element) => element.removeAttribute('data-tm-t4-multi-channel-input-active'));
             }
+        }, true);
+        context.on(document, 'click', (event) => {
+            const pending = pendingNativeReaction;
+            if (!pending || Date.now() > pending.expiresAt) { pendingNativeReaction = null; return; }
+            const button = event.target instanceof Element ? event.target.closest('button') : null;
+            const emoji = reactionEmojiFromButton(button);
+            if (!(button instanceof HTMLButtonElement) || !emoji || !(nativeReactionPickerFor(button) instanceof HTMLElement)) return;
+
+            // Le picker et ses options sont ceux de Tr4ker. On bloque seulement la
+            // réaction du message natif qui a servi à l'ouvrir, puis on redirige le
+            // même emoji vers le message affiché dans le panneau secondaire.
+            event.preventDefault(); event.stopImmediatePropagation();
+            pendingNativeReaction = null;
+            pending.onReaction(pending.message, emoji);
+            window.setTimeout(() => pending.trigger.click(), 0);
         }, true);
         context.on(document, 'keydown', (event) => { if (event.key === 'Escape' && openedIds.length) { event.preventDefault(); closeAll(); } }, true);
         context.on(window, 'storage', (event) => { if (event.key === OPEN_IDS_STORAGE_KEY) { openedIds = safeOpenedIds(context.storage); void render(); } });
