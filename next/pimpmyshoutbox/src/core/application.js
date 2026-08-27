@@ -13,7 +13,7 @@ import { createMediaToolbar } from './media-toolbar.js';
 import { createRouteWatcher } from './route-watcher.js';
 import { createGeneralSettings } from './settings-general.js';
 import { createSettingsModal } from './settings-modal.js';
-import { createStorage } from './storage.js';
+import { createSecretStorage, createStorage } from './storage.js';
 import * as text from './text.js';
 import { createToastService } from './toast.js';
 import { createTr4kerPlatform } from './tr4ker-platform.js';
@@ -26,10 +26,12 @@ import { createTr4kerPlatform } from './tr4ker-platform.js';
 export function createApplication({ appId, logger = console }) {
     const platform = createTr4kerPlatform();
     const storage = createStorage();
+    const secrets = createSecretStorage();
     const messages = createMessageStream({ platform, logger });
     const services = {
         platform,
         storage,
+        secrets,
         messages,
         http: createHttpClient(),
         input: createChatInputService(platform),

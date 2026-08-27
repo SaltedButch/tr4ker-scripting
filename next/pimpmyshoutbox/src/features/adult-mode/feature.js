@@ -19,19 +19,12 @@ async function readPreferences() {
     return asPreferences(await response.json());
 }
 
-async function saveAdultPreference(preferences, enabled) {
+async function saveAdultPreference(enabled) {
     const response = await fetch(PREFERENCES_ENDPOINT, {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            show_adult: Boolean(enabled),
-            upload_anonymous: preferences.upload_anonymous === true,
-            mute_mention_notifications: preferences.mute_mention_notifications === true,
-            hide_ratio: preferences.hide_ratio === true,
-            hide_uploads: preferences.hide_uploads === true,
-            hide_leaderboard: preferences.hide_leaderboard === true
-        })
+        body: JSON.stringify({ show_adult: Boolean(enabled) })
     });
     let payload = null;
     try { payload = await response.json(); } catch { /* HTTP status remains authoritative */ }
@@ -82,7 +75,8 @@ export default defineFeature({
             request = (async () => {
                 const preferences = await readPreferences();
                 const enabled = preferences.show_adult !== true;
-                await saveAdultPreference(preferences, enabled);
+                if (!window.confirm(`Voulez-vous ${enabled ? 'activer' : 'désactiver'} le mode adulte ?`)) return preferences.show_adult === true;
+                await saveAdultPreference(enabled);
                 context.ui.toast.show(enabled ? 'Mode adulte activé.' : 'Mode adulte désactivé.');
                 window.setTimeout(() => window.location.reload(), 350);
                 return enabled;

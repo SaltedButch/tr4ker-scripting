@@ -8,8 +8,8 @@ import { defineFeature } from '../../core/feature-registry.js';
 import { createImageCatalog } from './catalog.js';
 import { renderImageCatalog } from './catalog-ui.js';
 import { renderImgBbSettings } from './settings.js';
+import { API_KEY_STORAGE } from './storage-keys.js';
 
-const API_KEY_STORAGE = 'tm_t4_imgbb_api_key';
 const EXPIRATION_STORAGE = 'tm_t4_image_hosting_expiration_seconds';
 const MAX_BYTES = 32 * 1024 * 1024;
 const EXPIRATIONS = new Set([0, 600, 3600, 86400, 604800, 2592000, 15552000]);
@@ -37,7 +37,8 @@ export default defineFeature({
     settings: { area: 'shoutbox', category: 'media', order: 30, render: renderImgBbSettings },
     hints: [{ id: 'purpose', title: 'Fonctionnement', text: 'Ajoute un bouton Up-Img pour choisir, coller ou glisser une image puis l’insérer dans le message.', kind: 'info', order: 10 }],
     setup(context) {
-        const catalog = createImageCatalog({ storage: context.storage, http: context.http });
+        context.secrets.migrateFrom(context.storage, API_KEY_STORAGE);
+        const catalog = createImageCatalog({ storage: context.storage, secrets: context.secrets, http: context.http });
         const runtime = { context, catalog };
         context.imgbbUpload = runtime;
         const button = createMediaButton({ label: '↑ Up-Img', title: 'Uploader ou insérer une image', colors: { background: 'linear-gradient(135deg,rgba(2,132,199,.84),rgba(14,116,144,.84))', border: 'rgba(125,211,252,.30)', text: '#ecfeff' } });
@@ -74,7 +75,7 @@ export default defineFeature({
         const addFiles = (nextFiles) => { const accepted = imageFiles(nextFiles); const rejected = [...(nextFiles || [])].length - accepted.length; files = [...files, ...accepted]; renderPending(); if (rejected) setFeedback(`Certaines images sont invalides ou dépassent 32 Mo.`, true); };
         async function uploadFiles() {
             if (!files.length) { setFeedback('Choisissez au moins une image.', true); return; }
-            const key = String(context.storage.get(API_KEY_STORAGE) || '').trim().replace(/\s+/g, '');
+            const key = String(context.secrets.get(API_KEY_STORAGE) || '').trim().replace(/\s+/g, '');
             if (!key) { setFeedback('Renseignez votre clé API ImgBB dans les réglages.', true); return; }
             upload.disabled = true; const records = [];
             try {

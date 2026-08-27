@@ -29,7 +29,10 @@ export default defineFeature({
     pages: ['chat'],
     storageKeys: ['tm_t4_klipy_gifs_enabled', 'tm_t4_klipy_gateway_client_id'],
     settings: { area: 'shoutbox', category: 'media', order: 10, render: renderKlipySettings },
-    hints: [{ id: 'purpose', title: 'Fonctionnement', text: 'Utilisez le bouton GIF au-dessus du champ de message pour rechercher une animation.', kind: 'info', order: 10 }],
+    hints: [
+        { id: 'purpose', title: 'Fonctionnement', text: 'Utilisez le bouton GIF au-dessus du champ de message pour rechercher une animation.', kind: 'info', order: 10 },
+        { id: 'rate-limit', title: 'Limitation des requêtes', text: 'Un identifiant aléatoire propre à cette installation est transmis à la gateway uniquement pour limiter les abus. Le Worker ne conserve ni votre adresse IP, ni le contenu de vos recherches, ni d’autres données personnelles.', kind: 'info', order: 20 }
+    ],
     setup(context) {
         const client = createKlipyClient({ storage: context.storage, http: context.http });
         const button = createMediaButton({ label: '🎞 GIF', title: 'Ouvrir le picker GIF', colors: { background: 'linear-gradient(135deg,rgba(21,128,61,.82),rgba(5,150,105,.82))', border: 'rgba(74,222,128,.28)', text: '#ecfdf5' } });

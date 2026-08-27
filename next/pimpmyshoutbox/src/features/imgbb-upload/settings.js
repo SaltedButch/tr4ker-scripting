@@ -4,8 +4,8 @@
  * @module src/features/imgbb-upload/settings
  */
 import { renderImageCatalog } from './catalog-ui.js';
+import { API_KEY_STORAGE } from './storage-keys.js';
 
-const API_KEY_STORAGE = 'tm_t4_imgbb_api_key';
 const EXPIRATION_STORAGE = 'tm_t4_image_hosting_expiration_seconds';
 const EXPIRATIONS = [[0, 'Permanent'], [600, '10 min'], [3600, '1 h'], [86400, '1 jour'], [604800, '7 jours'], [2592000, '30 jours'], [15552000, '180 jours']];
 
@@ -18,12 +18,13 @@ const CONTROL = 'border:1px solid rgba(255,255,255,.16);border-radius:7px;backgr
  */
 export function renderImgBbSettings(container, { context, refresh }) {
     if (!context) { container.textContent = 'Active la feature pour configurer ImgBB.'; return; }
-    const note = document.createElement('div'); note.style.cssText = 'margin-bottom:10px;font-size:12px;line-height:1.45;color:#a1a1aa;'; note.textContent = 'Configurez votre clé ImgBB puis utilisez le bouton Up-Img au-dessus du champ de message.';
+    context.secrets.migrateFrom(context.storage, API_KEY_STORAGE);
+    const note = document.createElement('div'); note.style.cssText = 'margin-bottom:10px;font-size:12px;line-height:1.45;color:#a1a1aa;'; note.textContent = 'Configurez votre clé ImgBB puis utilisez le bouton Up-Img au-dessus du champ de message. La clé est stockée uniquement dans le coffre-fort du gestionnaire de userscripts.';
     const keyRow = document.createElement('div'); keyRow.style.cssText = 'display:flex;gap:7px;flex-wrap:wrap;';
-    const key = document.createElement('input'); key.type = 'password'; key.autocomplete = 'off'; key.placeholder = 'Clé API ImgBB'; key.value = context.storage.get(API_KEY_STORAGE) || ''; key.style.cssText = `${CONTROL}flex:1 1 190px;min-width:0;`;
+    const key = document.createElement('input'); key.type = 'password'; key.autocomplete = 'off'; key.placeholder = 'Clé API ImgBB'; key.value = context.secrets.get(API_KEY_STORAGE) || ''; key.style.cssText = `${CONTROL}flex:1 1 190px;min-width:0;`;
     const save = document.createElement('button'); save.type = 'button'; save.textContent = 'Enregistrer'; save.style.cssText = 'border:0;border-radius:7px;background:#2563eb;color:#fff;padding:7px 10px;cursor:pointer;font-weight:650;';
     const getKey = document.createElement('button'); getKey.type = 'button'; getKey.textContent = 'Obtenir une clé'; getKey.style.cssText = 'border:0;border-radius:7px;background:#3f3f46;color:#fff;padding:7px 10px;cursor:pointer;';
-    save.addEventListener('click', () => { const value = key.value.trim().replace(/\s+/g, ''); if (value) context.storage.set(API_KEY_STORAGE, value); else context.storage.remove(API_KEY_STORAGE); context.ui.toast.show(value ? 'Clé API ImgBB enregistrée.' : 'Clé API ImgBB retirée.'); });
+    save.addEventListener('click', () => { const value = key.value.trim().replace(/\s+/g, ''); const saved = value ? context.secrets.set(API_KEY_STORAGE, value) : context.secrets.remove(API_KEY_STORAGE); context.ui.toast.show(saved ? (value ? 'Clé API ImgBB enregistrée.' : 'Clé API ImgBB retirée.') : 'Stockage sécurisé ImgBB indisponible.', { error: !saved }); });
     getKey.addEventListener('click', () => window.open('https://api.imgbb.com/', '_blank', 'noopener,noreferrer'));
     keyRow.append(key, save, getKey);
     const expirationRow = document.createElement('label'); expirationRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;font-size:12px;color:#d4d4d8;'; expirationRow.append(document.createTextNode('Durée de vie par défaut'));

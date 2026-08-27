@@ -44,6 +44,7 @@ export function createFeatureContext({ appId, feature, getPage, logger, services
         logger,
         platform: services.platform,
         storage: services.storage,
+        secrets: services.secrets,
         http: services.http,
         input: services.input,
         mediaToolbar: services.mediaToolbar,

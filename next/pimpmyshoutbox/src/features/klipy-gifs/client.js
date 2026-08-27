@@ -6,17 +6,18 @@
 const GATEWAY = 'https://klipy-api-gateway.tr4ker-klipy-emoj-gateway-customer593.workers.dev';
 const CLIENT_ID_KEY = 'tm_t4_klipy_gateway_client_id';
 const MAX_CACHE_ENTRIES = 24;
+const ALLOWED_GIF_HOSTS = new Set(['static.klipy.com', new URL(GATEWAY).host]);
 
-function safeUrl(value) {
+function safeGifUrl(value) {
     try {
         const url = new URL(String(value || ''));
-        return /^https?:$/.test(url.protocol) ? url.href : '';
+        return url.protocol === 'https:' && ALLOWED_GIF_HOSTS.has(url.host) ? url.href : '';
     } catch { return ''; }
 }
 
 function normalizeResult(value) {
-    const gifUrl = safeUrl(value?.media_formats?.gif?.url || value?.url);
-    const previewUrl = safeUrl(value?.media_formats?.tinygif?.url || gifUrl);
+    const gifUrl = safeGifUrl(value?.media_formats?.gif?.url || value?.url);
+    const previewUrl = safeGifUrl(value?.media_formats?.tinygif?.url || gifUrl);
     if (!gifUrl || !previewUrl) return null;
     const dimensions = value?.media_formats?.tinygif?.dims || value?.media_formats?.gif?.dims || [];
     return {

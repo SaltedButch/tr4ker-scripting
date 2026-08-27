@@ -43,7 +43,12 @@ sous macOS ouvre la configuration globale. Elle est volontairement vide tant
 qu'aucune feature n'a été migrée. La fenêtre peut être déplacée avec son en-tête
 et redimensionnée depuis son coin inférieur droit ; sa position et sa taille
 sont conservées localement. Ses onglets passent automatiquement en haut à
-l'horizontale lorsqu'elle est plus large que haute.
+l’horizontale lorsqu’elle est plus large que haute.
+
+## Publication et vie privée
+
+Les releases V4, les réglages de sécurité et les données envoyées à la gateway
+sont documentés dans [SECURITY.md](./SECURITY.md).
 
 ## Ajouter une feature
 

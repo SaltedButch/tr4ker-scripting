@@ -52,3 +52,40 @@ export function createStorage(storage = localStorage) {
         }
     };
 }
+
+/**
+ * Crée un stockage réservé au gestionnaire de userscripts pour les données
+ * sensibles. Il ne revient volontairement jamais sur localStorage : celui-ci
+ * est partagé avec tous les scripts exécutés par la page.
+ *
+ * @function createSecretStorage
+ */
+export function createSecretStorage({ getValue = globalThis.GM_getValue, setValue = globalThis.GM_setValue, deleteValue = globalThis.GM_deleteValue } = {}) {
+    const available = typeof getValue === 'function' && typeof setValue === 'function' && typeof deleteValue === 'function';
+    return Object.freeze({
+        isAvailable() { return available; },
+        get(key, fallback = null) {
+            return available ? safeCall(() => getValue(key, fallback), fallback) : fallback;
+        },
+        set(key, value) {
+            return available ? safeCall(() => { setValue(key, value); return true; }, false) : false;
+        },
+        remove(key) {
+            return available ? safeCall(() => { deleteValue(key); return true; }, false) : false;
+        },
+        readJson(key, fallback = null) {
+            const value = this.get(key);
+            return typeof value === 'string' ? safeCall(() => JSON.parse(value), fallback) : fallback;
+        },
+        writeJson(key, value) {
+            return this.set(key, JSON.stringify(value));
+        },
+        migrateFrom(storage, key) {
+            if (!available || this.get(key) !== null) return false;
+            const value = storage.get(key);
+            if (value === null || !this.set(key, value)) return false;
+            storage.remove(key);
+            return true;
+        }
+    });
+}

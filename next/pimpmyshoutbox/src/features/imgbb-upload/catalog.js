@@ -3,7 +3,7 @@
  *
  * @module src/features/imgbb-upload/catalog
  */
-const CATALOG_STORAGE_KEY = 'tm_t4_image_catalog';
+import { CATALOG_STORAGE_KEY, DELETE_URLS_STORAGE_KEY } from './storage-keys.js';
 const MAX_RECORDS = 120;
 const VALIDATION_TIMEOUT_MS = 9000;
 const DELETE_ATTEMPTS = 6;
@@ -64,18 +64,27 @@ function wait(delay) { return new Promise((resolve) => window.setTimeout(resolve
  *
  * @function createImageCatalog
  */
-export function createImageCatalog({ storage, http }) {
+export function createImageCatalog({ storage, secrets, http }) {
     const listeners = new Set();
     let records = [];
+    let deleteUrls = {};
 
     function notify() { for (const listener of listeners) listener(list()); }
     function save(nextRecords) {
         records = nextRecords.map(normalizeRecord).filter(Boolean)
             .filter((record) => !record.expiresAt || record.expiresAt > Date.now())
             .sort((left, right) => right.createdAt - left.createdAt).slice(0, MAX_RECORDS);
-        storage.writeJson(CATALOG_STORAGE_KEY, records); notify(); return list();
+        deleteUrls = Object.fromEntries(records.flatMap((record) => record.deleteUrl ? [[record.id, record.deleteUrl]] : []));
+        secrets.writeJson(DELETE_URLS_STORAGE_KEY, deleteUrls);
+        storage.writeJson(CATALOG_STORAGE_KEY, records.map(({ deleteUrl, ...record }) => record));
+        notify(); return list();
     }
-    function load() { records = (storage.readJson(CATALOG_STORAGE_KEY, []) || []).map(normalizeRecord).filter(Boolean); save(records); return list(); }
+    function load() {
+        deleteUrls = secrets.readJson(DELETE_URLS_STORAGE_KEY, {}) || {};
+        records = (storage.readJson(CATALOG_STORAGE_KEY, []) || []).map((record) => normalizeRecord({ ...record, deleteUrl: deleteUrls[record?.id] || record?.deleteUrl })).filter(Boolean);
+        save(records);
+        return list();
+    }
     function list() { return records.map((record) => ({ ...record })); }
     function add(record) { const normalized = normalizeRecord(record); if (!normalized) return { ok: false, message: 'Lien image invalide.' }; save([normalized, ...records.filter((entry) => entry.url !== normalized.url)]); return { ok: true, record: normalized, message: 'Image ajoutée au catalogue.' }; }
     function remove(id) { const before = records.length; save(records.filter((record) => record.id !== id)); return before === records.length ? { ok: false, message: 'Image introuvable.' } : { ok: true, message: 'Image retirée du catalogue.' }; }
