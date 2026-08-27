@@ -9,25 +9,24 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: publish-userscripts
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.3.0
         with:
           fetch-depth: 0
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.12'
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
 
       - name: Validate userscript syntax
         run: python3 tools/check_userscripts_syntax.py
@@ -35,13 +34,7 @@ jobs:
       - name: Build userscripts
         run: python3 tools/build_userscripts.py
 
-      - name: Build PimpMyShoutbox Next
-        working-directory: next/pimpmyshoutbox
-        run: |
-          npm ci
-          npm run build
-
-      - name: Publish dist to userscripts branch
+      - name: Publish legacy artifacts to userscripts branch
         shell: bash
         run: |
           set -euo pipefail
@@ -57,16 +50,15 @@ jobs:
             git -C "$publish_dir" switch --orphan userscripts
           fi
 
-          find "$publish_dir" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
           cp -R dist/. "$publish_dir"/
-          cp next/pimpmyshoutbox/dist/pimpmyshoutbox-next.user.js "$publish_dir"/
-          cp next/pimpmyshoutbox/dist/pimpmyshoutbox-next.meta.js "$publish_dir"/
 
           cat > "$publish_dir/README.md" <<'EOF'
           # Generated userscripts
 
-          Cette branche est générée automatiquement depuis `main`.
-          Installer les scripts via les fichiers `*.user.js`.
+          Cette branche publie les artefacts legacy générés depuis `main`.
+          Les releases PimpMyShoutbox V4 sont publiées séparément depuis un tag immuable.
+          Les anciens fichiers V4 présents ici sont conservés temporairement pour
+          ne pas rompre les vérifications de mise à jour des installations existantes.
           EOF
 
           git -C "$publish_dir" config user.name "github-actions[bot]"
@@ -79,4 +71,6 @@ jobs:
           fi
 
           git -C "$publish_dir" commit -m "Publish userscripts for ${GITHUB_SHA}"
-          git -C "$publish_dir" push --force origin userscripts
+          # La branche est append-only : une publication concurrente ou une
+          # réécriture de l'historique est refusée au lieu d'écraser un artefact.
+          git -C "$publish_dir" push origin userscripts

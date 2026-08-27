@@ -27,6 +27,17 @@ function hash(value) {
     return (result >>> 0).toString(36);
 }
 
+function reactionIdentity({ emojiValue = '', src = '', svgSignature = '', label = '', title = '', alt = '' } = {}) {
+    const emoji = String(emojiValue || '').trim();
+    if (emoji) return `unicode:${emoji.normalize('NFC').replace(/[\uFE0E\uFE0F]/g, '')}`;
+    const image = normalizeImageUrl(src);
+    if (image) return `asset:${image}`;
+    const svg = String(svgSignature || '').trim();
+    if (svg) return `svg:${hash(svg)}`;
+    const text = String(label || title || alt || '').normalize('NFC').trim().toLocaleLowerCase('fr');
+    return text ? `label:${text}` : '';
+}
+
 /**
  * Expose l'opération publique « reactionLabel ».
  *
@@ -48,7 +59,7 @@ export function normalizeReactionRecord(value, { manual = false } = {}) {
     if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
         const emojiValue = String(value).trim();
         if (!isUnicodeEmoji(emojiValue)) return null;
-        return { key: `manual-reaction:${emojiValue}`, label: emojiValue, title: emojiValue, alt: emojiValue, emojiValue, src: '', svgSignature: '', count: 0, lastUsedAt: 0, isManual: true };
+        return { key: reactionIdentity({ emojiValue }), label: emojiValue, title: emojiValue, alt: emojiValue, emojiValue, src: '', svgSignature: '', count: 0, lastUsedAt: 0, isManual: true };
     }
     if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
     const label = String(value.label || '').trim();
@@ -57,7 +68,7 @@ export function normalizeReactionRecord(value, { manual = false } = {}) {
     const emojiValue = [value.emojiValue, label, title, alt].map((entry) => String(entry || '').trim()).find(isUnicodeEmoji) || '';
     const src = normalizeImageUrl(value.src);
     const svgSignature = String(value.svgSignature || '').trim();
-    const key = String(value.key || `${(label || title || alt || emojiValue).toLocaleLowerCase('fr')}|${src || `svg:${hash(svgSignature)}`}`).trim();
+    const key = reactionIdentity({ emojiValue, src, svgSignature, label, title, alt });
     if (!key || (!emojiValue && !label && !title && !alt && !src && !svgSignature)) return null;
     return {
         key,
@@ -78,6 +89,25 @@ function unique(records) {
     return records.filter((record) => record && !seen.has(record.key) && seen.add(record.key));
 }
 
+function mergeUsage(records) {
+    const merged = {};
+    for (const record of records) {
+        if (!record) continue;
+        const previous = merged[record.key];
+        merged[record.key] = previous ? {
+            ...previous,
+            count: previous.count + record.count,
+            lastUsedAt: Math.max(previous.lastUsedAt, record.lastUsedAt),
+            src: previous.src || record.src,
+            svgSignature: previous.svgSignature || record.svgSignature,
+            label: previous.label || record.label,
+            title: previous.title || record.title,
+            alt: previous.alt || record.alt
+        } : record;
+    }
+    return merged;
+}
+
 /**
  * Crée l'API publique « createReactionFavoritesStore ».
  *
@@ -89,8 +119,8 @@ export function createReactionFavoritesStore({ storage }) {
     const limit = () => Math.min(9, Math.max(0, Number.parseInt(storage.get(REACTION_STORAGE_KEYS.limit) || '5', 10) || 0));
     function reload() {
         const rawUsage = storage.readJson(REACTION_STORAGE_KEYS.usage, {});
-        usage = Object.fromEntries(Object.entries(rawUsage && typeof rawUsage === 'object' && !Array.isArray(rawUsage) ? rawUsage : {})
-            .map(([, record]) => normalizeReactionRecord(record)).filter(Boolean).map((record) => [record.key, record]));
+        usage = mergeUsage(Object.entries(rawUsage && typeof rawUsage === 'object' && !Array.isArray(rawUsage) ? rawUsage : {})
+            .map(([, record]) => normalizeReactionRecord(record)).filter(Boolean));
         const rawManual = storage.readJson(REACTION_STORAGE_KEYS.manual, []);
         manualFavorites = unique((Array.isArray(rawManual) ? rawManual : []).map((record) => normalizeReactionRecord(record, { manual: true })).filter(Boolean)).slice(0, MAX_FAVORITES);
     }

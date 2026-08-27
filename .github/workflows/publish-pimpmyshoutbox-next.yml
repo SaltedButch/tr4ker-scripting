@@ -1,0 +1,51 @@
+name: Publish PimpMyShoutbox Next
+
+on:
+  push:
+    tags:
+      - 'pimpmyshoutbox-next-v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the immutable release tag
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.3.0
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          package-manager-cache: false
+
+      - name: Verify the release tag matches the userscript version
+        working-directory: next/pimpmyshoutbox
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's#^// @version[[:space:]]*##p' metadata.user.js)"
+          test "${GITHUB_REF_NAME}" = "pimpmyshoutbox-next-v${version}"
+
+      - name: Build PimpMyShoutbox Next
+        working-directory: next/pimpmyshoutbox
+        run: |
+          npm ci
+          npm run check
+          cd dist
+          sha256sum pimpmyshoutbox-next.user.js pimpmyshoutbox-next.meta.js > SHA256SUMS
+
+      - name: Publish immutable release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            next/pimpmyshoutbox/dist/pimpmyshoutbox-next.user.js \
+            next/pimpmyshoutbox/dist/pimpmyshoutbox-next.meta.js \
+            next/pimpmyshoutbox/dist/SHA256SUMS \
+            --title "PimpMyShoutbox Next ${GITHUB_REF_NAME#pimpmyshoutbox-next-v}" \
+            --generate-notes
