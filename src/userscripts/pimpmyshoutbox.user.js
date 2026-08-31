@@ -1,3 +1,4 @@
+/* global HTMLStyleElement, Image, FormData, ResizeObserver, HTMLFieldSetElement, HTMLDetailsElement, HTMLIFrameElement, HTMLFormElement, CSS, indexedDB */
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox
 // @namespace    http://tampermonkey.net/
