@@ -160,3 +160,8 @@ La feature [Bypass proxy tr4ker pour les images](./src/features/torrent-image-fa
 permet de charger les images depuis leur source, par défaut ou au clic quand
 le proxy devient lent, sur les fiches et le catalogue de torrents. Elle se règle dans
 **Site Tr4ker → Réglages du site**.
+
+La [mosaïque de canaux](./src/features/multi-channel-view/README.md) conserve le
+canal principal natif et permet d'ouvrir jusqu'à trois canaux supplémentaires.
+Leur champ d'envoi attend la confirmation du serveur avant d'effacer le texte
+et conserve le brouillon lorsqu'une erreur ou une coupure empêche l'envoi.

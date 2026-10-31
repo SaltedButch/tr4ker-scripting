@@ -87,6 +87,22 @@ Connexion observée : `wss://tr4ker.net/api/ws` (ou `ws://` hors HTTPS).
 
 Les réactions sont donc à surveiller dans les frames WebSocket des DevTools, plutôt que dans les appels Fetch/XHR.
 
+### Envoi depuis les panneaux supplémentaires de la mosaïque Next
+
+Le client natif réutilise directement l'identifiant reçu dans `/api/channels`
+pour `conv_id`. La mosaïque conserve désormais son type JSON pour les paquets
+`msg.send` et `read` ; les identifiants convertis en texte restent réservés au
+stockage local et aux clés DOM. `parent_id`, pour une réponse, reprend également
+l'identifiant du message fourni par l'API.
+
+Le serveur confirme un envoi par `msg.received` avec `conv_id`, `sender_id` et
+`body`. Les refus utilisent `type: 'error'` et le champ `message` ou `error`.
+La mosaïque attend la confirmation correspondant au compte, au canal et au
+texte envoyés avant d'effacer le brouillon. Un seul envoi est en attente sur
+son socket, car les erreurs du serveur peuvent ne pas préciser le canal.
+Un refus, une déconnexion ou dix secondes sans confirmation conservent le texte.
+Les envois ne sont pas rejoués automatiquement lors d'une reconnexion.
+
 ## Chat, salons et messages privés
 
 Routes observées :

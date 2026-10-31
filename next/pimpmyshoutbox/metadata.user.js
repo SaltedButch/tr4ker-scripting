@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox Next
 // @namespace    https://github.com/SaltedButch/tr4ker-scripting
-// @version      4.0.2
+// @version      4.0.3
 // @description  Personnalisation du chat Tr4ker : mentions, AFK, messages privés, réponses rapides, médias et confort avancé
 // @author       Butchered
 // @match        https://tr4ker.net/*
