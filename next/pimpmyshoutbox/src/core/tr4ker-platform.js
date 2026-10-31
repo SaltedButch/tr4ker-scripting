@@ -32,6 +32,9 @@ export function createTr4kerPlatform() {
     const isTr4kerPage = () => location.hostname === HOSTNAME || location.hostname.endsWith(`.${HOSTNAME}`);
     const isChatPage = () => isTr4kerPage() && (location.pathname === '/communication' || location.pathname.startsWith('/communication/'));
     const isWikiPath = () => isTr4kerPage() && (location.pathname === '/wiki' || location.pathname.startsWith('/wiki/'));
+    const isTorrentPage = () => isTr4kerPage() && (
+        /^\/torrents\/?$/.test(location.pathname) || /^\/torrent\/[^/]+\/?$/.test(location.pathname)
+    );
 
     function getWikiEditorInput() {
         if (!isWikiPath()) return null;
@@ -45,6 +48,7 @@ export function createTr4kerPlatform() {
     function getPage() {
         if (isChatPage()) return 'chat';
         if (getWikiEditorInput()) return 'wiki';
+        if (isTorrentPage()) return 'torrent';
         return 'other';
     }
 
@@ -185,6 +189,7 @@ export function createTr4kerPlatform() {
         isTr4kerPage,
         isChatPage,
         isWikiPath,
+        isTorrentPage,
         isToolbarSupportedPage: () => isChatPage() || Boolean(getWikiEditorInput()),
         getPage,
         getWikiEditorInput,

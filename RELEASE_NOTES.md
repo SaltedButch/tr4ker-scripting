@@ -8,6 +8,13 @@ Ce fichier suit l'état fonctionnel du userscript à partir de la version actuel
 - Ouvrir une nouvelle section seulement quand la version du userscript change.
 - Garder des formulations courtes, orientées usage, sans reconstituer les anciennes releases.
 
+## 3.01.21 — Dernière mise à jour legacy
+
+- Le script est renommé **Tr4ker - PimpMyShoutbox (DEPRECATED)** et annonce la fin des mises à jour legacy.
+- Une pop-up invite à installer Next, rappelle d'exporter puis d'importer la configuration et de désactiver l'ancien script dans le tableau de bord du gestionnaire de userscripts.
+- **Me rappeler plus tard** masque l'invitation jusqu'au prochain jour local, y compris dans les autres onglets déjà ouverts. **Installer maintenant** ouvre l'installation de Next dans un nouvel onglet.
+- Le bouton d'installation utilise l'URL raw stable de Next sur la branche `userscripts`. Les scripts legacy et Next sont publiés ensemble depuis `main`, sans release GitHub obligatoire.
+
 ## Version en préparation
 
 - Ajout d’une carte profil minimale activable dans les réglages : au survol d’un pseudo, elle affiche l’ancienneté, le ratio, l’upload et le download. La requête API n’est lancée qu’au survol et son résultat reste seulement en mémoire dans l’onglet.

@@ -64,7 +64,8 @@ function applyStatsPresentation(runtime) {
     if (body instanceof HTMLElement) body.style.display = '';
     if (resizeHandle instanceof HTMLElement) resizeHandle.style.display = '';
     if (runtime.restoreExpandedBounds && runtime.expandedBounds) {
-        runtime.panel.setBounds(runtime.expandedBounds);
+        const { left, top } = runtime.panel.getBounds();
+        runtime.panel.setBounds({ ...runtime.expandedBounds, left, top });
         runtime.restoreExpandedBounds = false;
     }
 }

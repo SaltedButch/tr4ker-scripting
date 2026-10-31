@@ -31,3 +31,7 @@ Première feature métier migrée depuis `pimpmyshoutbox.user.js` V3.
 5. Tester le raccourci souris sur un pseudo.
 6. Déplacer/redimensionner le panneau **Messages filtrés**, puis recharger la
    page pour vérifier la persistance.
+7. Passer en mode **Pastille** (ultra réduit), déplacer la pastille et vérifier qu'elle
+   conserve son apparence et son compteur, y compris après un redimensionnement
+   de la fenêtre et un rechargement. Cliquer sur **+** : le panneau doit retrouver
+   sa taille précédente à la nouvelle position (dans les limites de la fenêtre).

@@ -1,7 +1,8 @@
 # PimpMyShoutbox Next
 
-Ce dossier est le laboratoire de la refonte modulaire de PimpMyShoutbox. Il ne
-participe ni au build `src/userscripts -> dist`, ni à la publication actuelle.
+Ce dossier contient la version modulaire Next de PimpMyShoutbox. Son build est
+distinct du build Python legacy ; le workflow **Publish Userscripts** assemble
+les deux et publie leurs artefacts sur la branche `userscripts` depuis `main`.
 
 ## Principes
 
@@ -24,12 +25,14 @@ bonne version) :
 ```bash
 nvm use
 npm install
+npm test
 npm run check
 ```
 
 Le bundle de développement est créé dans `dist/pimpmyshoutbox-next.user.js`.
-Il porte volontairement le nom **Next (development)** et ne doit pas remplacer
-le script V3 publié.
+Il porte le nom **Tr4ker - PimpMyShoutbox Next**. Pour migrer depuis la V3,
+exporter sa configuration, installer Next et désactiver l'ancien script avant
+de recharger le site puis d'importer la configuration dans Next.
 
 Pour executer le build esbuild :
 ```bash
@@ -47,7 +50,7 @@ l’horizontale lorsqu’elle est plus large que haute.
 
 ## Publication et vie privée
 
-Les releases V4, les réglages de sécurité et les données envoyées à la gateway
+La publication V4, les réglages de sécurité et les données envoyées à la gateway
 sont documentés dans [SECURITY.md](./SECURITY.md).
 
 ## Ajouter une feature
@@ -152,3 +155,8 @@ Les features actuellement migrées sont la [blacklist](./src/features/blacklist/
 les [mentions](./src/features/mentions/README.md), la [carte de profil](./src/features/profile-hover/)
 et [Pimp My Grade](./src/features/pimp-my-grade/README.md). Les outils médias
 Klipy, T9 Emoj et ImgBB sont également migrés dans Shoutbox → Médias.
+
+La feature [Bypass proxy tr4ker pour les images](./src/features/torrent-image-fallback/README.md)
+permet de charger les images depuis leur source, par défaut ou au clic quand
+le proxy devient lent, sur les fiches et le catalogue de torrents. Elle se règle dans
+**Site Tr4ker → Réglages du site**.
