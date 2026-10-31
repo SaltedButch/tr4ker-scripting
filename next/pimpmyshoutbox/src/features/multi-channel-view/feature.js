@@ -58,6 +58,7 @@ async function fetchChannels() {
     const payload = await response.json();
     return (Array.isArray(payload?.channels) ? payload.channels : []).map((channel) => ({
         id: String(channel?.id ?? '').trim(),
+        conversationId: channel?.id,
         slug: String(channel?.slug ?? '').trim(),
         name: String(channel?.name ?? channel?.slug ?? '').trim(),
         description: String(channel?.description ?? '').trim(),
@@ -106,30 +107,39 @@ function appendMessageBody(container, body) {
     if (offset < source.length || !container.childNodes.length) container.append(document.createTextNode(source.slice(offset) || 'Message supprimé'));
 }
 
-function createSocket(onPacket) {
+function createSocket(context, onPacket, onDisconnect) {
     let socket = null;
     let retryTimer = null;
     let stopped = false;
-    const queue = [];
     const connect = () => {
         if (stopped || socket?.readyState === WebSocket.OPEN || socket?.readyState === WebSocket.CONNECTING) return;
         const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-        socket = new WebSocket(`${protocol}//${location.host}/api/ws`);
-        socket.addEventListener('open', () => { while (queue.length) socket?.send(queue.shift()); });
-        socket.addEventListener('message', (event) => {
+        try { socket = new WebSocket(`${protocol}//${location.host}/api/ws`); }
+        catch { retryTimer = context.later(1500, connect); return; }
+        const current = socket;
+        context.on(current, 'message', (event) => {
+            if (stopped || current !== socket) return;
             try {
                 const payload = JSON.parse(event.data);
-                if (payload?.type === 'ping') { socket?.send(JSON.stringify({ type: 'pong' })); return; }
+                if (payload?.type === 'ping') { current.send(JSON.stringify({ type: 'pong' })); return; }
                 onPacket(payload);
             } catch { /* paquet non exploitable */ }
         });
-        socket.addEventListener('close', () => {
-            if (!stopped) retryTimer = window.setTimeout(connect, 1500);
+        context.on(current, 'error', () => { /* La fermeture déclenche la reconnexion. */ });
+        context.on(current, 'close', () => {
+            if (stopped || current !== socket) return;
+            socket = null;
+            onDisconnect();
+            retryTimer = context.later(1500, connect);
         }, { once: true });
     };
     return Object.freeze({
         connect,
-        send(packet) { queue.push(JSON.stringify(packet)); connect(); if (socket?.readyState === WebSocket.OPEN) socket.send(queue.shift()); },
+        send(packet) {
+            if (stopped) return false;
+            if (socket?.readyState !== WebSocket.OPEN) { connect(); return false; }
+            try { socket.send(JSON.stringify(packet)); return true; } catch { return false; }
+        },
         close() { stopped = true; if (retryTimer) window.clearTimeout(retryTimer); socket?.close(); }
     });
 }
@@ -292,7 +302,7 @@ function createMessageElement(templates, message, previousMessage, { currentUser
     content.append(actions); row.append(avatar, content); return row;
 }
 
-function createPane(templates, channel, state, { onClose, onSend, onReaction, onOpenNativeReactionPicker, onEdit, getCurrentUserId }) {
+function createPane(templates, channel, state, { onClose, onSend, onSendError, onReaction, onOpenNativeReactionPicker, onEdit, getCurrentUserId }) {
     const pane = cloneShell(templates.nativeWindow); pane.setAttribute(PANE_ATTR, channel.id); pane.setAttribute('aria-label', `Canal #${channel.name}`);
     const list = cloneShell(templates.list); list.dataset.tmT4MultiChannelMessages = channel.id;
     const inputWrapper = cloneShell(templates.inputWrapper); const inputArea = cloneShell(templates.inputArea); const inputField = cloneShell(templates.inputField); const input = cloneShell(templates.input, 'textarea');
@@ -304,8 +314,29 @@ function createPane(templates, channel, state, { onClose, onSend, onReaction, on
     input.addEventListener('focus', activateInput); pane.addEventListener('pointerdown', activateInput, true);
     const send = cloneShell(templates.sendButton, 'button'); send.type = 'button'; send.disabled = false; send.setAttribute('aria-label', 'Envoyer'); send.replaceChildren(createIcon('send'));
     const replyBanner = document.createElement('div'); replyBanner.className = 'tm-t4-mcv-reply-banner'; replyBanner.hidden = true;
-    const sendCurrent = () => { const body = input.value.trim(); if (!body) return; onSend(channel, body, state.replyTo); state.replyTo = null; replyBanner.hidden = true; input.value = ''; };
-    send.addEventListener('click', sendCurrent); input.addEventListener('keydown', (event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendCurrent(); } });
+    let sending = false;
+    const sendCurrent = async () => {
+        const draft = input.value;
+        const body = draft.trim();
+        if (!body || sending) return;
+        const parent = state.replyTo;
+        sending = true; send.disabled = true; input.readOnly = true; send.setAttribute('aria-busy', 'true');
+        try {
+            await onSend(channel, body, parent);
+            if (input.value === draft) input.value = '';
+            if (state.replyTo === parent) { state.replyTo = null; replyBanner.hidden = true; }
+        } catch (error) {
+            if (pane.isConnected) onSendError(error);
+        } finally {
+            sending = false; send.disabled = false; input.readOnly = false; send.removeAttribute('aria-busy');
+        }
+    };
+    send.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); void sendCurrent(); });
+    input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+            event.preventDefault(); event.stopPropagation(); void sendCurrent();
+        }
+    });
     inputField.append(input); inputArea.append(inputField, send); inputWrapper.append(replyBanner, inputArea);
     const renderMessages = () => {
         const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
@@ -353,6 +384,7 @@ export default defineFeature({
         let socket = null;
         let currentUserId = '';
         let pendingNativeReaction = null;
+        let pendingSend = null;
 
         context.ensureStyle(STYLE_ID, `
             [data-tm-t4-multi-channel-layout="2"]{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr)!important;gap:8px!important;padding:8px!important;overflow:hidden!important}
@@ -429,7 +461,14 @@ export default defineFeature({
         };
         const updatePane = (id) => panelStates.get(String(id))?.renderMessages();
         const handlePacket = (packet) => {
+            if (packet?.type === 'error') {
+                const error = new Error(String(packet.message || packet.error || 'Le serveur a refusé l’envoi.'));
+                if (pendingSend && (packet.conv_id === undefined || String(packet.conv_id) === pendingSend.channelId)) pendingSend.finish(error);
+                return;
+            }
             if (packet?.type === 'msg.received') {
+                if (pendingSend && String(packet.conv_id) === pendingSend.channelId
+                    && String(packet.sender_id) === currentUserId && packet.body === pendingSend.body) pendingSend.finish();
                 const state = panelStates.get(String(packet.conv_id)); if (!state) return;
                 state.messages.push({ id: packet.id, sender_id: packet.sender_id, sender: packet.sender, sender_role: packet.sender_role, avatar_url: packet.avatar_url, featured_badges: packet.featured_badges, body: packet.body, created_at: packet.at, parent: packet.parent, reactions: {} }); updatePane(packet.conv_id); sendPacket({ type: 'read', conv_id: packet.conv_id }); return;
             }
@@ -442,7 +481,31 @@ export default defineFeature({
                 updatePane(id);
             }
         };
-        socket = createSocket(handlePacket); socket.connect();
+        socket = createSocket(context, handlePacket, () => {
+            pendingSend?.finish(new Error('Connexion au chat interrompue. Votre texte est conservé.'));
+        }); socket.connect();
+        const sendMessage = async (target, body, parent) => {
+            await currentUserRequest;
+            if (!currentUserId) throw new Error('Impossible d’identifier votre compte. Votre texte est conservé.');
+            if (pendingSend) throw new Error('Un message est déjà en cours d’envoi dans la mosaïque. Réessayez dans un instant.');
+            return new Promise((resolve, reject) => {
+                const request = {
+                    channelId: target.id,
+                    body,
+                    finish(error) {
+                        if (pendingSend !== request) return;
+                        pendingSend = null;
+                        window.clearTimeout(timer);
+                        if (error) reject(error); else resolve();
+                    }
+                };
+                const timer = context.later(10_000, () => request.finish(new Error('Envoi non confirmé. Votre texte est conservé ; vérifiez le canal avant de réessayer.')));
+                pendingSend = request;
+                if (!socket.send({ type: 'msg.send', conv_id: target.conversationId, body, ...(parent?.id ? { parent_id: parent.id } : {}) })) {
+                    request.finish(new Error('Connexion au chat indisponible. Votre texte est conservé ; réessayez après la reconnexion.'));
+                }
+            });
+        };
         const render = async () => {
             const layout = getLayout(); const chatArea = layout?.chatArea; if (!(chatArea instanceof HTMLElement)) return;
             const nativeWindow = getNativeWindow(chatArea); const nativeId = getNativeId();
@@ -456,7 +519,8 @@ export default defineFeature({
                 const state = { messages: [], replyTo: null, editingMessageId: '', renderMessages: () => {} }; panelStates.set(id, state);
                 const panel = createPane(templates, channel, state, {
                     onClose: () => removeChannel(channel.id),
-                    onSend: (target, body, parent) => sendPacket({ type: 'msg.send', conv_id: target.id, body, ...(parent?.id ? { parent_id: parent.id } : {}) }),
+                    onSend: sendMessage,
+                    onSendError: (error) => context.ui.toast.show(error.message || 'Impossible d’envoyer le message.', { error: true }),
                     onReaction: (message, emoji) => sendPacket({ type: 'reaction.add', message_id: message.id, emoji }),
                     onOpenNativeReactionPicker: openNativeReactionPicker,
                     onEdit: (message, body) => {
@@ -467,7 +531,7 @@ export default defineFeature({
                 });
                 chatArea.append(panel.pane); placePanel(panel.pane, count, index + 1); state.renderMessages = panel.renderMessages;
                 context.messages.refresh();
-                try { state.messages = await fetchMessages(channel.id); panel.renderMessages(); sendPacket({ type: 'read', conv_id: channel.id }); } catch { /* le panneau reste disponible pour l'envoi */ }
+                try { state.messages = await fetchMessages(channel.id); panel.renderMessages(); sendPacket({ type: 'read', conv_id: channel.conversationId }); } catch { /* le panneau reste disponible pour l'envoi */ }
             }
         };
         const open = (id) => {
@@ -492,7 +556,7 @@ export default defineFeature({
         const refresh = async () => {
             try { channels = await fetchChannels(); openedIds = openedIds.filter((id) => getChannel(id)); saveOpenedIds(context.storage, openedIds); syncPlusButtons(); await render(); } catch { syncPlusButtons(); }
         };
-        void fetchCurrentUserId().then((id) => {
+        const currentUserRequest = fetchCurrentUserId().then((id) => {
             currentUserId = id;
             for (const state of panelStates.values()) state.renderMessages();
         }).catch((error) => context.logger.warn('[PimpMyShoutbox Next] Unable to identify the current user for multi-channel editing.', error));
@@ -523,7 +587,12 @@ export default defineFeature({
         context.on(window, CONFIGURATION_IMPORTED_EVENT, () => { openedIds = safeOpenedIds(context.storage); void refresh(); });
         context.every(900, syncPlusButtons);
         void refresh();
-        return () => { delete context.multiChannelView; socket?.close(); clearLayout(); document.querySelectorAll(`[${PLUS_ATTR}="1"]`).forEach((button) => button.remove()); };
+        return () => {
+            delete context.multiChannelView;
+            pendingSend?.finish(new Error('Mosaïque fermée.'));
+            socket?.close(); clearLayout();
+            document.querySelectorAll(`[${PLUS_ATTR}="1"]`).forEach((button) => button.remove());
+        };
     },
     onRoute(context) { if (context.multiChannelView?.count()) window.setTimeout(() => { void context.multiChannelView.refresh(); }, 0); }
 });

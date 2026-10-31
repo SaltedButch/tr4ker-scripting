@@ -3,6 +3,9 @@
 Ce dossier contient la version modulaire Next de PimpMyShoutbox. Son build est
 distinct du build Python legacy ; le workflow **Publish Userscripts** assemble
 les deux et publie leurs artefacts sur la branche `userscripts` depuis `main`.
+Ce dossier contient la version modulaire Next de PimpMyShoutbox. Son build est
+distinct du build Python legacy ; le workflow **Publish Userscripts** assemble
+les deux et publie leurs artefacts sur la branche `userscripts` depuis `main`.
 
 ## Principes
 
@@ -26,10 +29,14 @@ bonne version) :
 nvm use
 npm install
 npm test
+npm test
 npm run check
 ```
 
 Le bundle de développement est créé dans `dist/pimpmyshoutbox-next.user.js`.
+Il porte le nom **Tr4ker - PimpMyShoutbox Next**. Pour migrer depuis la V3,
+exporter sa configuration, installer Next et désactiver l'ancien script avant
+de recharger le site puis d'importer la configuration dans Next.
 Il porte le nom **Tr4ker - PimpMyShoutbox Next**. Pour migrer depuis la V3,
 exporter sa configuration, installer Next et désactiver l'ancien script avant
 de recharger le site puis d'importer la configuration dans Next.
@@ -50,6 +57,7 @@ l’horizontale lorsqu’elle est plus large que haute.
 
 ## Publication et vie privée
 
+La publication V4, les réglages de sécurité et les données envoyées à la gateway
 La publication V4, les réglages de sécurité et les données envoyées à la gateway
 sont documentés dans [SECURITY.md](./SECURITY.md).
 
@@ -160,3 +168,8 @@ La feature [Bypass proxy tr4ker pour les images](./src/features/torrent-image-fa
 permet de charger les images depuis leur source, par défaut ou au clic quand
 le proxy devient lent, sur les fiches et le catalogue de torrents. Elle se règle dans
 **Site Tr4ker → Réglages du site**.
+
+La [mosaïque de canaux](./src/features/multi-channel-view/README.md) conserve le
+canal principal natif et permet d'ouvrir jusqu'à trois canaux supplémentaires.
+Leur champ d'envoi attend la confirmation du serveur avant d'effacer le texte
+et conserve le brouillon lorsqu'une erreur ou une coupure empêche l'envoi.
