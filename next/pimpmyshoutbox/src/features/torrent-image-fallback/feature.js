@@ -46,11 +46,11 @@ export default defineFeature({
     id: 'torrent-image-fallback',
     label: 'Bypass proxy tr4ker pour les images',
     defaultEnabled: true,
-    pages: ['torrent'],
+    pages: [],
     storageKeys: [DIRECT_IMAGES_STORAGE_KEY],
     settings: { area: 'site', category: 'site', order: 20, render: renderImageFallbackSettings },
     hints: [
-        { id: 'usage', title: 'Utilisation', text: 'En mode à la demande, sur une fiche ou le catalogue de torrents, un bouton apparaît si des images échouent ou attendent plus de 8 secondes. Cliquez pour charger uniquement ces images depuis leur URL d’origine.', kind: 'tip', order: 10 },
+        { id: 'usage', title: 'Utilisation', text: 'Sur toutes les pages Tr4ker, les images servies par le proxy peuvent être chargées depuis leur source. En mode à la demande, un bouton apparaît si elles échouent ou attendent plus de 8 secondes.', kind: 'tip', order: 10 },
         { id: 'direct', title: 'Chargement direct', text: 'Activez « Toujours charger les images depuis leur source » pour éviter l’attente sur les prochaines pages. Les images sont demandées directement à leurs hébergeurs. « Revenir au proxy » suspend ce choix pour la page courante.', kind: 'info', order: 20 }
     ],
     setup(context) {
@@ -150,15 +150,17 @@ export default defineFeature({
             }
             const nextRoute = location.pathname + location.search;
             if (route !== nextRoute) {
-                reset();
+                // Conserver les images déjà en direct (en-tête, navigation…) entre les pages.
+                if (!directByDefault || proxyForPage) reset();
+                else automaticAttempts = new WeakMap();
                 route = nextRoute;
                 proxyForPage = false;
             }
-            if (!context.platform.isTorrentPage()) {
+            if (!context.platform.isTr4kerPage()) {
                 reset();
                 return;
             }
-            const root = document.querySelector('main');
+            const root = document.body;
             for (const [image, record] of images) {
                 const expected = record.saved ? record.originalUrl : record.proxySrc;
                 if (!root?.contains(image) || image.getAttribute('src') !== expected) {
