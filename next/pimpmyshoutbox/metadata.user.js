@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tr4ker - PimpMyShoutbox Next
 // @namespace    https://github.com/SaltedButch/tr4ker-scripting
-// @version      4.0.3
+// @version      4.0.4
 // @description  Personnalisation du chat Tr4ker : mentions, AFK, messages privés, réponses rapides, médias et confort avancé
 // @author       Butchered
 // @match        https://tr4ker.net/*
@@ -19,6 +19,8 @@
 // @connect      klipy-api-gateway.tr4ker-klipy-emoj-gateway-customer593.workers.dev
 // @homepageURL  https://github.com/SaltedButch/tr4ker-scripting/blob/main/next/pimpmyshoutbox/README.md
 // @supportURL   https://github.com/SaltedButch/tr4ker-scripting/issues
+// @updateURL    https://raw.githubusercontent.com/SaltedButch/tr4ker-scripting/userscripts/pimpmyshoutbox-next.meta.js
+// @downloadURL  https://raw.githubusercontent.com/SaltedButch/tr4ker-scripting/userscripts/pimpmyshoutbox-next.user.js
 // @updateURL    https://raw.githubusercontent.com/SaltedButch/tr4ker-scripting/userscripts/pimpmyshoutbox-next.meta.js
 // @downloadURL  https://raw.githubusercontent.com/SaltedButch/tr4ker-scripting/userscripts/pimpmyshoutbox-next.user.js
 // @updateURL    https://raw.githubusercontent.com/SaltedButch/tr4ker-scripting/userscripts/pimpmyshoutbox-next.meta.js

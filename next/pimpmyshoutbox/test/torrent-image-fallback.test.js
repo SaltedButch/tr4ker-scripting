@@ -181,9 +181,9 @@ test('SPA navigation restores proxy URLs and never remembers the bypass', (t) =>
     h.navigate('/torrent/another');
     assert.equal(broken.image.getAttribute('src'), proxy());
     h.navigate('/communication');
-    assert.equal(h.panel(), null);
-    assert.equal(h.timers.size, 0);
-    assert.equal(document.querySelector('[id$="torrent-image-fallback-style"]'), null);
+    assert.equal(broken.image.getAttribute('src'), proxy());
+    assert.equal(h.timers.size, 1, 'feature remains active on chat pages');
+    assert.ok(document.querySelector('[id$="torrent-image-fallback-style"]'));
     h.navigate('/torrents?q=test');
     assert.equal(h.platform.getPage(), 'torrent');
     assert.equal(broken.image.getAttribute('src'), proxy());
@@ -258,7 +258,7 @@ test('settings apply immediately and are included in configuration backups', (t)
     assert.equal(pending.image.src, 'https://images.example/screenshot.jpg');
 });
 
-test('settings can be changed outside torrent pages and survive navigation', (t) => {
+test('settings without an active context remain available and survive navigation', (t) => {
     const h = harness(t, '/communication');
     const pending = h.image();
     h.start();
@@ -283,14 +283,64 @@ test('a native image fallback does not cause repeated automatic retries', async 
     assert.equal(h.panel().hidden, false);
 });
 
-test('only runs on torrent pages and ignores sidebar images', (t) => {
+test('runs across Tr4ker pages and detects proxy images outside the main content', (t) => {
     const h = harness(t, '/');
-    h.image({ complete: true });
+    document.querySelector('main').remove();
+    const sidebar = h.image({ complete: true, parent: document.querySelector('aside') });
     h.start();
+    assert.equal(h.panel().hidden, false);
+    h.direct().click();
+    assert.equal(sidebar.image.src, 'https://images.example/screenshot.jpg');
+    for (const page of ['/communication', '/user/example', '/communaute/forum', '/torrents']) {
+        h.navigate(page);
+        assert.equal(sidebar.image.getAttribute('src'), proxy(), 'manual bypass resets between pages');
+        assert.equal(h.panel().hidden, false);
+        h.direct().click();
+        assert.equal(sidebar.image.src, 'https://images.example/screenshot.jpg');
+    }
+});
+
+test('automatic mode covers headers, chat messages and dynamically inserted modals', async (t) => {
+    const h = harness(t, '/communication');
+    h.storage.writeBoolean(DIRECT_IMAGES_STORAGE_KEY, true);
+    const header = document.createElement('header');
+    document.body.prepend(header);
+    const avatar = h.image({ parent: header });
+    const ordinary = h.image({ source: '/uploads/avatar.jpg', parent: header });
+    const chat = h.image({ parent: document.querySelector('aside') });
+    h.start();
+    assert.equal(avatar.image.src, 'https://images.example/screenshot.jpg');
+    assert.equal(chat.image.src, 'https://images.example/screenshot.jpg');
+    assert.equal(ordinary.image.getAttribute('src'), '/uploads/avatar.jpg');
+    const modal = document.createElement('div');
+    modal.setAttribute('role', 'dialog');
+    document.body.append(modal);
+    const preview = h.image({ source: proxy('https://images.example/preview.png'), parent: modal });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(preview.image.src, 'https://images.example/preview.png');
+    h.registry.setEnabled(feature.id, false);
+    assert.equal(avatar.image.getAttribute('src'), proxy());
+    assert.equal(chat.image.getAttribute('src'), proxy());
+    assert.equal(preview.image.getAttribute('src'), proxy('https://images.example/preview.png'));
     assert.equal(h.panel(), null);
-    h.navigate('/torrents');
-    document.querySelector('main').replaceChildren();
-    h.image({ complete: true, parent: document.querySelector('aside') });
-    h.advance(30_000);
-    assert.equal(h.panel()?.hidden ?? true, true);
+    assert.equal(h.timers.size, 0);
+});
+
+test('automatic mode keeps shared header images direct across routes and restores page overrides', (t) => {
+    const h = harness(t, '/');
+    h.storage.writeBoolean(DIRECT_IMAGES_STORAGE_KEY, true);
+    const header = document.createElement('header');
+    document.body.prepend(header);
+    const avatar = h.image({ parent: header });
+    h.start();
+    const originalPanel = h.panel();
+    h.navigate('/user/example');
+    assert.equal(avatar.image.src, 'https://images.example/screenshot.jpg');
+    assert.equal(h.panel(), originalPanel, 'shared images are not restored and reloaded on every navigation');
+    h.restore().click();
+    assert.equal(avatar.image.getAttribute('src'), proxy());
+    h.advance(1_000);
+    assert.equal(avatar.image.getAttribute('src'), proxy());
+    h.navigate('/communication');
+    assert.equal(avatar.image.src, 'https://images.example/screenshot.jpg');
 });

@@ -166,7 +166,8 @@ Klipy, T9 Emoj et ImgBB sont également migrés dans Shoutbox → Médias.
 
 La feature [Bypass proxy tr4ker pour les images](./src/features/torrent-image-fallback/README.md)
 permet de charger les images depuis leur source, par défaut ou au clic quand
-le proxy devient lent, sur les fiches et le catalogue de torrents. Elle se règle dans
+le proxy devient lent, sur toutes les pages et dans toutes les zones de Tr4ker
+(chat, profils, navigation, modales, torrents…). Elle se règle dans
 **Site Tr4ker → Réglages du site**.
 
 La [mosaïque de canaux](./src/features/multi-channel-view/README.md) conserve le
