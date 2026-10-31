@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Tr4ker - PimpMyShoutbox
+// @name         Tr4ker - PimpMyShoutbox (DEPRECATED)
 // @namespace    https://github.com/SaltedButch/tr4ker-scripting
-// @version      3.01.20
-// @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
+// @version      3.01.21
+// @description  Ancienne version dépréciée. Migrez vers PimpMyShoutbox Next en exportant puis important votre configuration.
 // @author       Butchered
 // @match        https://tr4ker.net/*
 // @grant        GM_xmlhttpRequest
