@@ -71,11 +71,11 @@ export function createFloatingPanel({
         return panel instanceof HTMLElement ? panel : null;
     }
 
-    function constrain(bounds) {
+    function constrain(bounds, { positionOnly = false } = {}) {
         const maxWidth = Math.max(1, window.innerWidth - VIEWPORT_MARGIN_PX * 2);
         const maxHeight = Math.max(1, window.innerHeight - VIEWPORT_MARGIN_PX * 2);
-        const width = clamp(Math.round(bounds.width), Math.min(minWidth, maxWidth), maxWidth);
-        const height = clamp(Math.round(bounds.height), Math.min(minHeight, maxHeight), maxHeight);
+        const width = positionOnly ? bounds.width : clamp(Math.round(bounds.width), Math.min(minWidth, maxWidth), maxWidth);
+        const height = positionOnly ? bounds.height : clamp(Math.round(bounds.height), Math.min(minHeight, maxHeight), maxHeight);
         return {
             left: clamp(Math.round(bounds.left), VIEWPORT_MARGIN_PX, window.innerWidth - width - VIEWPORT_MARGIN_PX),
             top: clamp(Math.round(bounds.top), VIEWPORT_MARGIN_PX, window.innerHeight - height - VIEWPORT_MARGIN_PX),
@@ -89,15 +89,18 @@ export function createFloatingPanel({
         return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
     }
 
-    function applyBounds(panel, rawBounds, { persist = false } = {}) {
-        const bounds = constrain(rawBounds);
+    function applyBounds(panel, rawBounds, { persist = false, positionOnly = false } = {}) {
+        const bounds = constrain(rawBounds, { positionOnly });
         panel.style.left = `${bounds.left}px`;
         panel.style.top = `${bounds.top}px`;
-        panel.style.width = `${bounds.width}px`;
-        panel.style.height = `${bounds.height}px`;
+        // Un déplacement doit conserver la taille automatique des panneaux en pastille.
+        if (!positionOnly) {
+            panel.style.width = `${bounds.width}px`;
+            panel.style.height = `${bounds.height}px`;
+        }
         if (persist) {
             storage.writeJson(positionStorageKey, { leftPx: bounds.left, topPx: bounds.top });
-            storage.writeJson(sizeStorageKey, { widthPx: bounds.width, heightPx: bounds.height });
+            if (!positionOnly) storage.writeJson(sizeStorageKey, { widthPx: bounds.width, heightPx: bounds.height });
         }
         return bounds;
     }
@@ -105,7 +108,7 @@ export function createFloatingPanel({
     function finishInteraction() {
         if (!interaction) return;
         const panel = getPanel();
-        if (panel) applyBounds(panel, getBounds(panel), { persist: true });
+        if (panel) applyBounds(panel, getBounds(panel), { persist: true, positionOnly: interaction.kind === 'move' });
         interaction = null;
         document.removeEventListener('pointermove', onPointerMove, true);
         document.removeEventListener('pointerup', finishInteraction, true);
@@ -117,9 +120,11 @@ export function createFloatingPanel({
         if (!interaction || !panel) return;
         const deltaX = event.clientX - interaction.startX;
         const deltaY = event.clientY - interaction.startY;
-        applyBounds(panel, interaction.kind === 'move'
+        const positionOnly = interaction.kind === 'move';
+        const bounds = positionOnly
             ? { ...interaction.bounds, left: interaction.bounds.left + deltaX, top: interaction.bounds.top + deltaY }
-            : { ...interaction.bounds, width: interaction.bounds.width + deltaX, height: interaction.bounds.height + deltaY });
+            : { ...interaction.bounds, width: interaction.bounds.width + deltaX, height: interaction.bounds.height + deltaY };
+        applyBounds(panel, bounds, { positionOnly });
     }
 
     function startInteraction(event, kind) {
@@ -136,7 +141,10 @@ export function createFloatingPanel({
 
     function onViewportResize() {
         const panel = getPanel();
-        if (panel) applyBounds(panel, getBounds(panel), { persist: true });
+        if (panel) applyBounds(panel, getBounds(panel), {
+            persist: true,
+            positionOnly: panel.style.width === 'auto' || panel.style.height === 'auto'
+        });
     }
 
     function mount() {

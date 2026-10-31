@@ -2,25 +2,29 @@
 
 ## Publication V4
 
-Chaque version V4 est publiée uniquement depuis un tag de release immuable nommé
-`pimpmyshoutbox-next-v<version>`. La version déclarée dans
-`metadata.user.js` doit correspondre exactement au tag. Le workflow construit
-le bundle depuis ce tag, publie les deux artefacts dans une GitHub Release et
-ajoute `SHA256SUMS` pour permettre leur vérification.
+Le workflow **Publish Userscripts** construit les scripts legacy et Next depuis
+`main`, exécute leurs vérifications, puis publie les artefacts générés sur la
+branche `userscripts`. Next est construit dans `next/pimpmyshoutbox/dist/`, puis
+ses deux fichiers sont copiés dans le `dist/` de publication, à côté du legacy.
 
-Avant la première publication, configure dans GitHub :
+Les URL restent stables entre les versions :
 
-1. une ruleset qui interdit la mise à jour ou la suppression des tags
-   `pimpmyshoutbox-next-v*` et exige une signature vérifiée ;
-2. une ruleset qui protège `main` (PR, revue et CI obligatoires) ;
-3. les *immutable releases* et l’interdiction de modifier les assets publiés ;
-4. l’accès `contents: write` limité au workflow de publication.
+- installation et `@downloadURL` : `https://raw.githubusercontent.com/SaltedButch/tr4ker-scripting/userscripts/pimpmyshoutbox-next.user.js` ;
+- `@updateURL` : `https://raw.githubusercontent.com/SaltedButch/tr4ker-scripting/userscripts/pimpmyshoutbox-next.meta.js`.
 
-Les URL d’installation sont liées au tag de la version. Une mise à jour V4 ne
-peut donc jamais être fournie par une branche mutable ou un `push --force`.
-Pour passer à une nouvelle version, l’utilisateur installe explicitement
-l’artefact de la nouvelle release ; il n’existe pas de redirection silencieuse
-vers une release mutable.
+Avant publication, augmenter manuellement `@version` dans `metadata.user.js`.
+Le gestionnaire de userscripts peut alors comparer la version installée à celle
+du fichier `.meta.js` et récupérer le nouveau `.user.js` selon ses réglages de
+mise à jour. Les URL ne changent pas lors du bump.
+
+La publication modifie les artefacts par des commits normaux, sans `push --force`.
+Les accès d'écriture restent limités aux workflows de publication et `main`
+conserve ses protections de revue et de CI.
+
+Le workflow **Archive PimpMyShoutbox Next release** peut aussi conserver une
+archive facultative depuis un tag `pimpmyshoutbox-next-v<version>` correspondant
+au `@version`, avec `SHA256SUMS`. Cette archive n'est pas le canal de mise à jour
+et n'est pas nécessaire pour publier Next.
 
 ## Secrets Klipy et ImgBB
 

@@ -56,6 +56,26 @@ If `make` is available on your machine, use `make check` for the full metadata +
 
 ## Tampermonkey auto-update
 
+### Migration de PimpMyShoutbox legacy vers Next
+
+La dernière mise à jour legacy, **3.01.21**, ajoute **(DEPRECATED)** au nom du
+script et affiche une invitation à migrer vers Next. **Me rappeler plus tard**
+masque l'invitation jusqu'au prochain jour du calendrier local.
+
+Avant de migrer, exporter la configuration de l'ancien script via **Exporter
+la config**, installer Next, puis désactiver **Tr4ker - PimpMyShoutbox
+(DEPRECATED)** dans le tableau de bord de Tampermonkey, Greasemonkey ou
+Violentmonkey. Recharger Tr4ker et utiliser **Importer une config** dans les
+réglages de Next pour sélectionner le fichier JSON sauvegardé.
+
+Le bouton **Installer maintenant** utilise l'URL raw stable du script Next :
+`https://raw.githubusercontent.com/SaltedButch/tr4ker-scripting/userscripts/pimpmyshoutbox-next.user.js`.
+Le workflow **Publish Userscripts** construit et publie les artefacts legacy et
+Next ensemble depuis `main`, dans un même commit de la branche `userscripts`.
+Aucune release GitHub n'est nécessaire pour diffuser cette migration.
+
+### Publication des scripts
+
 Published artifacts are served from the `userscripts` branch. For each source file in `src/userscripts`, the build generates:
 
 - `dist/<script-id>.user.js`: installable script,
@@ -65,6 +85,7 @@ Current published scripts:
 
 ```text
 https://raw.githubusercontent.com/SaltedButch/tr4ker-scripting/userscripts/pimpmyshoutbox.user.js
+https://raw.githubusercontent.com/SaltedButch/tr4ker-scripting/userscripts/pimpmyshoutbox-next.user.js
 https://raw.githubusercontent.com/SaltedButch/tr4ker-scripting/userscripts/torr9conf.user.js
 ```
 
@@ -72,10 +93,14 @@ Current metadata URLs:
 
 ```text
 https://raw.githubusercontent.com/SaltedButch/tr4ker-scripting/userscripts/pimpmyshoutbox.meta.js
+https://raw.githubusercontent.com/SaltedButch/tr4ker-scripting/userscripts/pimpmyshoutbox-next.meta.js
 https://raw.githubusercontent.com/SaltedButch/tr4ker-scripting/userscripts/torr9conf.meta.js
 ```
 
-Those URLs are injected automatically at build time, so source files stay clean.
+Les URL legacy sont injectées automatiquement par le build Python. Les URL Next
+sont déclarées dans `next/pimpmyshoutbox/metadata.user.js` et reprises dans le
+bundle généré. Leur chemin reste stable lorsque la version change : seul
+`@version` doit être augmenté manuellement avant publication.
 
 Current script ids:
 
@@ -98,7 +123,8 @@ Detailed release steps are documented in [CONTRIBUTING.md](/CONTRIBUTING.md).
 ## GitHub Actions
 
 - `CI`: validates metadata and parses every userscript with `node --check` on pushes and pull requests.
-- `Publish Userscripts`: re-runs the syntax gate, rebuilds `dist/` on every push to `main` and publishes the result to `userscripts`.
+- `Publish Userscripts`: validates and rebuilds the legacy and Next scripts on every push to `main`, then publishes their generated artifacts to `userscripts`.
+- `Archive PimpMyShoutbox Next release`: optionally archives a tagged Next version in a GitHub Release; automatic updates use the stable raw URLs.
 
 ## Next repository actions
 

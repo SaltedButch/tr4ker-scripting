@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Tr4ker - PimpMyShoutbox
+// @name         Tr4ker - PimpMyShoutbox (DEPRECATED)
 // @namespace    http://tampermonkey.net/
-// @version      3.01.20
-// @description  Blacklist, mise en avant, mentions, réponses rapides contextuelles, GIF et confort avancé pour le chat Tr4ker
+// @version      3.01.21
+// @description  Ancienne version dépréciée. Migrez vers PimpMyShoutbox Next en exportant puis important votre configuration.
 // @author       Butchered
 // @match        https://tr4ker.net/*
 // @grant        GM_xmlhttpRequest
@@ -21,6 +21,9 @@
 
     const STORAGE_KEY_USERS = 'tm_hidden_shout_users_t4';
     const TR4KER_HOSTNAME = 'tr4ker.net';
+    const NEXT_SCRIPT_INSTALL_URL = 'https://raw.githubusercontent.com/SaltedButch/tr4ker-scripting/userscripts/pimpmyshoutbox-next.user.js';
+    const LEGACY_MIGRATION_NOTICE_ID = 'tm-t4-legacy-migration-notice';
+    const STORAGE_KEY_LEGACY_MIGRATION_SNOOZED_DATE = 'tm_t4_legacy_migration_snoozed_date';
     const PIXABAY_NOTIFICATION_SOUND_LIBRARY_URL = 'https://pixabay.com/fr/sound-effects/search/notification/';
     const PIXABAY_NOTIFICATION_SOUND_CDN_HOSTNAME = 'cdn.pixabay.com';
     const IS_MAC_PLATFORM = /mac|iphone|ipad|ipod/i.test([
@@ -25138,7 +25141,104 @@
     }, true);
 
 
+    /**
+     * Invite à migrer vers Next, avec un report jusqu'au prochain jour local.
+     * Le choix de rappel n'entre pas dans les sauvegardes de configuration.
+     */
+    function showLegacyMigrationNotice() {
+        const now = new Date();
+        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        if (!isTr4kerPage() || !document.body || document.getElementById(LEGACY_MIGRATION_NOTICE_ID)) return;
+        if (readStorageItem(STORAGE_KEY_LEGACY_MIGRATION_SNOOZED_DATE) === today) return;
+
+        const previousFocus = document.activeElement;
+        const previousOverflow = document.body.style.overflow;
+        const overlay = document.createElement('div');
+        overlay.id = LEGACY_MIGRATION_NOTICE_ID;
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;background:rgba(0,0,0,.72);';
+        const dialog = document.createElement('section');
+        dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('aria-modal', 'true');
+        dialog.setAttribute('aria-labelledby', `${LEGACY_MIGRATION_NOTICE_ID}-title`);
+        dialog.setAttribute('aria-describedby', `${LEGACY_MIGRATION_NOTICE_ID}-description`);
+        dialog.tabIndex = -1;
+        dialog.style.cssText = 'box-sizing:border-box;width:min(620px,100%);max-height:calc(100dvh - 32px);overflow:auto;padding:24px;border:1px solid #52525b;border-radius:16px;background:#18181b;color:#f4f4f5;box-shadow:0 24px 70px rgba(0,0,0,.5);font:14px/1.6 system-ui,sans-serif;';
+        dialog.innerHTML = `
+            <h2 id="${LEGACY_MIGRATION_NOTICE_ID}-title" style="margin:0 0 12px;font-size:21px;line-height:1.3;color:#fff;">Passez à PimpMyShoutbox Next</h2>
+            <p id="${LEGACY_MIGRATION_NOTICE_ID}-description" style="margin:0 0 14px;">Vous utilisez l’ancienne version de PimpMyShoutbox. Elle est désormais <strong>dépréciée</strong> et ne recevra plus de mises à jour. Passez à Next pour continuer à profiter des améliorations du script.</p>
+            <ol style="margin:0 0 14px;padding-left:22px;display:grid;gap:10px;">
+                <li><strong>Exportez votre configuration avant de migrer.</strong> Dans les réglages de l’ancien script, cliquez sur <strong>« Exporter la config »</strong> et conservez le fichier JSON.</li>
+                <li>Installez <strong>PimpMyShoutbox Next</strong> avec le bouton ci-dessous.</li>
+                <li>Ouvrez le <strong>tableau de bord de Tampermonkey, Greasemonkey ou Violentmonkey</strong>, puis <strong>désactivez « Tr4ker - PimpMyShoutbox (DEPRECATED) »</strong>. Gardez uniquement Next activé.</li>
+                <li>Rechargez Tr4ker. Dans les réglages de Next, cliquez sur <strong>« Importer une config »</strong> et sélectionnez votre fichier JSON pour retrouver votre configuration.</li>
+            </ol>
+            <p style="margin:0 0 18px;color:#a1a1aa;font-size:12px;">Pour faire votre sauvegarde avant l’installation, choisissez « Me rappeler plus tard », puis ouvrez les réglages de l’ancien script.</p>
+        `;
+        const actions = document.createElement('div');
+        actions.style.cssText = 'display:flex;flex-wrap:wrap;gap:10px;';
+        const install = document.createElement('a');
+        install.href = NEXT_SCRIPT_INSTALL_URL;
+        install.target = '_blank';
+        install.rel = 'noopener noreferrer';
+        install.textContent = 'Installer maintenant';
+        install.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;padding:10px 14px;border:1px solid #2563eb;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font:inherit;font-weight:650;';
+        const later = document.createElement('button');
+        later.type = 'button';
+        later.textContent = 'Me rappeler plus tard';
+        later.style.cssText = 'padding:10px 14px;border:1px solid #52525b;border-radius:8px;background:#27272a;color:#fff;font:inherit;cursor:pointer;';
+        actions.append(install, later);
+        dialog.append(actions);
+        overlay.append(dialog);
+
+        function close() {
+            overlay.remove();
+            window.removeEventListener('keydown', onKeyDown, true);
+            window.removeEventListener('storage', onStorage);
+            if (document.body.style.overflow === 'hidden') document.body.style.overflow = previousOverflow;
+            if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
+        }
+
+        function snooze() {
+            // Recalculer la date si la boîte a été laissée ouverte pendant la nuit.
+            const dismissedAt = new Date();
+            const date = `${dismissedAt.getFullYear()}-${String(dismissedAt.getMonth() + 1).padStart(2, '0')}-${String(dismissedAt.getDate()).padStart(2, '0')}`;
+            writeStorageItem(STORAGE_KEY_LEGACY_MIGRATION_SNOOZED_DATE, date);
+            close();
+        }
+
+        function onKeyDown(event) {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                snooze();
+            } else if (event.key === 'Tab') {
+                const focus = document.activeElement;
+                if ((!event.shiftKey && (focus === later || !actions.contains(focus)))
+                    || (event.shiftKey && (focus === install || !actions.contains(focus)))) {
+                    event.preventDefault();
+                    (event.shiftKey ? later : install).focus();
+                }
+            }
+        }
+
+        function onStorage(event) {
+            if (event.key !== STORAGE_KEY_LEGACY_MIGRATION_SNOOZED_DATE) return;
+            const current = new Date();
+            const date = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+            if (event.newValue === date) close();
+        }
+
+        install.addEventListener('click', close);
+        later.addEventListener('click', snooze);
+        window.addEventListener('keydown', onKeyDown, true);
+        window.addEventListener('storage', onStorage);
+        document.body.append(overlay);
+        document.body.style.overflow = 'hidden';
+        dialog.focus();
+    }
+
     function init() {
+        showLegacyMigrationNotice();
         installQuickToggleHandler();
         installNativeReplyShortcutHandler();
         installAfkAutoDisableOnManualSend();

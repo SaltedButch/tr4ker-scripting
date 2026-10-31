@@ -1,4 +1,4 @@
-name: Publish PimpMyShoutbox Next
+name: Archive PimpMyShoutbox Next release
 
 on:
   push:

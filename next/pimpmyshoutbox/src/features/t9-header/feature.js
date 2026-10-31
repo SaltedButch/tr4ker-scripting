@@ -90,16 +90,19 @@ function getNativeRoot(header) {
 function getNativeContext(header) {
     const root = getNativeRoot(header) || header;
     const searchForm = header.querySelector('form');
-    const userCard = document.querySelector('aside[aria-label="Navigation"] a[aria-label="Mon compte"]');
+    const userCard = document.querySelector('aside[aria-label="Navigation"] button[aria-label="Mon profil"]')
+        || document.querySelector('aside[aria-label="Navigation"] a[aria-label="Mon compte"]')
+        || document.querySelector('aside a[href="/mon-compte/profil"]');
     const avatar = userCard?.querySelector('img');
     const profileName = userCard?.querySelector('[class*="username"]')?.textContent?.trim()
         || userCard?.querySelector('span')?.textContent?.trim()
         || avatar?.getAttribute('alt')
         || 'Utilisateur';
-    const nativeLogout = [...document.querySelectorAll('aside[aria-label="Navigation"] button')].find((button) => {
-        const label = normalizeComparableText(button.textContent || button.getAttribute('aria-label'));
-        return label.includes('deconnexion') || label.includes('logout');
-    }) || null;
+    const nativeLogout = document.querySelector('button[aria-label="Déconnexion"], button[aria-label="Logout"]')
+        || [...document.querySelectorAll('aside[aria-label="Navigation"] button')].find((button) => {
+            const label = normalizeComparableText(button.getAttribute('aria-label') || button.textContent);
+            return label.includes('deconnexion') || label.includes('logout');
+        }) || null;
     const getHref = (selector, fallback) => {
         const link = root.querySelector(selector);
         return link instanceof HTMLAnchorElement ? link.getAttribute('href') || fallback : fallback;
@@ -112,6 +115,7 @@ function getNativeContext(header) {
         notificationsHref: getHref('a[title="Notifications"]', '/notifications'),
         profileName,
         avatarSrc: avatar?.getAttribute('src') || '',
+        hasProfile: Boolean(userCard),
         nativeLogout
     };
 }
@@ -141,10 +145,25 @@ function renderProfileLinks(context) {
     `;
 }
 
-function renderExtras(context) {
-    const avatar = context.avatarSrc
+function renderProfileAvatar(context) {
+    return context.avatarSrc
         ? `<img src="${escapeHtml(context.avatarSrc)}" alt="${escapeHtml(context.profileName)}">`
         : `<span class="tm-t4-t9-avatar-fallback">${escapeHtml(context.profileName.slice(0, 1).toUpperCase())}</span>`;
+}
+
+function syncProfile(extras, nativeContext) {
+    if (!nativeContext.hasProfile) return;
+    const name = extras.querySelector('[data-tm-t9-profile-name]');
+    if (name && name.textContent !== nativeContext.profileName) name.textContent = nativeContext.profileName;
+    const avatar = extras.querySelector('.tm-t4-t9-avatar');
+    const signature = JSON.stringify([nativeContext.profileName, nativeContext.avatarSrc]);
+    if (avatar && avatar.dataset.tmProfileSignature !== signature) {
+        avatar.innerHTML = renderProfileAvatar(nativeContext);
+        avatar.dataset.tmProfileSignature = signature;
+    }
+}
+
+function renderExtras(context) {
     return `
         <div id="${EXTRAS_ID}" data-tm-topbar-template="t9">
             <div class="tm-t4-t9-menu-zone" data-tm-t9-menu>
@@ -162,8 +181,8 @@ function renderExtras(context) {
             </a>
             <div class="tm-t4-t9-profile" data-tm-t9-profile>
                 <button type="button" data-tm-t9-profile-toggle aria-expanded="false">
-                    <span>Bienvenue <strong>${escapeHtml(context.profileName)}</strong></span>
-                    <span class="tm-t4-t9-avatar">${avatar}</span>
+                    <span>Bienvenue <strong data-tm-t9-profile-name>${escapeHtml(context.profileName)}</strong></span>
+                    <span class="tm-t4-t9-avatar">${renderProfileAvatar(context)}</span>
                 </button>
                 <div class="tm-t4-t9-profile-panel" data-tm-t9-profile-panel hidden>${renderProfileLinks(context)}<button type="button" data-tm-t9-logout>Déconnexion</button></div>
             </div>
@@ -337,6 +356,7 @@ export default defineFeature({
             }
             if (!(extras instanceof HTMLElement)) return;
             if (extras.parentElement !== header) header.append(extras);
+            syncProfile(extras, nativeContext);
             installHandlers(context, extras, () => getNativeContext(activeHeader || header).nativeLogout);
             if (statsPayload) renderStats(statsPayload);
             void fetchStats().then((payload) => { if (payload) renderStats(payload); }).catch(() => {});
